@@ -1,0 +1,47 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.810.25
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IndexerApp", "IndexerApp\IndexerApp.csproj", "{4B0FC57D-BE96-4E1B-BDF8-B8A750A47A4A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4B0FC57D-BE96-4E1B-BDF8-B8A750A47A4A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4B0FC57D-BE96-4E1B-BDF8-B8A750A47A4A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4B0FC57D-BE96-4E1B-BDF8-B8A750A47A4A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4B0FC57D-BE96-4E1B-BDF8-B8A750A47A4A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {813C817A-48FC-4B15-80B2-9E887ECCF1A4}
+	EndGlobalSection
+	GlobalSection(MonoDevelopProperties) = preSolution
+		Policies = $0
+		$0.DotNetNamingPolicy = $1
+		$1.DirectoryNamespaceAssociation = PrefixedHierarchical
+		$0.TextStylePolicy = $2
+		$2.FileWidth = 80
+		$2.TabsToSpaces = True
+		$2.scope = text/x-csharp
+		$0.CSharpFormattingPolicy = $3
+		$3.NewLinesForBracesInTypes = False
+		$3.NewLinesForBracesInProperties = False
+		$3.NewLinesForBracesInAccessors = False
+		$3.NewLinesForBracesInControlBlocks = False
+		$3.scope = text/x-csharp
+		$0.TextStylePolicy = $4
+		$4.FileWidth = 80
+		$4.TabsToSpaces = True
+		$4.scope = text/plain
+		$0.StandardHeader = $5
+		$5.IncludeInNewFiles = False
+		$0.VersionControlPolicy = $6
+	EndGlobalSection
+EndGlobal
