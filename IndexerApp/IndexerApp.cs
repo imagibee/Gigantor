@@ -6,6 +6,11 @@ using System.Text.RegularExpressions;
 using System.Diagnostics;
 using Imagibee.TextFile;
 
+//
+// A command line app that computes the line count of 1 or more file
+//
+// The main purpose of this app is to assist with performance benchmarking.
+//
 class IndexerApp {
     static void Main(string[] paths)
     {
@@ -64,7 +69,8 @@ class IndexerApp {
 
     static string RemoveUsername(string path)
     {
-        // remove username (mac)
+        // mac format
         return Regex.Replace(path, @"/Users/([^/]*/)", "~/");
+        // TODO: add more formats
     }
 }
