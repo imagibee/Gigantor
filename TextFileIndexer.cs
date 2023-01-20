@@ -18,11 +18,6 @@ namespace Imagibee {
         // seperates the file into chunks, and counts the lines in each
         // chunk.  These chunks are ultimately joined into a full index.
         //
-        // Performance can be tailored to a particular system by varying
-        // the chunkSize and maxWorkers parameters.  The test system
-        // achieved a maximum indexing rate of 143 MBytes/s with a 512
-        // KiByte chunkSize and maxWorkers set to 1.
-        //
         // Users should begin the process by calling Start with the path
         // of the file to index.  The LineCount property, Running property,
         // LastError property, and GetIndex method may be used at any time.
@@ -30,6 +25,9 @@ namespace Imagibee {
         // After the process is finished, the results are stored until Start
         // is called again.  Although, calling Start while Running is true
         // will have no effect.
+        //
+        // Performance can be tailored to a particular system by varying
+        // the chunkSize and maxWorkers parameters.
         //
         public class Indexer {
             // The number of lines that have been indexed so far
@@ -244,9 +242,9 @@ namespace Imagibee {
             ConcurrentQueue<ChunkJob> chunkJobs;
             List<IndexData> indexes;
             readonly int chunkSize;
+            readonly int maxWorkers;
             int currentChunk;
             int scheduledChunks;
-            int maxWorkers;
         }
     }
 }

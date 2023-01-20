@@ -5,6 +5,8 @@ VisualStudioVersion = 16.0.810.25
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IndexerApp", "IndexerApp\IndexerApp.csproj", "{4B0FC57D-BE96-4E1B-BDF8-B8A750A47A4A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Testing", "Testing\Testing.csproj", "{D6330B86-46DA-4E9B-9DFF-F63B499DF3EB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{4B0FC57D-BE96-4E1B-BDF8-B8A750A47A4A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4B0FC57D-BE96-4E1B-BDF8-B8A750A47A4A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4B0FC57D-BE96-4E1B-BDF8-B8A750A47A4A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D6330B86-46DA-4E9B-9DFF-F63B499DF3EB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D6330B86-46DA-4E9B-9DFF-F63B499DF3EB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D6330B86-46DA-4E9B-9DFF-F63B499DF3EB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D6330B86-46DA-4E9B-9DFF-F63B499DF3EB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
