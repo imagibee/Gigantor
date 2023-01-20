@@ -14,12 +14,12 @@ using Imagibee.TextFile;
 class IndexerApp {
     static void Main(string[] paths)
     {
-        var indexers = CreateIndexers(paths);
+        var indexers = StartIndexing(paths);
         var stopwatch = WaitForCompletion(indexers);
         DisplayResults(paths, indexers, stopwatch);
     }
 
-    static List<Indexer> CreateIndexers(string[] paths)
+    static List<Indexer> StartIndexing(string[] paths)
     {
         List<Indexer> indexers = new();
         foreach (var arg in paths) {
@@ -44,7 +44,7 @@ class IndexerApp {
             if (runningCount == 0) {
                 break;
             }
-            Thread.Sleep(1000);
+            Thread.Sleep(0);
         }
         stopwatch.Stop();
         return stopwatch;
