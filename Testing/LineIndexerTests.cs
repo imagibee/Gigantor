@@ -1,11 +1,10 @@
 ﻿using NUnit.Framework;
 using System.Threading;
 using System.IO;
-using Imagibee.TextFile;
-
+using Imagibee.Gigantor;
 
 namespace Testing {
-    public class Tests {
+    public class LineIndexerTests {
         [SetUp]
         public void Setup()
         {
@@ -14,15 +13,16 @@ namespace Testing {
         [Test]
         public void InitialStateTest()
         {
-            Indexer indexer = new();
+            LineIndexer indexer = new();
             Assert.AreEqual(false, indexer.Running);
+            Assert.AreEqual(0, indexer.LineCount);
             Assert.AreEqual(true, indexer.LastError == "");
         }
 
         [Test]
         public void EmptyPathTest()
         {
-            Indexer indexer = new();
+            LineIndexer indexer = new();
             indexer.Start("");
             while (indexer.Running == true) {
                 Thread.Sleep(0);
@@ -34,7 +34,7 @@ namespace Testing {
         [Test]
         public void MissingPathTest()
         {
-            Indexer indexer = new();
+            LineIndexer indexer = new();
             indexer.Start("A Missing File");
             while (indexer.Running == true) {
                 Thread.Sleep(0);
@@ -47,7 +47,7 @@ namespace Testing {
         public void SimpleTest()
         {
             var path = Path.Combine("Assets", "SimpleTest.txt");
-            Indexer indexer = new();
+            LineIndexer indexer = new();
             indexer.Start(path);
             while (indexer.Running == true) {
                 Logger.Log($"{indexer.LineCount} lines indexed");
@@ -73,7 +73,7 @@ namespace Testing {
             const string LINE_0001 = "The Project Gutenberg eBook of The King James Bible";
             const string LINE_1516 = "that he said, Escape for thy life; look not behind thee, neither stay";
             var path = Path.Combine("Assets", "BibleTest.txt");
-            Indexer indexer = new(chunkSize: 64 * 1024);
+            LineIndexer indexer = new(chunkSize: 64 * 1024);
             indexer.Start(path);
             while (indexer.Running == true) {
                 Logger.Log($"{indexer.LineCount} lines indexed");
