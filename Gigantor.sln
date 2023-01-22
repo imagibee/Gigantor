@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IndexerApp", "IndexerApp\In
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Testing", "Testing\Testing.csproj", "{D6330B86-46DA-4E9B-9DFF-F63B499DF3EB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SearcherApp", "SearcherApp\SearcherApp.csproj", "{03A9350E-67F4-4324-8187-B840501C5233}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{D6330B86-46DA-4E9B-9DFF-F63B499DF3EB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D6330B86-46DA-4E9B-9DFF-F63B499DF3EB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D6330B86-46DA-4E9B-9DFF-F63B499DF3EB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{03A9350E-67F4-4324-8187-B840501C5233}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{03A9350E-67F4-4324-8187-B840501C5233}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{03A9350E-67F4-4324-8187-B840501C5233}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{03A9350E-67F4-4324-8187-B840501C5233}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

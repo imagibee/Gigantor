@@ -4,7 +4,7 @@ using System.Threading;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
-using Imagibee.TextFile;
+using Imagibee.Gigantor;
 
 //
 // A command line app that computes the line count of 1 or more file
@@ -19,18 +19,18 @@ class IndexerApp {
         DisplayResults(paths, indexers, stopwatch);
     }
 
-    static List<Indexer> StartIndexing(string[] paths)
+    static List<LineIndexer> StartIndexing(string[] paths)
     {
-        List<Indexer> indexers = new();
+        List<LineIndexer> indexers = new();
         foreach (var arg in paths) {
-            var indexer = new Indexer();
+            var indexer = new LineIndexer();
             indexer.Start(arg);
             indexers.Add(indexer);
         }
         return indexers;
     }
 
-    static Stopwatch WaitForCompletion(List<Indexer> indexers)
+    static Stopwatch WaitForCompletion(List<LineIndexer> indexers)
     {
         Stopwatch stopwatch = new();
         stopwatch.Start();
@@ -50,7 +50,7 @@ class IndexerApp {
         return stopwatch;
     }
 
-    static void DisplayResults(string[] paths, List<Indexer> indexers, Stopwatch stopwatch)
+    static void DisplayResults(string[] paths, List<LineIndexer> indexers, Stopwatch stopwatch)
     {
         long totalBytes = 0;
         for (var i=0; i<paths.Length; i++) {

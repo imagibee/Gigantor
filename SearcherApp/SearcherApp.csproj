@@ -12,11 +12,11 @@
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\RegexSearcher.cs">
+      <Link>RegexSearcher.cs</Link>
+    </Compile>
     <Compile Include="..\Logging.cs">
       <Link>Logging.cs</Link>
-    </Compile>
-    <Compile Include="..\LineIndexer.cs">
-      <Link>LineIndexer.cs</Link>
     </Compile>
   </ItemGroup>
 </Project>
