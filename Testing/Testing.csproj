@@ -22,8 +22,11 @@
     <Compile Include="..\Logging.cs">
       <Link>Logging.cs</Link>
     </Compile>
-    <Compile Include="..\TextFileIndexer.cs">
-      <Link>TextFileIndexer.cs</Link>
+    <Compile Include="..\LineIndexer.cs">
+      <Link>LineIndexer.cs</Link>
+    </Compile>
+    <Compile Include="..\RegexSearcher.cs">
+      <Link>RegexSearcher.cs</Link>
     </Compile>
   </ItemGroup>
   <ItemGroup>
