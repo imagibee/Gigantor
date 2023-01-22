@@ -1,18 +1,16 @@
-# LargeTextFile
+# Gigantor
 A dotnet application library for working with large text files
 
 ## Contents
-### Imagibee.TextFile.Indexer
-A csharp class that indexes text files in the background.  The main problem being solved is optimizing the performance and memory footprint for very large text files concerning i) the determination of the number of lines, and ii) reading the text of a particular line.
 
-### IndexerApp
-A command line application for performance benchmarking.
+- `Imagibee.Gigantor.LineIndexer` - A csharp class that indexes text files in the background.  The main problem being solved is optimizing the performance and memory footprint for very large text files concerning i) the determination of the number of lines, and ii) reading the text of a particular line.
 
-### Unit tests
-Functional testing.
+- `IndexerApp` - A command line application for indexing multiple files that is intended for performance benchmarking.
+
+- Unit tests
 
 ## Performance
-The performance benchmark consists of using a release build of IndexerApp to index multiple copies of enwik9 (1e9 bytes, not included). For each case of files three trials were run and the fastest trial selected.  The Indexer class parameters were set to a chunkSize of 524,288 bytes with maxWorkers set to 1 for each case.
+The performance benchmark consists of using a release build of IndexerApp to index multiple copies of enwik9 (1e9 bytes, not included). For each case three trials were run and the fastest trial selected, and the Indexer class parameters were set to a chunkSize of 524,288 bytes with maxWorkers set to 1.
 
 ![Throughput Graph](https://github.com/imagibee/LargeTextFile/blob/main/Images/throughput.png?raw=true)
 

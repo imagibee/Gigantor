@@ -5,7 +5,7 @@ using System.Threading;
 using System.IO;
 
 namespace Imagibee {
-    namespace TextFile {
+    namespace Gigantor {
         //
         // Helper for optimizing reading lines for very large text files
         //
@@ -29,12 +29,12 @@ namespace Imagibee {
         // Performance can be tailored to a particular system by varying
         // the chunkSize and maxWorkers parameters.
         //
-        public class Indexer {
-            // The number of lines that have been indexed so far
-            public int LineCount { get; private set; } = 0;
-
+        public class LineIndexer {
             // True while index process is running
             public bool Running { get; private set; } = false;
+
+            // The number of lines that have been indexed so far
+            public int LineCount { get; private set; } = 0;
 
             // The error that caused the index process to end prematurely (if any)
             public string LastError { get; private set; } = "";
@@ -48,7 +48,7 @@ namespace Imagibee {
             }
 
             // Create a new instance 
-            public Indexer(int chunkSize = 512 * 1024, int maxWorkers = 1)
+            public LineIndexer(int chunkSize = 512 * 1024, int maxWorkers = 1)
             {
                 this.chunkSize = chunkSize;
                 this.maxWorkers = maxWorkers;
