@@ -48,10 +48,12 @@ namespace Imagibee {
             }
 
             // Create a new instance 
-            public LineIndexer(int chunkSize = 512 * 1024, int maxWorkers = 1)
+            public LineIndexer(AutoResetEvent progress, int chunkSize = 512 * 1024, int maxWorkers = 1)
             {
                 this.chunkSize = chunkSize;
                 this.maxWorkers = maxWorkers;
+                this.progress = progress;
+                synchronizer = new AutoResetEvent(false);
             }
 
             // Begin the indexing process in the background
@@ -103,8 +105,8 @@ namespace Imagibee {
                     // Work until the queues are empty
                     while (chunkJobs.Count != 0 || chunkResults.Count != 0 || scheduledChunks != 0) {
                         ScheduleChunks();
+                        synchronizer.WaitOne(1000);
                         JoinResults();
-                        Thread.Sleep(0);
                     }
                 }
                 catch (Exception e) {
@@ -113,14 +115,19 @@ namespace Imagibee {
                     LastError = e.ToString();
                 }
                 Running = false;
+                progress.Set();
             }
 
             void ScheduleChunks()
             {
-                if (scheduledChunks < maxWorkers) {
+                while (scheduledChunks < maxWorkers) {
                     if (chunkJobs.TryDequeue(out ChunkJob chunkJob)) {
-                        scheduledChunks++;
+                        Interlocked.Add(ref scheduledChunks, 1);
                         ThreadPool.QueueUserWorkItem((_) => MapChunk(chunkJob));
+                        //Logger.Log($"scheduled chunk {chunkJob.Id}, currently {scheduledChunks} scheduled chunks");
+                    }
+                    else {
+                        break;
                     }
                 }
             }
@@ -169,6 +176,7 @@ namespace Imagibee {
                         LineCount += chunk.LineCount;
                         chunkBuf.RemoveAt(0);
                         currentChunk++;
+                        progress.Set();
                     }
                 }
                 foreach (var chunk in chunkBuf) {
@@ -219,7 +227,8 @@ namespace Imagibee {
                     // for debugging, and abort the indexing process
                     LastError = e.ToString();
                 }
-                scheduledChunks--;
+                Interlocked.Add(ref scheduledChunks, -1);
+                synchronizer.Set();
             }
 
             // private types
@@ -240,6 +249,8 @@ namespace Imagibee {
             // private data
             ConcurrentQueue<ChunkResult> chunkResults;
             ConcurrentQueue<ChunkJob> chunkJobs;
+            readonly AutoResetEvent synchronizer;
+            readonly AutoResetEvent progress;
             List<IndexData> indexes;
             readonly int chunkSize;
             readonly int maxWorkers;

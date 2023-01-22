@@ -13,7 +13,7 @@ namespace Testing {
         [Test]
         public void InitialStateTest()
         {
-            LineIndexer indexer = new();
+            LineIndexer indexer = new(new AutoResetEvent(false));
             Assert.AreEqual(false, indexer.Running);
             Assert.AreEqual(0, indexer.LineCount);
             Assert.AreEqual(true, indexer.LastError == "");
@@ -22,7 +22,7 @@ namespace Testing {
         [Test]
         public void EmptyPathTest()
         {
-            LineIndexer indexer = new();
+            LineIndexer indexer = new(new AutoResetEvent(false));
             indexer.Start("");
             while (indexer.Running == true) {
                 Thread.Sleep(0);
@@ -34,7 +34,7 @@ namespace Testing {
         [Test]
         public void MissingPathTest()
         {
-            LineIndexer indexer = new();
+            LineIndexer indexer = new(new AutoResetEvent(false));
             indexer.Start("A Missing File");
             while (indexer.Running == true) {
                 Thread.Sleep(0);
@@ -47,7 +47,7 @@ namespace Testing {
         public void SimpleTest()
         {
             var path = Path.Combine("Assets", "SimpleTest.txt");
-            LineIndexer indexer = new();
+            LineIndexer indexer = new(new AutoResetEvent(false));
             indexer.Start(path);
             while (indexer.Running == true) {
                 Logger.Log($"{indexer.LineCount} lines indexed");
@@ -73,7 +73,7 @@ namespace Testing {
             const string LINE_0001 = "The Project Gutenberg eBook of The King James Bible";
             const string LINE_1516 = "that he said, Escape for thy life; look not behind thee, neither stay";
             var path = Path.Combine("Assets", "BibleTest.txt");
-            LineIndexer indexer = new(chunkSize: 64 * 1024);
+            LineIndexer indexer = new(new AutoResetEvent(false), chunkSize: 64 * 1024);
             indexer.Start(path);
             while (indexer.Running == true) {
                 Logger.Log($"{indexer.LineCount} lines indexed");

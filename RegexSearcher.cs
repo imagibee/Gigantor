@@ -184,8 +184,8 @@ namespace Imagibee {
             ConcurrentQueue<IndexData> chunkResults;
             ConcurrentQueue<ChunkJob> chunkJobs;
             List<IndexData> indexes;
-            AutoResetEvent synchronizer;
-            AutoResetEvent progress;
+            readonly AutoResetEvent synchronizer;
+            readonly AutoResetEvent progress;
             readonly int chunkSize;
             readonly int maxWorkers;
             int overlap;
