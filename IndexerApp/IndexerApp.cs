@@ -14,39 +14,55 @@ using Imagibee.Gigantor;
 class IndexerApp {
     static void Main(string[] paths)
     {
-        var indexers = StartIndexing(paths);
-        var stopwatch = WaitForCompletion(indexers);
+        AutoResetEvent progress = new(false);
+        var indexers = StartIndexing(progress, paths);
+        var stopwatch = WaitForCompletion(progress, indexers);
         DisplayResults(paths, indexers, stopwatch);
     }
 
-    static List<LineIndexer> StartIndexing(string[] paths)
+    static List<LineIndexer> StartIndexing(AutoResetEvent progress, string[] paths)
     {
         List<LineIndexer> indexers = new();
         foreach (var arg in paths) {
-            var indexer = new LineIndexer();
+            var indexer = new LineIndexer(progress);
             indexer.Start(arg);
             indexers.Add(indexer);
         }
         return indexers;
     }
 
-    static Stopwatch WaitForCompletion(List<LineIndexer> indexers)
+    static Stopwatch WaitForCompletion(AutoResetEvent progress, List<LineIndexer> indexers)
     {
         Stopwatch stopwatch = new();
         stopwatch.Start();
+        double lastTime = 0;
         while (true) {
             var runningCount = 0;
+            var error = false;
             foreach (var indexer in indexers) {
                 if (indexer.Running) {
                     runningCount++;
+                }
+                if (indexer.LastError != "") {
+                    error = true;
                 }
             }
             if (runningCount == 0) {
                 break;
             }
-            Thread.Sleep(0);
+            progress.WaitOne(1000);
+            if (stopwatch.Elapsed.TotalSeconds - lastTime > 1) {
+                lastTime = stopwatch.Elapsed.TotalSeconds;
+                if (error) {
+                    Console.Write('E');
+                }
+                else {
+                    Console.Write('.');
+                }
+            }
         }
         stopwatch.Stop();
+        Console.Write('\n');
         return stopwatch;
     }
 
