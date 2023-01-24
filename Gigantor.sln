@@ -3,11 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.810.25
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IndexerApp", "IndexerApp\IndexerApp.csproj", "{4B0FC57D-BE96-4E1B-BDF8-B8A750A47A4A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LineApp", "LineApp\LineApp.csproj", "{4B0FC57D-BE96-4E1B-BDF8-B8A750A47A4A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Testing", "Testing\Testing.csproj", "{D6330B86-46DA-4E9B-9DFF-F63B499DF3EB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SearcherApp", "SearcherApp\SearcherApp.csproj", "{03A9350E-67F4-4324-8187-B840501C5233}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SearchApp", "SearchApp\SearchApp.csproj", "{03A9350E-67F4-4324-8187-B840501C5233}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{D56217B2-6E67-4152-B302-8597AB9BE1B5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

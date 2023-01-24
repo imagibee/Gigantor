@@ -6,14 +6,17 @@
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <LangVersion>latest</LangVersion>
+    <LangVersion>9.0</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <LangVersion>latest</LangVersion>
+    <LangVersion>9.0</LangVersion>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\Logging.cs">
       <Link>Logging.cs</Link>
+    </Compile>
+    <Compile Include="..\Utilities.cs">
+      <Link>Utilities.cs</Link>
     </Compile>
     <Compile Include="..\LineIndexer.cs">
       <Link>LineIndexer.cs</Link>

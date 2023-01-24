@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.IO;
+using System.Collections.ObjectModel;
 
 namespace Imagibee {
     namespace Gigantor {
@@ -10,6 +11,9 @@ namespace Imagibee {
         // Helper for optimizing regex search for very large text files
         //
         public class RegexSearcher {
+            // Path of the last successfully started indexing operation
+            public string Path { get; private set; } = "";
+
             // True while index process is running
             public bool Running { get; private set; } = false;
 
@@ -35,8 +39,12 @@ namespace Imagibee {
                 // TODO: add support for Groups
             }
 
-            // Create a new instance 
-            public RegexSearcher(AutoResetEvent progress, int chunkSize = 512 * 1024, int maxWorkers = 128)
+            // Create a new instance
+            //
+            // progress - signaled each time MatchCount is updated
+            // chunkSize - the size in bytes that each worker works on
+            // maxWorkers - the maximum number of simultaneous workers
+            public RegexSearcher(AutoResetEvent progress, int chunkSize, int maxWorkers)
             {
                 this.chunkSize = chunkSize;
                 this.maxWorkers = maxWorkers;
@@ -45,10 +53,15 @@ namespace Imagibee {
             }
 
             // Begin the search process in the background
+            //
+            // filePath - the path of the file to search
+            // regex - the regular expression to match against the file
+            // maxMatchSize - the maximum size of a matched value
             public void Start(string filePath, System.Text.RegularExpressions.Regex regex, int maxMatchSize)
             {
-                LastError = "";
                 if (!Running) {
+                    LastError = "";
+                    Path = filePath;
                     overlap = maxMatchSize;
                     Running = true;
                     scheduledChunks = 0;
@@ -59,10 +72,41 @@ namespace Imagibee {
                 }
             }
 
-            // Return the MatchData of current progress
-            public List<IndexData> GetMatchData()
+            // Efficiently block until background work completes
+            public void Wait()
             {
-                return indexes;
+                while (Running) {
+                    progress.WaitOne(1000);
+                }
+            }
+
+            // Wait for multiple line searchers to all complete their background work
+            //
+            // searchers - a enumerable set of started indexers to wait for
+            // OnProgressOrTimeout - called each time LineCount is updated, or at frequency determined by the timeout parameter
+            // timeoutMilliSeconds - the time in milliseconds between callbacks
+            public static void Wait(IEnumerable<RegexSearcher> searchers, AutoResetEvent progress, Action<int> OnProgressOrTimeout, int timeoutMilliSeconds)
+            {
+                while (true) {
+                    var runningCount = 0;
+                    foreach (var searcher in searchers) {
+                        if (searcher.Running) {
+                            runningCount++;
+                        }
+                    }
+                    if (runningCount == 0) {
+                        break;
+                    }
+                    progress.WaitOne(timeoutMilliSeconds);
+                    OnProgressOrTimeout(runningCount);
+                }
+            }
+
+
+            // Return the MatchData of current progress
+            public ReadOnlyCollection<IndexData> GetMatchData()
+            {
+                return indexes.AsReadOnly();
             }
 
             void ManageJobs(string filePath, System.Text.RegularExpressions.Regex regex)
@@ -103,7 +147,7 @@ namespace Imagibee {
 
             void ScheduleChunks(System.Text.RegularExpressions.Regex regex)
             {
-                while (scheduledChunks < maxWorkers) {
+                while (scheduledChunks < maxWorkers || maxWorkers < 1) {
                     if (chunkJobs.TryDequeue(out ChunkJob chunkJob)) {
                         Interlocked.Add(ref scheduledChunks, 1);
                         ThreadPool.QueueUserWorkItem((_) => MapChunk(chunkJob, regex));
