@@ -9,6 +9,9 @@ using Imagibee.Gigantor;
 //
 // The main purpose of this app is to assist with performance benchmarking.
 //
+// Usage - benchmarking
+//   dotnet LineApp/bin/Release/netcoreapp3.1/LineApp.dll benchmark /tmp/enwik9.txt /tmp/enwik9-1.txt
+//
 class LineApp {
     static string Error = "";
 
@@ -65,7 +68,7 @@ class LineApp {
         return new Tuple<SessionType, SessionData>(sessionType, sessionData);
     }
 
-    static IEnumerable<SessionData> CreateSessionData(SessionType sessionType, SessionData sessionData)
+    static ICollection<SessionData> CreateSessionData(SessionType sessionType, SessionData sessionData)
     {
         if (sessionType == SessionType.Benchmark) {
             return CreateBenchmarkSession(sessionData);
@@ -75,7 +78,7 @@ class LineApp {
         }
     }
 
-    static IEnumerable<SessionData> CreateBenchmarkSession(SessionData sessionInfo)
+    static ICollection<SessionData> CreateBenchmarkSession(SessionData sessionInfo)
     {
         List<SessionData> sessionDatas = new();
         foreach (var maxWorkers in new List<int>() { 1, 2, 16, 0 }) {
@@ -92,7 +95,7 @@ class LineApp {
         return sessionDatas;
     }
 
-    static IEnumerable<SessionData> CreateNormalSession(SessionData sessionInfo)
+    static ICollection<SessionData> CreateNormalSession(SessionData sessionInfo)
     {
         List<SessionData> sessionDatas = new();
         SessionData sessionData = new()
@@ -107,7 +110,7 @@ class LineApp {
         return sessionDatas;
     }
 
-    static void DoSessions(IEnumerable<SessionData> sessionDatas)
+    static void DoSessions(ICollection<SessionData> sessionDatas)
     {
         AutoResetEvent progress = new(false);
         foreach (var sessionData in sessionDatas) {
@@ -128,7 +131,7 @@ class LineApp {
         }
     }
 
-    static IEnumerable<LineIndexer> StartIndexing(AutoResetEvent progress, SessionData sessionData)
+    static ICollection<LineIndexer> StartIndexing(AutoResetEvent progress, SessionData sessionData)
     {
         List<LineIndexer> indexers = new();
         foreach (var path in sessionData.paths) {
@@ -139,7 +142,7 @@ class LineApp {
         return indexers;
     }
 
-    static void WaitForCompletion(AutoResetEvent progress, IEnumerable<LineIndexer> indexers, Stopwatch stopwatch)
+    static void WaitForCompletion(AutoResetEvent progress, ICollection<LineIndexer> indexers, Stopwatch stopwatch)
     {
         double lastTime = 0;
         stopwatch.Start();

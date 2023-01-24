@@ -24,7 +24,7 @@ AutoResetEvent progress = new(false);
 // Instantiate a indexer with i) our wait event, ii) the chunk size which can be
 // used to optimize performance for the platform (64K to 1MB should be reasonable),
 // and the maximum number of workers which can also be used to optimize performance
-LineIndexer indexer = new(new AutoResetEvent(false), 512 * 1024, 1);
+LineIndexer indexer = new(progress, 512 * 1024, 1);
 
 // Start indexing the requested path
 indexer.Start(path);
@@ -36,7 +36,7 @@ while (indexer.Running) {
 }
 Console.Write('\n');
 
-// At this point the index is done and can be used
+// At this point the index is done, partial results can be used prior to completion
 if (indexer.LastError.Length == 0) {
     Console.WriteLine($"Found {indexer.LineCount} lines");
 }
@@ -78,7 +78,7 @@ while (searcher.Running) {
 }
 Console.Write('\n');
 
-// At this point the search is done and match results can be used
+// At this point the search is done, partial results can be used prior to completion
 if (searcher.LastError.Length == 0) {
     Console.WriteLine($"Found {searcher.MatchCount} matches");
     foreach (var matchData in searcher.GetMatchData()) {
