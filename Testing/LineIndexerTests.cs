@@ -1,19 +1,24 @@
 ﻿using NUnit.Framework;
 using System.Threading;
+using System.Collections.Generic;
 using System.IO;
 using Imagibee.Gigantor;
 
 namespace Testing {
     public class LineIndexerTests {
+        readonly int chunkSize = 64 * 1024;
+        readonly int maxWorkers = 1;
+
         [SetUp]
         public void Setup()
         {
+
         }
 
         [Test]
         public void InitialStateTest()
         {
-            LineIndexer indexer = new(new AutoResetEvent(false));
+            LineIndexer indexer = new(new AutoResetEvent(false), chunkSize, maxWorkers);
             Assert.AreEqual(false, indexer.Running);
             Assert.AreEqual(0, indexer.LineCount);
             Assert.AreEqual(true, indexer.LastError == "");
@@ -22,11 +27,9 @@ namespace Testing {
         [Test]
         public void EmptyPathTest()
         {
-            LineIndexer indexer = new(new AutoResetEvent(false));
+            LineIndexer indexer = new(new AutoResetEvent(false), chunkSize, maxWorkers);
             indexer.Start("");
-            while (indexer.Running == true) {
-                Thread.Sleep(0);
-            }
+            indexer.Wait();
             Logger.Log($"error was {indexer.LastError}");
             Assert.AreEqual(true, indexer.LastError != "");
         }
@@ -34,11 +37,9 @@ namespace Testing {
         [Test]
         public void MissingPathTest()
         {
-            LineIndexer indexer = new(new AutoResetEvent(false));
+            LineIndexer indexer = new(new AutoResetEvent(false), chunkSize, maxWorkers);
             indexer.Start("A Missing File");
-            while (indexer.Running == true) {
-                Thread.Sleep(0);
-            }
+            indexer.Wait();
             Logger.Log($"error was {indexer.LastError}");
             Assert.AreEqual(true, indexer.LastError != "");
         }
@@ -47,12 +48,9 @@ namespace Testing {
         public void SimpleTest()
         {
             var path = Path.Combine("Assets", "SimpleTest.txt");
-            LineIndexer indexer = new(new AutoResetEvent(false));
+            LineIndexer indexer = new(new AutoResetEvent(false), chunkSize, maxWorkers);
             indexer.Start(path);
-            while (indexer.Running == true) {
-                Logger.Log($"{indexer.LineCount} lines indexed");
-                Thread.Sleep(10);
-            }
+            indexer.Wait();
             Assert.AreEqual(true, indexer.LastError == "");
             Assert.AreEqual(6, indexer.LineCount);
             var index = indexer.GetIndex(0);
@@ -73,12 +71,14 @@ namespace Testing {
             const string LINE_0001 = "The Project Gutenberg eBook of The King James Bible";
             const string LINE_1516 = "that he said, Escape for thy life; look not behind thee, neither stay";
             var path = Path.Combine("Assets", "BibleTest.txt");
-            LineIndexer indexer = new(new AutoResetEvent(false), chunkSize: 64 * 1024);
+            AutoResetEvent progress = new(false);
+            LineIndexer indexer = new(progress, chunkSize, maxWorkers);
             indexer.Start(path);
-            while (indexer.Running == true) {
-                Logger.Log($"{indexer.LineCount} lines indexed");
-                Thread.Sleep(1000);
-            }
+            LineIndexer.Wait(
+                new List<LineIndexer>() { indexer },
+                progress,
+                (_) => {},
+                1000);
             Assert.AreEqual(true, indexer.LastError == "");
             Assert.AreEqual(100264, indexer.LineCount);
             using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);

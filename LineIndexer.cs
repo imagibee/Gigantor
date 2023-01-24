@@ -30,6 +30,9 @@ namespace Imagibee {
         // the chunkSize and maxWorkers parameters.
         //
         public class LineIndexer {
+            // Path of the last successfully started indexing operation
+            public string Path { get; private set; } = "";
+
             // True while index process is running
             public bool Running { get; private set; } = false;
 
@@ -47,8 +50,12 @@ namespace Imagibee {
                 public long StartFpos;
             }
 
-            // Create a new instance 
-            public LineIndexer(AutoResetEvent progress, int chunkSize = 512 * 1024, int maxWorkers = 1)
+            // Create a new instance
+            //
+            // progress - signaled each time MatchCount is updated
+            // chunkSize - the size in bytes that each worker works on
+            // maxWorkers - the maximum number of simultaneous workers
+            public LineIndexer(AutoResetEvent progress, int chunkSize, int maxWorkers)
             {
                 this.chunkSize = chunkSize;
                 this.maxWorkers = maxWorkers;
@@ -59,8 +66,9 @@ namespace Imagibee {
             // Begin the indexing process in the background
             public void Start(string filePath)
             {
-                LastError = "";
                 if (!Running) {
+                    LastError = "";
+                    Path = filePath;
                     Running = true;
                     currentChunk = -1;
                     scheduledChunks = 0;
@@ -68,6 +76,36 @@ namespace Imagibee {
                     chunkJobs = new ConcurrentQueue<ChunkJob>();
                     indexes = new List<IndexData>();
                     ThreadPool.QueueUserWorkItem((_) => ManageJobs(filePath));
+                }
+            }
+
+            // Efficiently block until background work completes
+            public void Wait()
+            {
+                while (Running) {
+                    progress.WaitOne(1000);
+                }
+            }
+
+            // Wait for multiple line indexers to all complete their background work
+            //
+            // indexers - a enumerable set of started indexers to wait for
+            // OnProgressOrTimeout - called each time LineCount is updated, or at frequency determined by the timeout parameter
+            // timeoutMilliSeconds - the time in milliseconds between callbacks
+            public static void Wait(IEnumerable<LineIndexer> indexers, AutoResetEvent progress, Action<int> OnProgressOrTimeout, int timeoutMilliSeconds)
+            {
+                while (true) {
+                    var runningCount = 0;
+                    foreach (var indexer in indexers) {
+                        if (indexer.Running) {
+                            runningCount++;
+                        }
+                    }
+                    if (runningCount == 0) {
+                        break;
+                    }
+                    progress.WaitOne(timeoutMilliSeconds);
+                    OnProgressOrTimeout(runningCount);
                 }
             }
 
@@ -120,7 +158,7 @@ namespace Imagibee {
 
             void ScheduleChunks()
             {
-                while (scheduledChunks < maxWorkers) {
+                while (scheduledChunks < maxWorkers || maxWorkers < 1) {
                     if (chunkJobs.TryDequeue(out ChunkJob chunkJob)) {
                         Interlocked.Add(ref scheduledChunks, 1);
                         ThreadPool.QueueUserWorkItem((_) => MapChunk(chunkJob));
