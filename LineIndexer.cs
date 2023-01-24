@@ -33,7 +33,7 @@ namespace Imagibee {
             public bool Running { get; private set; } = false;
 
             // The number of lines that have been indexed so far
-            public int LineCount { get; private set; } = 0;
+            public long LineCount { get; private set; } = 0;
 
             // The error that caused the index process to end prematurely (if any)
             public string LastError { get; private set; } = "";
@@ -41,8 +41,8 @@ namespace Imagibee {
             // A structure for storing the values of chunk
             public struct ChunkData {
                 public string Path;
-                public int StartLine;
-                public int EndLine;
+                public long StartLine;
+                public long EndLine;
                 public long StartFpos;
             }
 
@@ -106,7 +106,7 @@ namespace Imagibee {
             }
 
             // Return the IndexData that contains the starting byte of the requested line
-            public ChunkData? GetIndex(int line)
+            public ChunkData? GetIndex(long line)
             {
                 if (line > 0 && line <= LineCount) {
                     foreach (var index in indexes) {
@@ -275,9 +275,9 @@ namespace Imagibee {
                 public int Id;
                 public string Path;
                 public long StartFpos;
-                public int LineCount;
+                public long LineCount;
                 public bool EolEnding;
-                public int FirstEolOffset;
+                public long FirstEolOffset;
             };
 
             // private data
