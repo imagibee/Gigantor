@@ -10,6 +10,9 @@ using Imagibee.Gigantor;
 //
 // The main purpose of this app is to assist with performance benchmarking.
 //
+// Usage - benchmarking
+//   dotnet SearchApp/bin/Release/netcoreapp3.1/SearchApp.dll benchmark /tmp/enwik9.txt /tmp/enwik9-1.txt
+//
 class SearchApp {
     static string Error = "";
 
@@ -70,7 +73,7 @@ class SearchApp {
         return new Tuple<SessionType, SessionData>(sessionType, sessionData);
     }
 
-    static IEnumerable<SessionData> CreateSessionData(SessionType sessionType, SessionData sessionData)
+    static ICollection<SessionData> CreateSessionData(SessionType sessionType, SessionData sessionData)
     {
         if (sessionType == SessionType.Benchmark) {
             return CreateBenchmarkSession(sessionData);
@@ -80,7 +83,7 @@ class SearchApp {
         }
     }
 
-    static IEnumerable<SessionData> CreateBenchmarkSession(SessionData sessionInfo)
+    static ICollection<SessionData> CreateBenchmarkSession(SessionData sessionInfo)
     {
         List<SessionData> sessionDatas = new();
         foreach (var maxWorkers in new List<int>() { 1, 2, 16, 0 }) {
@@ -98,7 +101,7 @@ class SearchApp {
         return sessionDatas;
     }
 
-    static IEnumerable<SessionData> CreateNormalSession(SessionData sessionInfo)
+    static ICollection<SessionData> CreateNormalSession(SessionData sessionInfo)
     {
         List<SessionData> sessionDatas = new();
         SessionData sessionData = new()
@@ -114,7 +117,7 @@ class SearchApp {
         return sessionDatas;
     }
 
-    static void DoSessions(IEnumerable<SessionData> sessionDatas)
+    static void DoSessions(ICollection<SessionData> sessionDatas)
     {
         AutoResetEvent progress = new(false);
         foreach (var sessionData in sessionDatas) {
@@ -135,7 +138,7 @@ class SearchApp {
         }
     }
 
-    static IEnumerable<RegexSearcher> StartSearching(AutoResetEvent progress, SessionData sessionData)
+    static ICollection<RegexSearcher> StartSearching(AutoResetEvent progress, SessionData sessionData)
     {
         List<RegexSearcher> searchers = new();
         foreach (var path in sessionData.paths) {
@@ -149,7 +152,7 @@ class SearchApp {
         return searchers;
     }
 
-    static void WaitForCompletion(AutoResetEvent progress, IEnumerable<RegexSearcher> searchers, Stopwatch stopwatch)
+    static void WaitForCompletion(AutoResetEvent progress, ICollection<RegexSearcher> searchers, Stopwatch stopwatch)
     {
         double lastTime = 0;
         stopwatch.Start();
