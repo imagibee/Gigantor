@@ -8,27 +8,43 @@ using System.Collections.ObjectModel;
 namespace Imagibee {
     namespace Gigantor {
         //
-        // Helper for optimizing regex search for very large text files
+        // Helper for optimizing regex searching against very large files
+        //
+        // To achieve this goal the search process runs in the background,
+        // seperates the file into chunks, and counts the lines in each
+        // chunk.  These chunks are ultimately joined into a continuous
+        // result.
+        //
+        // Users should begin the process by calling Start with the path
+        // of the file to search and a Regex instance.  The MatchCount
+        // property, Running property, LastError property, and GetMatchData
+        // method may be used at any time.
+        //
+        // After the process is finished, the results are stored until Start
+        // is called again.  Although, calling Start while Running is true
+        // will have no effect.
+        //
+        // Performance can be tailored to a particular system by varying
+        // the chunkSize and maxWorkers parameters.
         //
         public class RegexSearcher {
-            // Path of the last successfully started indexing operation
+            // Path of the last successfully started search operation
             public string Path { get; private set; } = "";
 
-            // True while index process is running
+            // True while serach process is running
             public bool Running { get; private set; } = false;
 
             // The number of matches found so far
             public int MatchCount { get; private set; }
 
-            // The error that caused the index process to end prematurely (if any)
+            // The error that caused the search process to end prematurely (if any)
             public string LastError { get; private set; } = "";
 
-            // A structure for storing the values of match index
-            public struct IndexData {
+            // A structure for storing the values of a chunk
+            public struct ChunkData {
                 public string Path;
                 public long StartFpos;
                 public List<MatchData> Matches;
-                //public System.Text.RegularExpressions.MatchCollection Matches;
             }
 
             // A structure for storing a single match value
@@ -65,9 +81,9 @@ namespace Imagibee {
                     overlap = maxMatchSize;
                     Running = true;
                     scheduledChunks = 0;
-                    chunkResults = new ConcurrentQueue<IndexData>();
+                    chunkResults = new ConcurrentQueue<ChunkData>();
                     chunkJobs = new ConcurrentQueue<ChunkJob>();
-                    indexes = new List<IndexData>();
+                    chunks = new List<ChunkData>();
                     ThreadPool.QueueUserWorkItem((_) => ManageJobs(filePath, regex));
                 }
             }
@@ -82,10 +98,10 @@ namespace Imagibee {
 
             // Wait for multiple line searchers to all complete their background work
             //
-            // searchers - a enumerable set of started indexers to wait for
+            // searchers - a enumerable set of started searchers to wait for
             // OnProgressOrTimeout - called each time LineCount is updated, or at frequency determined by the timeout parameter
             // timeoutMilliSeconds - the time in milliseconds between callbacks
-            public static void Wait(IEnumerable<RegexSearcher> searchers, AutoResetEvent progress, Action<int> OnProgressOrTimeout, int timeoutMilliSeconds)
+            public static void Wait(ICollection<RegexSearcher> searchers, AutoResetEvent progress, Action<int> OnProgressOrTimeout, int timeoutMilliSeconds)
             {
                 while (true) {
                     var runningCount = 0;
@@ -104,9 +120,9 @@ namespace Imagibee {
 
 
             // Return the MatchData of current progress
-            public ReadOnlyCollection<IndexData> GetMatchData()
+            public ReadOnlyCollection<ChunkData> GetMatchData()
             {
-                return indexes.AsReadOnly();
+                return chunks.AsReadOnly();
             }
 
             void ManageJobs(string filePath, System.Text.RegularExpressions.Regex regex)
@@ -136,7 +152,7 @@ namespace Imagibee {
                 }
                 catch (Exception e) {
                     // In the background catch all exceptions, record the text
-                    // for debugging, and abort the indexing process
+                    // for debugging, and abort the search process
                     LastError = e.ToString();
                     Logger.Log($"ERROR: manager : {LastError}");
                 }
@@ -162,8 +178,8 @@ namespace Imagibee {
             void JoinResults()
             {
                 // TODO: add de-duplication here since duplicates can occurr in the overlap region
-                while (chunkResults.TryDequeue(out IndexData chunkResult)) {
-                    indexes.Add(chunkResult);
+                while (chunkResults.TryDequeue(out ChunkData chunkResult)) {
+                    chunks.Add(chunkResult);
                     MatchCount += chunkResult.Matches.Count;
                     progress.Set();
                 }
@@ -197,7 +213,7 @@ namespace Imagibee {
                             }
                         }
                         chunkResults.Enqueue(
-                            new IndexData()
+                            new ChunkData()
                             {
                                 Path = chunk.Path,
                                 StartFpos = chunk.StartFpos,
@@ -208,7 +224,7 @@ namespace Imagibee {
                 }
                 catch (Exception e) {
                     // In the background catch all exceptions, record the text
-                    // for debugging, and abort the indexing process
+                    // for debugging, and abort the searching process
                     LastError = e.ToString();
                     Logger.Log($"ERROR: chunk {chunk.Id}: {LastError}");
                 }
@@ -225,9 +241,9 @@ namespace Imagibee {
             };
 
             // private data
-            ConcurrentQueue<IndexData> chunkResults;
+            ConcurrentQueue<ChunkData> chunkResults;
             ConcurrentQueue<ChunkJob> chunkJobs;
-            List<IndexData> indexes;
+            List<ChunkData> chunks;
             readonly AutoResetEvent synchronizer;
             readonly AutoResetEvent progress;
             readonly int chunkSize;

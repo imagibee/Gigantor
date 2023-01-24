@@ -7,16 +7,12 @@ using System.IO;
 namespace Imagibee {
     namespace Gigantor {
         //
-        // Helper for optimizing reading lines for very large text files
-        //
-        // The main problem being solved is optimizing the performance and
-        // memory footprint for very large text files concerning i) the
-        // determination of the number of lines, and ii) reading the text
-        // of a particular line.
+        // Helper for optimizing reading lines for very large files
         //
         // To achieve this goal the index process runs in the background,
         // seperates the file into chunks, and counts the lines in each
-        // chunk.  These chunks are ultimately joined into a full index.
+        // chunk.  These chunks are ultimately joined into a continuous
+        // result.
         //
         // Users should begin the process by calling Start with the path
         // of the file to index.  The LineCount property, Running property,
@@ -42,8 +38,8 @@ namespace Imagibee {
             // The error that caused the index process to end prematurely (if any)
             public string LastError { get; private set; } = "";
 
-            // A structure for storing the values of an index
-            public struct IndexData {
+            // A structure for storing the values of chunk
+            public struct ChunkData {
                 public string Path;
                 public int StartLine;
                 public int EndLine;
@@ -74,7 +70,7 @@ namespace Imagibee {
                     scheduledChunks = 0;
                     chunkResults = new ConcurrentQueue<ChunkResult>();
                     chunkJobs = new ConcurrentQueue<ChunkJob>();
-                    indexes = new List<IndexData>();
+                    indexes = new List<ChunkData>();
                     ThreadPool.QueueUserWorkItem((_) => ManageJobs(filePath));
                 }
             }
@@ -92,7 +88,7 @@ namespace Imagibee {
             // indexers - a enumerable set of started indexers to wait for
             // OnProgressOrTimeout - called each time LineCount is updated, or at frequency determined by the timeout parameter
             // timeoutMilliSeconds - the time in milliseconds between callbacks
-            public static void Wait(IEnumerable<LineIndexer> indexers, AutoResetEvent progress, Action<int> OnProgressOrTimeout, int timeoutMilliSeconds)
+            public static void Wait(ICollection<LineIndexer> indexers, AutoResetEvent progress, Action<int> OnProgressOrTimeout, int timeoutMilliSeconds)
             {
                 while (true) {
                     var runningCount = 0;
@@ -110,7 +106,7 @@ namespace Imagibee {
             }
 
             // Return the IndexData that contains the starting byte of the requested line
-            public IndexData? GetIndex(int line)
+            public ChunkData? GetIndex(int line)
             {
                 if (line > 0 && line <= LineCount) {
                     foreach (var index in indexes) {
@@ -187,7 +183,7 @@ namespace Imagibee {
                     chunkBuf.Sort((a, b) => a.Id.CompareTo(b.Id));
                     var chunk = chunkBuf[0];
                     if (chunk.Id == currentChunk + 1) {
-                        var index = new IndexData()
+                        var index = new ChunkData()
                         {
                             Path = chunk.Path,
                             StartLine = 1,
@@ -289,7 +285,7 @@ namespace Imagibee {
             ConcurrentQueue<ChunkJob> chunkJobs;
             readonly AutoResetEvent synchronizer;
             readonly AutoResetEvent progress;
-            List<IndexData> indexes;
+            List<ChunkData> indexes;
             readonly int chunkSize;
             readonly int maxWorkers;
             int currentChunk;
