@@ -114,18 +114,20 @@ class LineApp {
     {
         AutoResetEvent progress = new(false);
         foreach (var sessionData in sessionDatas) {
-            var lineCount = 0;
+            long lineCount = 0;
             Stopwatch stopwatch = new();
             for (var i = 0; i < sessionData.iterations; i++) {
                 var indexers = StartIndexing(progress, sessionData);
                 WaitForCompletion(progress, indexers, stopwatch);
                 if (Error.Length != 0) {
+                    Console.Write('\n');
                     throw new Exception(Error);
                 }
                 foreach (var indexer in indexers) {
                     lineCount += indexer.LineCount;
                 }
             }
+            Console.Write('\n');
             ResultData resultData = new ResultData() { lineCount = lineCount, elapsedTime = stopwatch.Elapsed.TotalSeconds };
             DisplayResults(resultData, sessionData);
         }
@@ -158,7 +160,6 @@ class LineApp {
             },
             1000);
         stopwatch.Stop();
-        Console.Write('\n');
         foreach (var indexer in indexers) {
             if (Error.Length == 0 && indexer.LastError.Length != 0) {
                 Error = indexer.LastError;
