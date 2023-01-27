@@ -166,8 +166,10 @@ namespace Testing {
             LineIndexer indexer = new(new AutoResetEvent(false), chunkSize, maxWorkers);
             indexer.Start(biblePath);
             indexer.Wait();
-            Logger.Log($"error was {indexer.LastError}");
             Assert.AreEqual(true, indexer.LastError == "");
+            foreach (var line in new List<int>() { 1, 1515, 1516, 2989, 2990, 2991, 100263, 100264 }) {
+                Assert.AreEqual(line, indexer.LineFromPosition(indexer.PositionFromLine(line)));
+            }
         }
 
         [Test]
