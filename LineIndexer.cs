@@ -291,7 +291,7 @@ namespace Imagibee {
                             }
                             //Logger.Log($"chunk {priorIndex} between {priorChunk.StartLine} and {priorChunk.EndLine} at {priorChunk.StartFpos}");
                         }
-                        if (currentResult.ByteCount < chunkSize) {
+                        if (currentResult.FinalChunk) {
                             if (currentResult.EolEnding == false) {
                                 // adjustment for last chunk not ending on eol
                                 currentChunk.EndLine += 1;
@@ -324,6 +324,8 @@ namespace Imagibee {
                         ByteCount = 0,
                         StartFpos = chunk.StartFpos,
                         FirstEolOffset = -1,
+                        FinalChunk = false,
+                        
                     };
                     using var fileStream = new FileStream(
                         chunk.Path,
@@ -349,6 +351,11 @@ namespace Imagibee {
                             result.EolEnding = false;
                         }
                     }
+                    var lastPosition = fileStream.Position;
+                    fileStream.Seek(0, SeekOrigin.End);
+                    if (lastPosition == fileStream.Position) {
+                        result.FinalChunk = true;
+                    };
                     result.LineCount = Math.Max(1, result.LineCount);
                     chunkResults.Enqueue(result);
                 }
@@ -375,6 +382,7 @@ namespace Imagibee {
                 public bool EolEnding;
                 public int FirstEolOffset;
                 public int ByteCount;
+                public bool FinalChunk;
             };
 
             // private data
