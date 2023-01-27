@@ -25,7 +25,7 @@ namespace Imagibee {
         // Performance can be tailored to a particular system by varying
         // the chunkSize and maxWorkers parameters.
         //
-        public class LineIndexer {
+        public class DuplicateChecker {
             // Path of the last successfully started indexing operation
             public string Path { get; private set; } = "";
 
@@ -43,6 +43,7 @@ namespace Imagibee {
 
             // A structure for storing the values of chunk
             public struct ChunkData {
+                public string Path;
                 public long StartLine;
                 public long EndLine;
                 public long StartFpos;
@@ -54,11 +55,11 @@ namespace Imagibee {
             // Create a new instance
             //
             // progress - signaled each time MatchCount is updated
-            // chunkKiBytes - the chunk size in KiBytes that each worker works on
-            // maxWorkers - optional limit to the maximum number of simultaneous workers
-            public LineIndexer(AutoResetEvent progress, int chunkKiBytes=512, int maxWorkers=0)
+            // chunkSize - the size in bytes that each worker works on
+            // maxWorkers - the maximum number of simultaneous workers
+            public DuplicateChecker(AutoResetEvent progress, int chunkSize, int maxWorkers)
             {
-                chunkSize = chunkKiBytes * 1024;
+                this.chunkSize = chunkSize;
                 this.maxWorkers = maxWorkers;
                 this.progress = progress;
                 synchronizer = new AutoResetEvent(false);
@@ -95,7 +96,7 @@ namespace Imagibee {
             // indexers - a enumerable set of started indexers to wait for
             // OnProgressOrTimeout - called each time LineCount is updated, or at frequency determined by the timeout parameter
             // timeoutMilliSeconds - the time in milliseconds between callbacks
-            public static void Wait(ICollection<LineIndexer> indexers, AutoResetEvent progress, Action<int> OnProgressOrTimeout, int timeoutMilliSeconds)
+            public static void Wait(ICollection<DuplicateChecker> indexers, AutoResetEvent progress, Action<int> OnProgressOrTimeout, int timeoutMilliSeconds)
             {
                 while (true) {
                     var runningCount = 0;
@@ -110,6 +111,34 @@ namespace Imagibee {
                     progress.WaitOne(timeoutMilliSeconds);
                     OnProgressOrTimeout(runningCount);
                 }
+            }
+
+            // Return the ChunkData that contains the starting byte of the requested line
+            public ChunkData? GetChunk(long line)
+            {
+                if (line > 0 && line <= LineCount) {
+                    // Make initial search start at the chunk where the average lines
+                    // per chunk would suggest the line should be
+                    var avgLinesPerChunk = LineCount / chunks.Count;
+                    var chunkIndex = Math.Max(0, (int)(line / avgLinesPerChunk));
+                    chunkIndex = Math.Min(chunkIndex, chunks.Count - 1);
+                    while (chunkIndex >= 0 && chunkIndex < chunks.Count) {
+                        int direction;
+                        var chunk = chunks[chunkIndex];
+                        if (line >= chunk.StartLine &&
+                            line <= chunk.EndLine) {
+                            return chunk;
+                        }
+                        else if (line > chunk.EndLine) {
+                            direction = 1;
+                        }
+                        else {
+                            direction = -1;
+                        }
+                        chunkIndex += direction;
+                    }
+                }
+                return null;
             }
 
             // Return the fpos of the requested line or -1 if the line does not exist
@@ -148,7 +177,7 @@ namespace Imagibee {
             public long LineFromPosition(long fpos)
             {
                 long line = -1;
-                var chunkIndex = (int)(fpos/chunkSize);
+                var chunkIndex = (int)(fpos / chunkSize);
                 if (chunkIndex >= 0 && chunkIndex < chunks.Count) {
                     var chunk = chunks[chunkIndex];
                     var distance = fpos - chunk.StartFpos;
@@ -175,34 +204,6 @@ namespace Imagibee {
                 return line;
             }
 
-            // Return the ChunkData that contains the starting byte of the requested line
-            ChunkData? GetChunk(long line)
-            {
-                if (line > 0 && line <= LineCount) {
-                    // Make initial search start at the chunk where the average lines
-                    // per chunk would suggest the line should be
-                    var avgLinesPerChunk = LineCount / chunks.Count;
-                    var chunkIndex = Math.Max(0, (int)(line / avgLinesPerChunk));
-                    chunkIndex = Math.Min(chunkIndex, chunks.Count - 1);
-                    while (chunkIndex >= 0 && chunkIndex < chunks.Count) {
-                        int direction;
-                        var chunk = chunks[chunkIndex];
-                        if (line >= chunk.StartLine &&
-                            line <= chunk.EndLine) {
-                            return chunk;
-                        }
-                        else if (line > chunk.EndLine) {
-                            direction = 1;
-                        }
-                        else {
-                            direction = -1;
-                        }
-                        chunkIndex += direction;
-                    }
-                }
-                return null;
-            }
-
             void ManageJobs(string filePath)
             {
                 try {
@@ -215,6 +216,7 @@ namespace Imagibee {
                             new ChunkJob()
                             {
                                 Id = chunkNum++,
+                                Path = filePath,
                                 StartFpos = pos,
                             });
                     }
@@ -268,6 +270,7 @@ namespace Imagibee {
                     if (currentResult.Id == priorIndex + 1) {
                         var currentChunk = new ChunkData()
                         {
+                            Path = currentResult.Path,
                             StartLine = 1,
                             EndLine = currentResult.LineCount,
                             StartFpos = currentResult.StartFpos,
@@ -311,20 +314,21 @@ namespace Imagibee {
             void MapChunk(ChunkJob chunk)
             {
                 try {
-                    //Logger.Log($"mapping chunk {chunk.Id} from {Path} at {chunk.StartFpos}");
+                    //Logger.Log($"mapping chunk {chunk.Id} from {chunk.Path} at {chunk.StartFpos}");
                     var result = new ChunkResult()
                     {
                         EolEnding = false,
+                        Path = chunk.Path,
                         Id = chunk.Id,
                         LineCount = 0,
                         ByteCount = 0,
                         StartFpos = chunk.StartFpos,
                         FirstEolOffset = -1,
                         FinalChunk = false,
-                        
+
                     };
                     using var fileStream = new FileStream(
-                        Path,
+                        chunk.Path,
                         FileMode.Open,
                         FileAccess.Read,
                         FileShare.Read,
@@ -367,10 +371,12 @@ namespace Imagibee {
             // private types
             struct ChunkJob {
                 public int Id;
+                public string Path;
                 public long StartFpos;
             };
             struct ChunkResult {
                 public int Id;
+                public string Path;
                 public long StartFpos;
                 public long LineCount;
                 public bool EolEnding;

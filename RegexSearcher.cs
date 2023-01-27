@@ -58,11 +58,11 @@ namespace Imagibee {
             // Create a new instance
             //
             // progress - signaled each time MatchCount is updated
-            // chunkSize - the size in bytes that each worker works on
-            // maxWorkers - the maximum number of simultaneous workers
-            public RegexSearcher(AutoResetEvent progress, int chunkSize, int maxWorkers)
+            // chunkKiBytes - the chunk size in KiBytes that each worker works on
+            // maxWorkers - optional limit to the maximum number of simultaneous workers
+            public RegexSearcher(AutoResetEvent progress, int chunkKiBytes=512, int maxWorkers=0)
             {
-                this.chunkSize = chunkSize;
+                chunkSize = chunkKiBytes * 1024;
                 this.maxWorkers = maxWorkers;
                 this.progress = progress;
                 synchronizer = new AutoResetEvent(false);
