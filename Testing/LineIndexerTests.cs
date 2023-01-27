@@ -8,11 +8,21 @@ namespace Testing {
     public class LineIndexerTests {
         readonly int chunkSize = 64 * 1024;
         readonly int maxWorkers = 1;
+        readonly string simplePath = Path.Combine("Assets", "SimpleTest.txt");
+        readonly string chunkPath = Path.Combine("Assets", "ChunkTest.txt");
+        readonly string biblePath = Path.Combine("Assets", "BibleTest.txt");
+        const string BIBLE_000001 = "The Project Gutenberg eBook of The King James Bible";
+        const string BIBLE_001515 = "19:17 And it came to pass, when they had brought them forth abroad,";
+        const string BIBLE_001516 = "that he said, Escape for thy life; look not behind thee, neither stay";
+        const string BIBLE_002989 = "mother with the children.";
+        const string BIBLE_002990 = "";
+        const string BIBLE_002991 = "32:12 And thou saidst, I will surely do thee good, and make thy seed";
+        const string BIBLE_100263 = "subscribe to our email newsletter to hear about new eBooks.";
+        const string BIBLE_100264 = "";
 
         [SetUp]
         public void Setup()
         {
-
         }
 
         [Test]
@@ -30,7 +40,6 @@ namespace Testing {
             LineIndexer indexer = new(new AutoResetEvent(false), chunkSize, maxWorkers);
             indexer.Start("");
             indexer.Wait();
-            Logger.Log($"error was {indexer.LastError}");
             Assert.AreEqual(true, indexer.LastError != "");
         }
 
@@ -45,20 +54,138 @@ namespace Testing {
         }
 
         [Test]
+        public void ChunkTest()
+        {
+            // 19 byte chunk size
+            LineIndexer indexer = new(new AutoResetEvent(false), 19, maxWorkers);
+            indexer.Start(chunkPath);
+            indexer.Wait();
+            //Assert.AreEqual(false, true);
+            Logger.Log($"{indexer.LastError}");
+            Assert.AreEqual(true, indexer.LastError == "");
+            Assert.AreEqual(false, indexer.GetChunk(0).HasValue);
+            var chunk = indexer.GetChunk(1).Value;
+            Assert.AreEqual(0, chunk.StartFpos);
+            Assert.AreEqual(1, chunk.StartLine);
+            Assert.AreEqual(2, chunk.EndLine);
+            Assert.AreEqual(19, chunk.ByteCount);
+            chunk = indexer.GetChunk(2).Value;
+            Assert.AreEqual(0, chunk.StartFpos);
+            Assert.AreEqual(1, chunk.StartLine);
+            Assert.AreEqual(2, chunk.EndLine);
+            Assert.AreEqual(19, chunk.ByteCount);
+            chunk = indexer.GetChunk(3).Value;
+            Assert.AreEqual(22, chunk.StartFpos);
+            Assert.AreEqual(3, chunk.StartLine);
+            Assert.AreEqual(4, chunk.EndLine);
+            Assert.AreEqual(19, chunk.ByteCount);
+            chunk = indexer.GetChunk(4).Value;
+            Assert.AreEqual(22, chunk.StartFpos);
+            Assert.AreEqual(3, chunk.StartLine);
+            Assert.AreEqual(4, chunk.EndLine);
+            Assert.AreEqual(19, chunk.ByteCount);
+            chunk = indexer.GetChunk(5).Value;
+            Assert.AreEqual(44, chunk.StartFpos);
+            Assert.AreEqual(5, chunk.StartLine);
+            Assert.AreEqual(6, chunk.EndLine);
+            Assert.AreEqual(19, chunk.ByteCount);
+            chunk = indexer.GetChunk(6).Value;
+            Assert.AreEqual(44, chunk.StartFpos);
+            Assert.AreEqual(5, chunk.StartLine);
+            Assert.AreEqual(6, chunk.EndLine);
+            Assert.AreEqual(19, chunk.ByteCount);
+            chunk = indexer.GetChunk(7).Value;
+            Assert.AreEqual(66, chunk.StartFpos);
+            Assert.AreEqual(7, chunk.StartLine);
+            Assert.AreEqual(7, chunk.EndLine);
+            Assert.AreEqual(19, chunk.ByteCount);
+            chunk = indexer.GetChunk(8).Value;
+            Assert.AreEqual(77, chunk.StartFpos);
+            Assert.AreEqual(8, chunk.StartLine);
+            Assert.AreEqual(9, chunk.EndLine);
+            Assert.AreEqual(19, chunk.ByteCount);
+            chunk = indexer.GetChunk(9).Value;
+            Assert.AreEqual(77, chunk.StartFpos);
+            Assert.AreEqual(8, chunk.StartLine);
+            Assert.AreEqual(9, chunk.EndLine);
+            Assert.AreEqual(19, chunk.ByteCount);
+            chunk = indexer.GetChunk(10).Value;
+            Assert.AreEqual(99, chunk.StartFpos);
+            Assert.AreEqual(10, chunk.StartLine);
+            Assert.AreEqual(10, chunk.EndLine);
+            Assert.AreEqual(15, chunk.ByteCount);
+        }
+
+        [Test]
+        public void FilePositionTest()
+        {
+            LineIndexer indexer = new(new AutoResetEvent(false), chunkSize, maxWorkers);
+            indexer.Start(biblePath);
+            indexer.Wait();
+            Assert.AreEqual(true, indexer.LastError == "");
+            Assert.AreEqual(-1, indexer.PositionFromLine(0));
+            Assert.AreEqual(0, indexer.PositionFromLine(1));
+            using var fileStream = new FileStream(biblePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var fpos = indexer.PositionFromLine(1);
+            fileStream.Seek(fpos, SeekOrigin.Begin);
+            var line = new StreamReader(fileStream).ReadLine();
+            Assert.AreEqual(BIBLE_000001, line);
+            fpos = indexer.PositionFromLine(1515);
+            fileStream.Seek(fpos, SeekOrigin.Begin);
+            line = new StreamReader(fileStream).ReadLine();
+            Assert.AreEqual(BIBLE_001515, line);
+            fpos = indexer.PositionFromLine(1516);
+            fileStream.Seek(fpos, SeekOrigin.Begin);
+            line = new StreamReader(fileStream).ReadLine();
+            Assert.AreEqual(BIBLE_001516, line);
+            fpos = indexer.PositionFromLine(2989);
+            fileStream.Seek(fpos, SeekOrigin.Begin);
+            line = new StreamReader(fileStream).ReadLine();
+            Assert.AreEqual(BIBLE_002989, line);
+            fpos = indexer.PositionFromLine(2990);
+            fileStream.Seek(fpos, SeekOrigin.Begin);
+            line = new StreamReader(fileStream).ReadLine();
+            Assert.AreEqual(BIBLE_002990, line);
+            fpos = indexer.PositionFromLine(2991);
+            fileStream.Seek(fpos, SeekOrigin.Begin);
+            line = new StreamReader(fileStream).ReadLine();
+            Assert.AreEqual(BIBLE_002991, line);
+            fpos = indexer.PositionFromLine(100263);
+            fileStream.Seek(fpos, SeekOrigin.Begin);
+            line = new StreamReader(fileStream).ReadLine();
+            Assert.AreEqual(BIBLE_100263, line);
+            fpos = indexer.PositionFromLine(100264);
+            fileStream.Seek(fpos, SeekOrigin.Begin);
+            line = new StreamReader(fileStream).ReadLine();
+            Assert.AreEqual(BIBLE_100264, line);
+        }
+
+        [Test]
+        public void LineNumberTest()
+        {
+            LineIndexer indexer = new(new AutoResetEvent(false), chunkSize, maxWorkers);
+            indexer.Start(biblePath);
+            indexer.Wait();
+            Assert.AreEqual(true, indexer.LastError == "");
+            foreach (var line in new List<int>() { 1, 1515, 1516, 2989, 2990, 2991, 100263, 100264 }) {
+                Assert.AreEqual(line, indexer.LineFromPosition(indexer.PositionFromLine(line)));
+            }
+        }
+
+        [Test]
         public void SimpleTest()
         {
-            var path = Path.Combine("Assets", "SimpleTest.txt");
             LineIndexer indexer = new(new AutoResetEvent(false), chunkSize, maxWorkers);
-            indexer.Start(path);
+            indexer.Start(simplePath);
             indexer.Wait();
             Assert.AreEqual(true, indexer.LastError == "");
             Assert.AreEqual(6, indexer.LineCount);
-            var index = indexer.GetIndex(0);
+            var index = indexer.GetChunk(0);
             Assert.AreEqual(false, index.HasValue);
             for (var i = 1; i <= indexer.LineCount; i++) {
-                index = indexer.GetIndex(i);
+                index = indexer.GetChunk(i);
                 Assert.AreEqual(true, index.HasValue);
-                Assert.AreEqual(path, index.Value.Path);
+                Assert.AreEqual(simplePath, index.Value.Path);
                 Assert.AreEqual(1, index.Value.StartLine);
                 Assert.AreEqual(6, index.Value.EndLine);
                 Assert.AreEqual(0, index.Value.StartFpos);
@@ -68,12 +195,9 @@ namespace Testing {
         [Test]
         public void BibleTest()
         {
-            const string LINE_0001 = "The Project Gutenberg eBook of The King James Bible";
-            const string LINE_1516 = "that he said, Escape for thy life; look not behind thee, neither stay";
-            var path = Path.Combine("Assets", "BibleTest.txt");
             AutoResetEvent progress = new(false);
-            LineIndexer indexer = new(progress, chunkSize, maxWorkers);
-            indexer.Start(path);
+            LineIndexer indexer = new(progress, chunkSize, 0);
+            indexer.Start(biblePath);
             LineIndexer.Wait(
                 new List<LineIndexer>() { indexer },
                 progress,
@@ -81,19 +205,19 @@ namespace Testing {
                 1000);
             Assert.AreEqual(true, indexer.LastError == "");
             Assert.AreEqual(100264, indexer.LineCount);
-            using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var index = indexer.GetIndex(1);
-            Assert.AreEqual(true, index.HasValue);
-            fileStream.Seek(index.Value.StartFpos, SeekOrigin.Begin);
+            using var fileStream = new FileStream(biblePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var chunk = indexer.GetChunk(1);
+            Assert.AreEqual(true, chunk.HasValue);
+            fileStream.Seek(chunk.Value.StartFpos, SeekOrigin.Begin);
             var line = new StreamReader(fileStream).ReadLine();
-            Assert.AreEqual(LINE_0001, line);
-            Assert.AreEqual(index.Value.StartFpos, indexer.GetIndex(1515).Value.StartFpos);
-            index = indexer.GetIndex(1516);
-            Assert.AreEqual(true, index.HasValue);
-            fileStream.Seek(index.Value.StartFpos, SeekOrigin.Begin);
+            Assert.AreEqual(BIBLE_000001, line);
+            Assert.AreEqual(chunk.Value.StartFpos, indexer.GetChunk(chunk.Value.EndLine).Value.StartFpos);
+            chunk = indexer.GetChunk(1516);
+            Assert.AreEqual(true, chunk.HasValue);
+            fileStream.Seek(chunk.Value.StartFpos, SeekOrigin.Begin);
             line = new StreamReader(fileStream).ReadLine();
-            Assert.AreEqual(LINE_1516, line);
-            Assert.AreEqual(index.Value.StartFpos, indexer.GetIndex(2989).Value.StartFpos);
+            Assert.AreEqual(BIBLE_001516, line);
+            Assert.AreEqual(chunk.Value.StartFpos, indexer.GetChunk(chunk.Value.EndLine).Value.StartFpos);
         }
     }
 }
