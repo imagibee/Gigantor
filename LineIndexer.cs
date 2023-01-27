@@ -42,16 +42,6 @@ namespace Imagibee {
             // The error that caused the index process to end prematurely (if any)
             public string LastError { get; private set; } = "";
 
-            // A structure for storing the values of chunk
-            public struct ChunkData {
-                public long StartLine;
-                public long EndLine;
-                public long StartFpos;
-                public bool EolEnding;
-                public int FirstEolOffset;
-                public int ByteCount;
-            }
-
             // Create a new instance
             //
             // progress - signaled each time MatchCount is updated
@@ -379,6 +369,14 @@ namespace Imagibee {
                 public int ByteCount;
                 public bool FinalChunk;
             };
+            struct ChunkData {
+                public long StartLine;
+                public long EndLine;
+                public long StartFpos;
+                public bool EolEnding;
+                public int FirstEolOffset;
+                public int ByteCount;
+            }
 
             // private data
             ConcurrentQueue<ChunkResult> chunkResults;
