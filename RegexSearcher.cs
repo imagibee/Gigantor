@@ -16,16 +16,16 @@ namespace Imagibee {
         // result.
         //
         // Users should begin the process by calling Start with the path
-        // of the file to search and a Regex instance.  The MatchCount
-        // property, Running property, LastError property, and GetMatchData
-        // method may be used at any time.
+        // of the file to search and a Regex instance.  All public methods
+        // and properties are well behaved at any time.  Although, while
+        // Running is true only partial results are available.
         //
         // After the process is finished, the results are stored until Start
         // is called again.  Although, calling Start while Running is true
         // will have no effect.
         //
         // Performance can be tailored to a particular system by varying
-        // the chunkSize and maxWorkers parameters.
+        // chunkKiBytes and maxWorkers parameters.
         //
         public class RegexSearcher {
             // Path of the last successfully started search operation
