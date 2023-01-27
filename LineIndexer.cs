@@ -33,7 +33,10 @@ namespace Imagibee {
             public bool Running { get; private set; } = false;
 
             // The number of lines that have been indexed so far
-            public int LineCount { get; private set; } = 0;
+            public long LineCount { get; private set; } = 0;
+
+            // The number of bytes that have been indexed so far
+            public long ByteCount { get; private set; } = 0;
 
             // The error that caused the index process to end prematurely (if any)
             public string LastError { get; private set; } = "";
@@ -41,9 +44,12 @@ namespace Imagibee {
             // A structure for storing the values of chunk
             public struct ChunkData {
                 public string Path;
-                public int StartLine;
-                public int EndLine;
+                public long StartLine;
+                public long EndLine;
                 public long StartFpos;
+                public bool EolEnding;
+                public int FirstEolOffset;
+                public int ByteCount;
             }
 
             // Create a new instance
@@ -65,12 +71,14 @@ namespace Imagibee {
                 if (!Running) {
                     LastError = "";
                     Path = filePath;
+                    LineCount = 0;
+                    ByteCount = 0;
                     Running = true;
-                    currentChunk = -1;
+                    priorIndex = -1;
                     scheduledChunks = 0;
                     chunkResults = new ConcurrentQueue<ChunkResult>();
                     chunkJobs = new ConcurrentQueue<ChunkJob>();
-                    indexes = new List<ChunkData>();
+                    chunks = new List<ChunkData>();
                     ThreadPool.QueueUserWorkItem((_) => ManageJobs(filePath));
                 }
             }
@@ -105,18 +113,95 @@ namespace Imagibee {
                 }
             }
 
-            // Return the IndexData that contains the starting byte of the requested line
-            public ChunkData? GetIndex(int line)
+            // Return the ChunkData that contains the starting byte of the requested line
+            public ChunkData? GetChunk(long line)
             {
                 if (line > 0 && line <= LineCount) {
-                    foreach (var index in indexes) {
-                        if (line >= index.StartLine &&
-                            line <= index.EndLine) {
-                            return index;
+                    // Make initial search start at the chunk where the average lines
+                    // per chunk would suggest the line should be
+                    var avgLinesPerChunk = LineCount / chunks.Count;
+                    var chunkIndex = Math.Max(0, (int)(line / avgLinesPerChunk));
+                    chunkIndex = Math.Min(chunkIndex, chunks.Count - 1);
+                    while (chunkIndex >= 0 && chunkIndex < chunks.Count) {
+                        int direction;
+                        var chunk = chunks[chunkIndex];
+                        if (line >= chunk.StartLine &&
+                            line <= chunk.EndLine) {
+                            return chunk;
                         }
+                        else if (line > chunk.EndLine) {
+                            direction = 1;
+                        }
+                        else {
+                            direction = -1;
+                        }
+                        chunkIndex += direction;
                     }
                 }
                 return null;
+            }
+
+            // Return the fpos of the requested line or -1 if the line does not exist
+            public long PositionFromLine(long line)
+            {
+                long fpos = -1;
+                var chunk = GetChunk(line);
+                if (chunk.HasValue) {
+                    var linesToConsume = line - chunk.Value.StartLine;
+                    if (linesToConsume == 0) {
+                        return chunk.Value.StartFpos;
+                    }
+                    using var fileStream = new FileStream(
+                        Path,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.Read,
+                        chunkSize,
+                        FileOptions.Asynchronous);
+                    fileStream.Seek(chunk.Value.StartFpos, SeekOrigin.Begin);
+                    using var streamReader = new BinaryReader(fileStream);
+                    var buf = streamReader.ReadBytes(chunkSize);
+                    for (var i = 0; i < buf.Length; i++) {
+                        if (buf[i] == '\n') {
+                            linesToConsume--;
+                        }
+                        if (linesToConsume == 0) {
+                            return chunk.Value.StartFpos + i + 1;
+                        }
+                    }
+                }
+                return fpos;
+            }
+
+            // Return the line number of the requested fpos or -1 if the line does not exist
+            public long LineFromPosition(long fpos)
+            {
+                long line = -1;
+                var chunkIndex = (int)(fpos/chunkSize);
+                if (chunkIndex >= 0 && chunkIndex < chunks.Count) {
+                    var chunk = chunks[chunkIndex];
+                    var distance = fpos - chunk.StartFpos;
+                    line = chunk.StartLine;
+                    using var fileStream = new FileStream(
+                        Path,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.Read,
+                        chunkSize,
+                        FileOptions.Asynchronous);
+                    fileStream.Seek(chunk.StartFpos, SeekOrigin.Begin);
+                    using var streamReader = new BinaryReader(fileStream);
+                    var buf = streamReader.ReadBytes(chunkSize);
+                    for (var i = 0; i < buf.Length; i++) {
+                        if (buf[i] == '\n') {
+                            line++;
+                        }
+                        if (i >= distance) {
+                            break;
+                        }
+                    }
+                }
+                return line;
             }
 
             void ManageJobs(string filePath)
@@ -181,35 +266,43 @@ namespace Imagibee {
                 }
                 if (chunkBuf.Count > 0) {
                     chunkBuf.Sort((a, b) => a.Id.CompareTo(b.Id));
-                    var chunk = chunkBuf[0];
-                    if (chunk.Id == currentChunk + 1) {
-                        var index = new ChunkData()
+                    var currentResult = chunkBuf[0];
+                    if (currentResult.Id == priorIndex + 1) {
+                        var currentChunk = new ChunkData()
                         {
-                            Path = chunk.Path,
+                            Path = currentResult.Path,
                             StartLine = 1,
-                            EndLine = chunk.LineCount,
-                            StartFpos = chunk.StartFpos
+                            EndLine = currentResult.LineCount,
+                            StartFpos = currentResult.StartFpos,
+                            EolEnding = currentResult.EolEnding,
+                            FirstEolOffset = currentResult.FirstEolOffset,
+                            ByteCount = currentResult.ByteCount,
                         };
-                        if (currentChunk >= 0) {
-                            var currentIndex = indexes[currentChunk];
-                            index.StartLine = currentIndex.EndLine + 1;
-                            index.EndLine = currentIndex.EndLine + chunk.LineCount;
-                            if (currentIndex.Path == chunk.Path &&
-                                chunk.EolEnding == false &&
-                                chunk.FirstEolOffset != -1) {
+                        if (priorIndex >= 0) {
+                            var priorChunk = chunks[priorIndex];
+                            currentChunk.StartLine = priorChunk.EndLine + 1;
+                            currentChunk.EndLine = priorChunk.EndLine + currentResult.LineCount;
+                            if (priorChunk.EolEnding == false) {
                                 // adjustment since the first line was counted in the prior chunk
-                                currentIndex.EndLine += 1;
-                                index.StartLine += 1;
-                                index.EndLine += 1;
-                                index.StartFpos += chunk.FirstEolOffset + 1;
-                                indexes[currentChunk] = currentIndex;
+                                currentChunk.StartLine += 1;
+                                priorChunk.EndLine += 1;
+                                currentChunk.StartFpos += currentResult.FirstEolOffset + 1;
+                                chunks[priorIndex] = priorChunk;
                             }
-                            //Logger.Log($"index {currentChunk} between {currentIndex.StartLine} and {currentIndex.EndLine} at {currentIndex.StartFpos}");
+                            //Logger.Log($"chunk {priorIndex} between {priorChunk.StartLine} and {priorChunk.EndLine} at {priorChunk.StartFpos}");
                         }
-                        indexes.Add(index);
-                        LineCount += chunk.LineCount;
+                        if (currentResult.ByteCount < chunkSize) {
+                            if (currentResult.EolEnding == false) {
+                                // adjustment for last chunk not ending on eol
+                                currentChunk.EndLine += 1;
+                            }
+                            //Logger.Log($"chunk {priorIndex+1} between {currentChunk.StartLine} and {currentChunk.EndLine} at {currentChunk.StartFpos}");
+                        }
+                        chunks.Add(currentChunk);
+                        LineCount += currentResult.LineCount;
+                        ByteCount += currentResult.ByteCount;
                         chunkBuf.RemoveAt(0);
-                        currentChunk++;
+                        priorIndex++;
                         progress.Set();
                     }
                 }
@@ -228,8 +321,9 @@ namespace Imagibee {
                         Path = chunk.Path,
                         Id = chunk.Id,
                         LineCount = 0,
+                        ByteCount = 0,
                         StartFpos = chunk.StartFpos,
-                        FirstEolOffset = -1
+                        FirstEolOffset = -1,
                     };
                     using var fileStream = new FileStream(
                         chunk.Path,
@@ -241,6 +335,7 @@ namespace Imagibee {
                     fileStream.Seek(chunk.StartFpos, SeekOrigin.Begin);
                     using var streamReader = new BinaryReader(fileStream);
                     var buf = streamReader.ReadBytes(chunkSize);
+                    result.ByteCount = buf.Length;
                     for (var i = 0; i < buf.Length; i++) {
                         if (buf[i] == '\n') {
                             result.LineCount++;
@@ -254,6 +349,7 @@ namespace Imagibee {
                             result.EolEnding = false;
                         }
                     }
+                    result.LineCount = Math.Max(1, result.LineCount);
                     chunkResults.Enqueue(result);
                 }
                 catch (Exception e) {
@@ -275,9 +371,10 @@ namespace Imagibee {
                 public int Id;
                 public string Path;
                 public long StartFpos;
-                public int LineCount;
+                public long LineCount;
                 public bool EolEnding;
                 public int FirstEolOffset;
+                public int ByteCount;
             };
 
             // private data
@@ -285,10 +382,10 @@ namespace Imagibee {
             ConcurrentQueue<ChunkJob> chunkJobs;
             readonly AutoResetEvent synchronizer;
             readonly AutoResetEvent progress;
-            List<ChunkData> indexes;
+            List<ChunkData> chunks;
             readonly int chunkSize;
             readonly int maxWorkers;
-            int currentChunk;
+            int priorIndex;
             int scheduledChunks;
         }
     }

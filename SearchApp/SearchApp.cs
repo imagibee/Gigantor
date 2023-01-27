@@ -127,12 +127,14 @@ class SearchApp {
                 var searchers = StartSearching(progress, sessionData);
                 WaitForCompletion(progress, searchers, stopwatch);
                 if (Error.Length != 0) {
+                    Console.Write('\n');
                     throw new Exception(Error);
                 }
                 foreach (var searcher in searchers) {
                     matchCount += searcher.MatchCount;
                 }
             }
+            Console.Write('\n');
             ResultData resultData = new ResultData() { matchCount = matchCount, elapsedTime = stopwatch.Elapsed.TotalSeconds };
             DisplayResults(resultData, sessionData);
         }
@@ -168,7 +170,6 @@ class SearchApp {
             },
             1000);
         stopwatch.Stop();
-        Console.Write('\n');
         foreach (var searcher in searchers) {
             if (Error.Length == 0 && searcher.LastError.Length != 0) {
                 Error = searcher.LastError;
