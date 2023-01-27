@@ -176,7 +176,32 @@ namespace Imagibee {
             // Return the line number of the requested fpos or -1 if the line does not exist
             public long LineFromPosition(long fpos)
             {
-                return 0;
+                long line = -1;
+                var chunkIndex = (int)(fpos/chunkSize);
+                if (chunkIndex >= 0 && chunkIndex < chunks.Count) {
+                    var chunk = chunks[chunkIndex];
+                    var distance = fpos - chunk.StartFpos;
+                    line = chunk.StartLine;
+                    using var fileStream = new FileStream(
+                        Path,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.Read,
+                        chunkSize,
+                        FileOptions.Asynchronous);
+                    fileStream.Seek(chunk.StartFpos, SeekOrigin.Begin);
+                    using var streamReader = new BinaryReader(fileStream);
+                    var buf = streamReader.ReadBytes(chunkSize);
+                    for (var i = 0; i < buf.Length; i++) {
+                        if (buf[i] == '\n') {
+                            line++;
+                        }
+                        if (i >= distance) {
+                            break;
+                        }
+                    }
+                }
+                return line;
             }
 
             void ManageJobs(string filePath)
