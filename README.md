@@ -5,6 +5,7 @@ A dotnet application library for working with very large files
 Gigantor includes C# classes that can be safely and effectively used with very large files.  These classes are designed to operate within a reasonable memory footprint and to thoroughly and efficiently utilize CPU and IO.
 
 - LineIndexer - class for indexing text lines in the background
+- StreamReader - class for reading consecutive lines
 - RegexSearcher - class for efficient regex search in the background
 
 ## Usage
@@ -12,7 +13,7 @@ Gigantor includes C# classes that can be safely and effectively used with very l
 ### LineIndexer
 Here is a simple example that demonstrates using `LineIndexer`.  Refer to `LineApp` for a more detailed example that demonstrates efficiently using multiple `LineIndexer` simultaneously.
 
-```csharp
+```cs
 using Imagibee.Gigantor;
 
 // A file to index
@@ -64,7 +65,7 @@ myText = gigantorReader.ReadLine();
 ### RegexSearcher
 Here is a simple example that demonstrates using `RegexSearcher`.  Refer to `SearchApp` for a more detailed example that demonstrates efficiently using multiple `RegexSearcher` simultaneously.
 
-```csharp
+```cs
 using Imagibee.Gigantor;
 
 // A file to search
