@@ -41,6 +41,18 @@ if (indexer.LastError.Length == 0) {
     Console.WriteLine($"Found {indexer.LineCount} lines");
 }
 
+// Get the total number of lines
+var totalLines = indexer.LineCount;
+
+// Get the total number of bytes
+var totalLines = indexer.ByteCount;
+
+// Get the file position at the start of the 1,000,000th line
+var fpos = indexer.PositionFromLine(1000000);
+
+// Get the line that contains the file position value 747724
+var line = indexer.LineFromPosition(747724);
+
 ```
 
 
