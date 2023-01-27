@@ -23,7 +23,7 @@ class SearchApp {
 
     struct SessionData {
         public List<string> paths;
-        public int chunkSize;
+        public int chunkKiBytes;
         public int maxWorkers;
         public int iterations;
         public long byteCount;
@@ -48,7 +48,7 @@ class SearchApp {
         SessionData sessionData = new()
         {
             paths = new(),
-            chunkSize = 512 * 1024,
+            chunkKiBytes = 512,
             maxWorkers = 0
         };
         if (args[0] == "benchmark") {
@@ -90,7 +90,7 @@ class SearchApp {
             SessionData sessionData = new()
             {
                 paths = sessionInfo.paths,
-                chunkSize = sessionInfo.chunkSize,
+                chunkKiBytes = sessionInfo.chunkKiBytes,
                 maxWorkers = maxWorkers,
                 iterations = sessionInfo.iterations,
                 byteCount = sessionInfo.byteCount,
@@ -107,7 +107,7 @@ class SearchApp {
         SessionData sessionData = new()
         {
             paths = sessionInfo.paths,
-            chunkSize = sessionInfo.chunkSize,
+            chunkKiBytes = sessionInfo.chunkKiBytes,
             maxWorkers = sessionInfo.maxWorkers,
             iterations = 1,
             byteCount = sessionInfo.byteCount,
@@ -144,7 +144,7 @@ class SearchApp {
     {
         List<RegexSearcher> searchers = new();
         foreach (var path in sessionData.paths) {
-            var searcher = new RegexSearcher(progress, sessionData.chunkSize, sessionData.maxWorkers);
+            var searcher = new RegexSearcher(progress, sessionData.chunkKiBytes, sessionData.maxWorkers);
             searcher.Start(
                 path,
                 new Regex(sessionData.pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled),
@@ -181,7 +181,7 @@ class SearchApp {
     {
         long totalBytes = sessionData.iterations * sessionData.byteCount;
         ThreadPool.GetMaxThreads(out int maxThreads, out int _);
-        Console.WriteLine($"maxWorkers={sessionData.maxWorkers}, chunkSize={sessionData.chunkSize}, maxThread={maxThreads}");
+        Console.WriteLine($"maxWorkers={sessionData.maxWorkers}, chunkKiBytes={sessionData.chunkKiBytes}, maxThread={maxThreads}");
         Console.WriteLine($"   {resultData.matchCount} matches found");
         Console.WriteLine(value: $"   searched {totalBytes} bytes in {resultData.elapsedTime} seconds");
         Console.WriteLine(value: $"-> {totalBytes / resultData.elapsedTime / 1e6} MBytes/s");
