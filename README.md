@@ -21,10 +21,8 @@ var path = "~/VeryLarge.txt";
 // A wait event that signals the user whenever progress has been made
 AutoResetEvent progress = new(false);
 
-// Instantiate a indexer with i) our wait event, ii) the chunk size which can be
-// used to optimize performance for the platform (64K to 1MB should be reasonable),
-// and the maximum number of workers which can also be used to optimize performance
-LineIndexer indexer = new(progress, 512 * 1024, 1);
+// Instantiate a indexer with a progress wait event
+LineIndexer indexer = new(progress);
 
 // Start indexing the requested path
 indexer.Start(path);
@@ -42,16 +40,23 @@ if (indexer.LastError.Length == 0) {
 }
 
 // Get the total number of lines
-var totalLines = indexer.LineCount;
+long totalLines = indexer.LineCount;
 
 // Get the total number of bytes
-var totalLines = indexer.ByteCount;
+long totalBytes = indexer.ByteCount;
 
 // Get the file position at the start of the 1,000,000th line
-var fpos = indexer.PositionFromLine(1000000);
+long myFpos = indexer.PositionFromLine(1000000);
 
 // Get the line that contains the file position value 747724
-var line = indexer.LineFromPosition(747724);
+long myLine = indexer.LineFromPosition(747724);
+
+// Read lines 1,000,000 and 1,000,001
+using var fileStream = new FileStream(simplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+Imagibee.Gigantor.StreamReader gigantorReader = new(fileStream);
+fileStream.Seek(indexer.PositionFromLine(myFpos), SeekOrigin.Begin);
+string myText = gigantorReader.ReadLine();
+myText = gigantorReader.ReadLine();
 
 ```
 
@@ -74,10 +79,8 @@ Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
 // A wait event that signals the user whenever progress has been made
 AutoResetEvent progress = new(false);
 
-// Instantiate a searcher with i) our wait event, ii) the chunk size which can be
-// used to optimize performance for the platform (64K to 1MB should be reasonable),
-// and the maximum number of workers which can also be used to optimize performance
-RegexSearcher searcher = new(progress, 512 * 1024, 128);
+// Instantiate a searcher with a progress wait event
+RegexSearcher searcher = new(progress);
 
 // Start searching the requested path, with our regex, and with the maximum
 // expected length of a match 
