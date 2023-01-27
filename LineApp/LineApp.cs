@@ -22,7 +22,7 @@ class LineApp {
 
     struct SessionData {
         public List<string> paths;
-        public int chunkSize;
+        public int chunkKiBytes;
         public int maxWorkers;
         public int iterations;
         public long byteCount;
@@ -46,7 +46,7 @@ class LineApp {
         SessionData sessionData = new()
         {
             paths = new(),
-            chunkSize = 512 * 1024,
+            chunkKiBytes = 512,
             maxWorkers = 0
         };
         if (args[0] == "benchmark") {
@@ -85,7 +85,7 @@ class LineApp {
             SessionData sessionData = new()
             {
                 paths = sessionInfo.paths,
-                chunkSize = sessionInfo.chunkSize,
+                chunkKiBytes = sessionInfo.chunkKiBytes,
                 maxWorkers = maxWorkers,
                 iterations = sessionInfo.iterations,
                 byteCount = sessionInfo.byteCount,
@@ -101,7 +101,7 @@ class LineApp {
         SessionData sessionData = new()
         {
             paths = sessionInfo.paths,
-            chunkSize = sessionInfo.chunkSize,
+            chunkKiBytes = sessionInfo.chunkKiBytes,
             maxWorkers = sessionInfo.maxWorkers,
             iterations = 1,
             byteCount = sessionInfo.byteCount,
@@ -137,7 +137,7 @@ class LineApp {
     {
         List<LineIndexer> indexers = new();
         foreach (var path in sessionData.paths) {
-            var indexer = new LineIndexer(progress, sessionData.chunkSize, sessionData.maxWorkers);
+            var indexer = new LineIndexer(progress, sessionData.chunkKiBytes, sessionData.maxWorkers);
             indexer.Start(path);
             indexers.Add(indexer);
         }
@@ -171,7 +171,7 @@ class LineApp {
     {
         long totalBytes = sessionData.iterations * sessionData.byteCount;
         ThreadPool.GetMaxThreads(out int maxThreads, out int _);
-        Console.WriteLine($"maxWorkers={sessionData.maxWorkers}, chunkSize={sessionData.chunkSize}, maxThread={maxThreads}");
+        Console.WriteLine($"maxWorkers={sessionData.maxWorkers}, chunkKiBytes={sessionData.chunkKiBytes}, maxThread={maxThreads}");
         Console.WriteLine(       $"   {resultData.lineCount} lines indexed");
         Console.WriteLine(value: $"   indexed {totalBytes} bytes in {resultData.elapsedTime} seconds");
         Console.WriteLine(value: $"-> {totalBytes/resultData.elapsedTime/1e6} MBytes/s");
