@@ -27,14 +27,14 @@ namespace Imagibee {
             // indeterminate while Running is true
             public bool Identical {
                 get {
-                    return (Interlocked.CompareExchange(ref duplicate, 1, 1) == 1);
+                    return Interlocked.Read(ref mismatches) == 0;
                 }
                 private set {
-                    if (value) {
-                        Interlocked.CompareExchange(ref duplicate, 1, 0);
+                    if (value == false) {
+                        Interlocked.Exchange(ref mismatches, 1);
                     }
                     else {
-                        Interlocked.CompareExchange(ref duplicate, 0, 1);
+                        Interlocked.Exchange(ref mismatches, 0);
                     }
                 }
             }
@@ -43,7 +43,7 @@ namespace Imagibee {
             public bool Running { get; private set; } = false;
 
             // The number of bytes that have been tested so far
-            public long ByteCount { get { return byteCount; } }
+            public long ByteCount { get { return Interlocked.Read(ref byteCount); } }
 
             // The error that caused the index process to end prematurely (if any)
             public string LastError { get; private set; } = "";
@@ -55,18 +55,22 @@ namespace Imagibee {
             // maxWorkers - optional limit to the maximum number of simultaneous workers
             public DuplicateChecker(AutoResetEvent progress, int chunkKiBytes=512, int maxWorkers=0)
             {
+                if (chunkKiBytes < 1) {
+                    chunkKiBytes = 1;
+                }
                 chunkSize = chunkKiBytes * 1024;
                 this.maxWorkers = maxWorkers;
                 this.progress = progress;
                 synchronizer = new AutoResetEvent(false);
                 byteCount = 0;
+                mismatches = 1;
             }
 
             // Begin the indexing process in the background
             public void Start(string filePath1, string filePath2)
             {
                 if (!Running) {
-                    Identical = true;
+                    mismatches = 0;
                     LastError = "";
                     path1 = filePath1;
                     path2 = filePath2;
@@ -170,22 +174,21 @@ namespace Imagibee {
                         chunkSize,
                         FileOptions.Asynchronous);
                     fileStream1.Seek(chunk.StartFpos, SeekOrigin.Begin);
-                    using var streamReader1 = new BinaryReader(fileStream1);
+                    var streamReader1 = new BinaryReader(fileStream1, System.Text.Encoding.UTF8, true);
                     var buf1 = streamReader1.ReadBytes(chunkSize);
                     using var fileStream2 = new FileStream(
-                        path1,
+                        path2,
                         FileMode.Open,
                         FileAccess.Read,
                         FileShare.Read,
                         chunkSize,
                         FileOptions.Asynchronous);
                     fileStream2.Seek(chunk.StartFpos, SeekOrigin.Begin);
-                    using var streamReader2 = new BinaryReader(fileStream2);
+                    var streamReader2 = new BinaryReader(fileStream2, System.Text.Encoding.UTF8, true);
                     var buf2 = streamReader2.ReadBytes(chunkSize);
-                    for (var i=0; i<buf1.Length; i++) {
-                        if (buf1[i] != buf2[i]) {
+                    if (!Utilities.UnsafeIsEqual(buf1, buf2)) {
+                        if (Identical) {
                             Identical = false;
-                            break;
                         }
                     }
                     Interlocked.Add(ref byteCount, buf1.Length);
@@ -214,7 +217,7 @@ namespace Imagibee {
             string path2;
             readonly int chunkSize;
             readonly int maxWorkers;
-            int duplicate;
+            long mismatches;
             int scheduledChunks;
             long byteCount;
         }

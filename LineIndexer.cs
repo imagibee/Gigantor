@@ -49,6 +49,9 @@ namespace Imagibee {
             // maxWorkers - optional limit to the maximum number of simultaneous workers
             public LineIndexer(AutoResetEvent progress, int chunkKiBytes=512, int maxWorkers=0)
             {
+                if (chunkKiBytes < 1) {
+                    chunkKiBytes = 1;
+                }
                 chunkSize = chunkKiBytes * 1024;
                 this.maxWorkers = maxWorkers;
                 this.progress = progress;

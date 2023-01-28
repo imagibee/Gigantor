@@ -14,14 +14,14 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\RegexSearcher.cs">
-      <Link>RegexSearcher.cs</Link>
-    </Compile>
     <Compile Include="..\Logging.cs">
       <Link>Logging.cs</Link>
     </Compile>
     <Compile Include="..\Utilities.cs">
       <Link>Utilities.cs</Link>
+    </Compile>
+    <Compile Include="..\DuplicateChecker.cs">
+      <Link>DuplicateChecker.cs</Link>
     </Compile>
   </ItemGroup>
 </Project>
