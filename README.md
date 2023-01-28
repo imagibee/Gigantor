@@ -64,11 +64,12 @@ while (indexer.Running) {
 Console.Write('\n');
 
 // All done
-if (indexer.LastError.Length == 0) {
-    Console.WriteLine(
-        $"Found {indexer.LineCount} lines " +
-        $"in {indexer.ByteCount} bytes");
+if (checker.LastError.Length != 0) {
+    throw new Exception(checker.LastError);
 }
+Console.WriteLine(
+    $"Found {indexer.LineCount} lines " +
+    $"in {indexer.ByteCount} bytes");
 
 // Get the file position at the start of the 1,000,000th line
 long myFpos = indexer.PositionFromLine(1000000);
@@ -110,13 +111,14 @@ while (searcher.Running) {
 Console.Write('\n');
 
 // All done
-if (searcher.LastError.Length == 0) {
-    Console.WriteLine($"Found {searcher.MatchCount} matches");
-    foreach (var matchData in searcher.GetMatchData()) {
-        Console.WriteLine($"[{matchData.StartFpos}] {matchData.Path}");
-        foreach (var match in matchData.Matches) {
-            Console.WriteLine($"{match.Name}, {match.Value}");
-        }
+if (checker.LastError.Length != 0) {
+    throw new Exception(checker.LastError);
+}
+Console.WriteLine($"Found {searcher.MatchCount} matches");
+foreach (var matchData in searcher.GetMatchData()) {
+    Console.WriteLine($"[{matchData.StartFpos}] {matchData.Path}");
+    foreach (var match in matchData.Matches) {
+        Console.WriteLine($"{match.Name}, {match.Value}");
     }
 }
 
