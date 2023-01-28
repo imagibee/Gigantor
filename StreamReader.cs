@@ -1,5 +1,3 @@
-using System.IO;
-
 namespace Imagibee {
     namespace Gigantor {
         //
@@ -10,33 +8,40 @@ namespace Imagibee {
         // working properly.  The main purpose of this StreamReader is to
         // provide a workaround for that issue.
         //
-        // To achieve this goal StreamReader is implemented as a BinaryReader
-        // with some code to make ReadLine functional.
+        // To achieve this goal StreamReader is derived from BinaryReader
+        // with an added ReadLine method.
         //
-        public class StreamReader
+        public class StreamReader : System.IO.BinaryReader
         {
             // User specifies the encoding
-            public StreamReader(Stream stream, System.Text.Encoding encoding, bool leaveOpen=true)
-            {
-                reader = new BinaryReader(stream, encoding, leaveOpen);
-            }
+            public StreamReader(
+                System.IO.Stream stream,
+                System.Text.Encoding encoding,
+                bool leaveOpen = true)
+                : base(
+                      stream,
+                      encoding,
+                      leaveOpen) { }
 
             // Default encoding is UTF8
-            public StreamReader(Stream stream, bool leaveOpen=true)
-            {
-                reader = new BinaryReader(stream, System.Text.Encoding.UTF8, leaveOpen);
-            }
+            public StreamReader(
+                System.IO.Stream stream,
+                bool leaveOpen = true)
+                : base(
+                      stream,
+                      System.Text.Encoding.UTF8,
+                      leaveOpen) { }
 
-            // Return the next line starting from the underlying Stream.Position
+            // Return the next line starting from the underlying BaseStream.Position
             public string ReadLine()
             {
                 char c;
                 var value = "";
-                var startPosition = reader.BaseStream.Position;
-                while ((c = reader.ReadChar()) != '\n') {
+                var startPosition = BaseStream.Position;
+                while ((c = ReadChar()) != '\n') {
                     if (c != '\r') {
                         value += c;
-                        Logger.Log($"{(byte)c}");
+                        //Logger.Log($"{(byte)c}");
                     }
                 }
                 // strip byte order mark (aka BOM)
@@ -45,9 +50,6 @@ namespace Imagibee {
                 }
                 return value;
             }
-
-            // private data
-            readonly BinaryReader reader;
         }
     }
 

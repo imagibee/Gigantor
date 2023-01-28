@@ -62,6 +62,9 @@ namespace Imagibee {
             // maxWorkers - optional limit to the maximum number of simultaneous workers
             public RegexSearcher(AutoResetEvent progress, int chunkKiBytes=512, int maxWorkers=0)
             {
+                if (chunkKiBytes < 1) {
+                    chunkKiBytes = 1;
+                }
                 chunkSize = chunkKiBytes * 1024;
                 this.maxWorkers = maxWorkers;
                 this.progress = progress;
@@ -73,11 +76,14 @@ namespace Imagibee {
             // filePath - the path of the file to search
             // regex - the regular expression to match against the file
             // maxMatchSize - the maximum size of a matched value
-            public void Start(string filePath, System.Text.RegularExpressions.Regex regex, int maxMatchSize)
+            public void Start(string filePath, System.Text.RegularExpressions.Regex regex, int maxMatchSize=-1)
             {
                 if (!Running) {
                     LastError = "";
                     Path = filePath;
+                    if (maxMatchSize == -1) {
+                        maxMatchSize = chunkSize / 100;
+                    }
                     overlap = maxMatchSize;
                     Running = true;
                     scheduledChunks = 0;

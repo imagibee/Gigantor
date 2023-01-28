@@ -8,9 +8,11 @@
 
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <LangVersion>9.0</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <LangVersion>9.0</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="NUnit" Version="3.12.0" />
@@ -34,11 +36,15 @@
     <Compile Include="..\StreamReader.cs">
       <Link>StreamReader.cs</Link>
     </Compile>
+    <Compile Include="..\Utilities.cs">
+      <Link>Utilities.cs</Link>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <None Remove="Assets\" />
     <None Remove="Assets\BibleTest.txt" />
     <None Remove="Assets\SimpleTest.txt" />
+    <None Remove="Assets\SimpleTest2.txt" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Assets\" />
@@ -48,6 +54,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Assets\SimpleTest.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\SimpleTest2.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
