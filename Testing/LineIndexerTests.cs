@@ -49,7 +49,6 @@ namespace Testing {
             LineIndexer indexer = new(new AutoResetEvent(false), chunkKiBytes, maxWorkers);
             indexer.Start("A Missing File");
             indexer.Wait();
-            Logger.Log($"error was {indexer.LastError}");
             Assert.AreEqual(true, indexer.LastError != "");
         }
 

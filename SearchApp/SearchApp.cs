@@ -69,7 +69,7 @@ class SearchApp {
         for (var i = startPathIndex; i < args.Length; i++) {
             sessionData.paths.Add(args[i]);
         }
-        sessionData.byteCount = Utilities.ByteCount(sessionData.paths);
+        sessionData.byteCount = Utilities.FileByteCount(sessionData.paths);
         return new Tuple<SessionType, SessionData>(sessionType, sessionData);
     }
 

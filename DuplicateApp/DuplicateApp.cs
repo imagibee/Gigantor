@@ -5,14 +5,14 @@ using System.Diagnostics;
 using Imagibee.Gigantor;
 
 //
-// A command line app that computes the line count of 1 or more file
+// A command line app that detects duplicates between files
 //
 // The main purpose of this app is to assist with performance benchmarking.
 //
 // Usage - benchmarking
-//   dotnet LineApp/bin/Release/netcoreapp3.1/LineApp.dll benchmark /tmp/enwik9.txt /tmp/enwik9-1.txt
+//   dotnet DuplicateApp/bin/Release/netcoreapp3.1/DuplicateApp.dll benchmark /tmp/enwik9.txt;/tmp/enwik9-1.txt
 //
-class LineApp {
+class DuplicateApp {
     static string Error = "";
 
     enum SessionType {
@@ -21,7 +21,8 @@ class LineApp {
     }
 
     struct SessionData {
-        public List<string> paths;
+        public List<string> paths1;
+        public List<string> paths2;
         public int chunkKiBytes;
         public int maxWorkers;
         public int iterations;
@@ -29,8 +30,8 @@ class LineApp {
     }
 
     struct ResultData {
-        public long lineCount;
         public double elapsedTime;
+        public bool identical;
     }
 
     static void Main(string[] args)
@@ -45,7 +46,8 @@ class LineApp {
         var sessionType = SessionType.Normal;
         SessionData sessionData = new()
         {
-            paths = new(),
+            paths1 = new(),
+            paths2 = new(),
             chunkKiBytes = 512,
             maxWorkers = 0
         };
@@ -62,13 +64,15 @@ class LineApp {
             }
         }
         for (var i = startPathIndex; i < args.Length; i++) {
-            sessionData.paths.Add(args[i]);
+            var paths = args[i].Split(';');
+            sessionData.paths1.Add(paths[0]);
+            sessionData.paths2.Add(paths[1]);
         }
-        sessionData.byteCount = Utilities.FileByteCount(sessionData.paths);
+        sessionData.byteCount = Utilities.FileByteCount(sessionData.paths1);
         return new Tuple<SessionType, SessionData>(sessionType, sessionData);
     }
 
-    static ICollection<SessionData> CreateSessionData(SessionType sessionType, SessionData sessionData)
+    static IList<SessionData> CreateSessionData(SessionType sessionType, SessionData sessionData)
     {
         if (sessionType == SessionType.Benchmark) {
             return CreateBenchmarkSession(sessionData);
@@ -78,13 +82,14 @@ class LineApp {
         }
     }
 
-    static ICollection<SessionData> CreateBenchmarkSession(SessionData sessionInfo)
+    static IList<SessionData> CreateBenchmarkSession(SessionData sessionInfo)
     {
         List<SessionData> sessionDatas = new();
         foreach (var maxWorkers in new List<int>() { 1, 2, 16, 0 }) {
             SessionData sessionData = new()
             {
-                paths = sessionInfo.paths,
+                paths1 = sessionInfo.paths1,
+                paths2 = sessionInfo.paths2,
                 chunkKiBytes = sessionInfo.chunkKiBytes,
                 maxWorkers = maxWorkers,
                 iterations = sessionInfo.iterations,
@@ -95,12 +100,13 @@ class LineApp {
         return sessionDatas;
     }
 
-    static ICollection<SessionData> CreateNormalSession(SessionData sessionInfo)
+    static IList<SessionData> CreateNormalSession(SessionData sessionInfo)
     {
         List<SessionData> sessionDatas = new();
         SessionData sessionData = new()
         {
-            paths = sessionInfo.paths,
+            paths1 = sessionInfo.paths1,
+            paths2 = sessionInfo.paths2,
             chunkKiBytes = sessionInfo.chunkKiBytes,
             maxWorkers = sessionInfo.maxWorkers,
             iterations = 1,
@@ -110,46 +116,53 @@ class LineApp {
         return sessionDatas;
     }
 
-    static void DoSessions(ICollection<SessionData> sessionDatas)
+    static void DoSessions(IList<SessionData> sessionDatas)
     {
         AutoResetEvent progress = new(false);
         foreach (var sessionData in sessionDatas) {
-            long lineCount = 0;
+            var identical = true;
             Stopwatch stopwatch = new();
             for (var i = 0; i < sessionData.iterations; i++) {
-                var indexers = StartIndexing(progress, sessionData);
-                WaitForCompletion(progress, indexers, stopwatch);
+                var checkers = StartChecking(progress, sessionData);
+                WaitForCompletion(progress, checkers, stopwatch);
                 if (Error.Length != 0) {
                     Console.Write('\n');
                     throw new Exception(Error);
                 }
-                foreach (var indexer in indexers) {
-                    lineCount += indexer.LineCount;
+                foreach (var checker in checkers) {
+                    if (!checker.Identical) {
+                        identical = false;
+                    }
                 }
             }
             Console.Write('\n');
-            ResultData resultData = new ResultData() { lineCount = lineCount, elapsedTime = stopwatch.Elapsed.TotalSeconds };
+            ResultData resultData = new ResultData()
+            {
+                identical = identical,
+                elapsedTime = stopwatch.Elapsed.TotalSeconds,
+            };
             DisplayResults(resultData, sessionData);
         }
     }
 
-    static ICollection<LineIndexer> StartIndexing(AutoResetEvent progress, SessionData sessionData)
+    static IList<DuplicateChecker> StartChecking(AutoResetEvent progress, SessionData sessionData)
     {
-        List<LineIndexer> indexers = new();
-        foreach (var path in sessionData.paths) {
-            var indexer = new LineIndexer(progress, sessionData.chunkKiBytes, sessionData.maxWorkers);
-            indexer.Start(path);
-            indexers.Add(indexer);
+        List<DuplicateChecker> checkers = new();
+        for (var i=0; i<sessionData.paths1.Count; i++) {
+            var checker = new DuplicateChecker(
+                progress, sessionData.chunkKiBytes, sessionData.maxWorkers);
+            checker.Start(sessionData.paths1[i], sessionData.paths2[i]);
+            checkers.Add(checker);
         }
-        return indexers;
+        return checkers;
     }
 
-    static void WaitForCompletion(AutoResetEvent progress, ICollection<LineIndexer> indexers, Stopwatch stopwatch)
+    static void WaitForCompletion(AutoResetEvent progress, IList<DuplicateChecker> checkers, Stopwatch stopwatch)
     {
         double lastTime = 0;
         stopwatch.Start();
-        LineIndexer.Wait(
-            indexers,
+        DuplicateChecker.Wait(
+            checkers,
             progress,
             (runningCount) =>
             {
@@ -160,7 +173,7 @@ class LineApp {
             },
             1000);
         stopwatch.Stop();
-        foreach (var indexer in indexers) {
+        foreach (var indexer in checkers) {
             if (Error.Length == 0 && indexer.LastError.Length != 0) {
                 Error = indexer.LastError;
             }
@@ -170,10 +183,11 @@ class LineApp {
     static void DisplayResults(ResultData resultData, SessionData sessionData)
     {
         long totalBytes = sessionData.iterations * sessionData.byteCount;
+        var result = resultData.identical ? "identical" : "different";
         ThreadPool.GetMaxThreads(out int maxThreads, out int _);
         Console.WriteLine($"maxWorkers={sessionData.maxWorkers}, chunkKiBytes={sessionData.chunkKiBytes}, maxThread={maxThreads}");
-        Console.WriteLine(       $"   {resultData.lineCount} lines indexed");
-        Console.WriteLine(value: $"   indexed {totalBytes} bytes in {resultData.elapsedTime} seconds");
-        Console.WriteLine(value: $"-> {totalBytes/resultData.elapsedTime/1e6} MBytes/s");
+        Console.WriteLine(value: $"   files are {result}");
+        Console.WriteLine(value: $"   checked {totalBytes} bytes in {resultData.elapsedTime} seconds");
+        Console.WriteLine(value: $"-> {totalBytes / resultData.elapsedTime / 1e6} MBytes/s");
     }
 }
