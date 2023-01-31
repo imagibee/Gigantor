@@ -148,7 +148,7 @@ class LineApp {
     {
         double lastTime = 0;
         stopwatch.Start();
-        LineIndexer.Wait(
+        Utilities.Wait(
             indexers,
             progress,
             (runningCount) =>
@@ -161,8 +161,8 @@ class LineApp {
             1000);
         stopwatch.Stop();
         foreach (var indexer in indexers) {
-            if (Error.Length == 0 && indexer.LastError.Length != 0) {
-                Error = indexer.LastError;
+            if (Error.Length == 0 && indexer.Error.Length != 0) {
+                Error = indexer.Error;
             }
         }
     }
