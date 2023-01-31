@@ -2,31 +2,34 @@
 A dotnet application library for working with very large files
 
 ## Contents
-Gigantor includes C# classes that can be safely and effectively used with very large files.  These classes are designed to operate within a reasonable memory footprint and to thoroughly and efficiently utilize CPU and IO.
+Gigantor includes classes that can be safely and effectively used with very large files.  These classes are designed to operate within a reasonable memory footprint and to thoroughly and efficiently utilize CPU and IO.
 
-- DuplicateChecker - class for detecting if two files are duplicates
-- LineIndexer - class for indexing text lines in the background
-- RegexSearcher - class for efficient regex search in the background
-- StreamReader - class for reading consecutive lines
+- `DuplicateChecker` - detects if two files are duplicates
+- `LineIndexer` - line counting, map line to fpos, map fpos to line
+- `RegexSearcher` - regex searching in the background
+- `FileMapJoin<T>` - abstract base class for partitioning operations
 
 ## Examples
 Here are several examples that illustrate usage. Refer to the console apps for more thorough examples including how to use multiple instances simultaneously.
 
-### 1. DuplicateChecker Example
-
+### 1. RegexSearcher Example
 ```csharp
 using Imagibee.Gigantor;
+
+// A regular expression to search the file for
+Regex regex = new(
+    "Hello World!", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
 // Create a AutoResetEvent wait event to pass in
 AutoResetEvent progress = new(false);
 
-// Instantiate a checker
-DuplicateChecker checker = new(progress);
+// Instantiate a searcher
+RegexSearcher searcher = new("~/VeryLarge.txt", regex, 5000, 12, progress);
 
-// Start and wait for completion
-checker.Start("~/VeryLarge1.txt", "~/VeryLarge2.txt");
-Console.WriteLine($"comparing {checker.Path1} and {checker.Path2}");
-while (checker.Running) {
+// Start and wait for completion 
+searcher.Start();
+Console.WriteLine($"searching {indexer.Path}");
+while (searcher.Running) {
     progress.WaitOne(1000);
     Console.Write('.');
 }
@@ -36,13 +39,12 @@ Console.Write('\n');
 if (checker.LastError.Length != 0) {
     throw new Exception(checker.LastError);
 }
-
-// Print results
-var result = checker.Identical ? "identical":"different";
-Console.WriteLine($"{checker.ByteCount} bytes checked");
-Console.WriteLine($"files are {result}");
+Console.WriteLine($"Found {searcher.MatchCount} matches");
+foreach (var matchData in searcher.GetMatchData()) {
+    Logger.Log($"{matchData.Value} named '{matchData.Name}' " +
+        $"at {matchData.StartFpos}]");
+}
 ```
-
 
 ### 2. LineIndexer Example
 ```csharp
@@ -52,10 +54,10 @@ using Imagibee.Gigantor;
 AutoResetEvent progress = new(false);
 
 // Instantiate a indexer
-LineIndexer indexer = new(progress);
+LineIndexer indexer = new("~/VeryLarge.txt", progress);
 
 // Start and wait for completion
-indexer.Start("~/VeryLarge.txt");
+indexer.Start();
 Console.WriteLine($"indexing {indexer.Path}");
 while (indexer.Running) {
     progress.WaitOne(1000);
@@ -86,25 +88,21 @@ myText = gigantorReader.ReadLine();
 
 ```
 
+### 3. DuplicateChecker Example
 
-### 3. RegexSearcher Example
 ```csharp
 using Imagibee.Gigantor;
-
-// A regular expression to search the file for
-Regex regex = new(
-    "Hello World!", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
 // Create a AutoResetEvent wait event to pass in
 AutoResetEvent progress = new(false);
 
-// Instantiate a searcher
-RegexSearcher searcher = new(progress);
+// Instantiate a checker
+DuplicateChecker checker = new("~/VeryLarge1.txt", "~/VeryLarge2.txt", progress);
 
-// Start and wait for completion 
-searcher.Start("~/VeryLarge.txt", regex);
-Console.WriteLine($"searching {indexer.Path}");
-while (searcher.Running) {
+// Start and wait for completion
+checker.Start();
+Console.WriteLine($"comparing {checker.Path1} and {checker.Path2}");
+while (checker.Running) {
     progress.WaitOne(1000);
     Console.Write('.');
 }
@@ -114,15 +112,14 @@ Console.Write('\n');
 if (checker.LastError.Length != 0) {
     throw new Exception(checker.LastError);
 }
-Console.WriteLine($"Found {searcher.MatchCount} matches");
-foreach (var matchData in searcher.GetMatchData()) {
-    Console.WriteLine($"[{matchData.StartFpos}] {matchData.Path}");
-    foreach (var match in matchData.Matches) {
-        Console.WriteLine($"{match.Name}, {match.Value}");
-    }
-}
 
+// Print results
+var result = checker.Identical ? "identical":"different";
+Console.WriteLine($"{checker.ByteCount} bytes checked");
+Console.WriteLine($"files are {result}");
 ```
+
+
 ## Performance
 The performance benchmark consists of running the included benchmarking apps over multiple copies of enwik9.  Enwik9 is a 1e9 byte file that is not included.
 

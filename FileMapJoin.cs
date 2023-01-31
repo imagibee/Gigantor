@@ -42,12 +42,14 @@ namespace Imagibee {
             // mapJoinMode - defines the map/join mode
             // chunkKiBytes - the chunk size in KiBytes that each worker works on
             // maxWorkers - optional limit to the maximum number of simultaneous workers
+            // overlap - optional bytes of overlap between buffers
             public FileMapJoin(
                 string filePath,
                 AutoResetEvent progress,
                 JoinMode mapJoinMode,
                 int chunkKiBytes,
-                int maxWorkers)
+                int maxWorkers=0,
+                int overlap=0)
             {
                 if (chunkKiBytes < 1) {
                     chunkKiBytes = 1;
@@ -57,6 +59,7 @@ namespace Imagibee {
                 this.mapJoinMode = mapJoinMode;
                 chunkSize = chunkKiBytes * 1024;
                 this.maxWorkers = maxWorkers;
+                this.overlap = overlap;
                 synchronizer = new AutoResetEvent(false);
             }
 
@@ -104,7 +107,7 @@ namespace Imagibee {
                     var chunkNum = 0;
                     FileInfo fileInfo = new(filePath);
                     //Logger.Log($"{filePath} is {fileInfo.Length} bytes");
-                    for (long pos = 0; pos < fileInfo.Length; pos += chunkSize) {
+                    for (long pos = 0; pos < fileInfo.Length; pos += chunkSize - overlap) {
                         jobQueue.Enqueue(
                             new FileMapJoinData()
                             {
@@ -220,6 +223,7 @@ namespace Imagibee {
             readonly AutoResetEvent progress;
             readonly JoinMode mapJoinMode;
             readonly int maxWorkers;
+            protected int overlap;
             ConcurrentQueue<FileMapJoinData> jobQueue;
             ConcurrentQueue<T> resultQueue;
             int scheduledChunks;
