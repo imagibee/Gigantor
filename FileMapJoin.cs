@@ -6,28 +6,23 @@ using System.IO;
 
 namespace Imagibee {
     namespace Gigantor {
-
-        // FileMapJoin job data
-        public struct FileMapJoinData : IMapJoinData {
-            public int Id { get; set; }
-            public int Cycle { get; set; }
-            public long StartFpos { get; set; }
-        };
-
         //
-        // Abstract base class for processing very large files
+        // Abstract base class for chunk processing very large files
         //
         // The class dispatches threads that run in the background to
         // partition the file into chunks.  These chunks are mapped
-        // to a result T by an implementation of the abstract Map
-        // method.  Results are then joined by an implementation of
-        // the abstract Join method according to the options defined
-        // in MapJoinOptions.
+        // to a T result by the implementation of the abstract Map
+        // method.  Results are then joined by the implementation of
+        // the abstract Join method according to the modes defined
+        // in MapJoinMode.
         //
         // Begin the process by calling Start with the path of the
         // file to process.  All public methods and properties are
         // well behaved at any time.  Although, while Running is true
         // only partial results are available.
+        //
+        // Exceptions during the background processing are caught and
+        // stored in Error.  Exceptions during Start are not handled.
         //
         public abstract class FileMapJoin<T> : IBackground where T : IMapJoinData
         {
@@ -37,44 +32,43 @@ namespace Imagibee {
             // True while index process is running
             public bool Running { get; private set; } = false;
 
-            // The error that caused the index process to end prematurely (if any)
+            // The error that caused the background process to end prematurely (if any)
             public string Error { get; private set; } = "";
 
             // Create a new instance
             //
+            // filePath - the path to the file to process
             // progress - signaled each time MatchCount is updated
-            // options - defines the map/join options
+            // mapJoinMode - defines the map/join mode
             // chunkKiBytes - the chunk size in KiBytes that each worker works on
             // maxWorkers - optional limit to the maximum number of simultaneous workers
             public FileMapJoin(
+                string filePath,
                 AutoResetEvent progress,
-                MapJoinOption options,
+                JoinMode mapJoinMode,
                 int chunkKiBytes,
                 int maxWorkers)
             {
                 if (chunkKiBytes < 1) {
                     chunkKiBytes = 1;
                 }
+                Path = filePath;
+                this.progress = progress;
+                this.mapJoinMode = mapJoinMode;
                 chunkSize = chunkKiBytes * 1024;
                 this.maxWorkers = maxWorkers;
-                this.progress = progress;
-                this.options = options;
                 synchronizer = new AutoResetEvent(false);
             }
 
             // Begin the processing in the background
-            //
-            // filePath - the path to the file to process
-            public void Start(string filePath)
+            public virtual void Start()
             {
                 if (!Running) {
-                    Started();
                     Error = "";
-                    Path = filePath;
                     scheduledChunks = 0;
                     resultQueue = new ConcurrentQueue<T>();
                     jobQueue = new ConcurrentQueue<FileMapJoinData>();
-                    ThreadPool.QueueUserWorkItem((_) => ManageJobs(filePath));
+                    ThreadPool.QueueUserWorkItem((_) => ManageJobs(Path));
                     Running = true;
                 }
             }
@@ -83,9 +77,6 @@ namespace Imagibee {
             //
             // PROTECTED INTERFACE
             //
-
-            // Called each time Start is called prior to doing anything else
-            protected abstract void Started();
 
             // Called by a background thread to map partition data to a T result
             protected abstract T Map(FileMapJoinData data);
@@ -99,6 +90,8 @@ namespace Imagibee {
             // from the prior call of Join
             protected T priorResult;
 
+            // Partitioning size in bytes
+            protected readonly int chunkSize;
 
             //
             // END OF PUBLIC AND PROTECTED INTERFACE
@@ -168,31 +161,36 @@ namespace Imagibee {
                 }
                 if (resultBuf.Count > 0) {
                     resultBuf.Sort((a, b) => a.Id.CompareTo(b.Id));
-                    if ((options & MapJoinOption.ReducingJoins) != 0) {
-                        for (var i = 0; i < resultBuf.Count - 1; i++) {
-                            var result1 = resultBuf[i];
-                            var result2 = resultBuf[i + 1];
-                            if (result1.Id == result2.Id - 1 &&
-                                result1.Cycle == result2.Cycle) {
-                                resultQueue.Enqueue(Join(result1, result2));
-                                resultBuf.RemoveAt(i);
-                                resultBuf.RemoveAt(i+1);
-                                progressMade += 1;
-                            }
-                        }
+                    if ((mapJoinMode & JoinMode.Exponential) != 0) {
+                        throw new NotImplementedException();
+                        //for (var i = 0; i < resultBuf.Count - 1; i++) {
+                        //    var result1 = resultBuf[i];
+                        //    var result2 = resultBuf[i + 1];
+                        //    if (result1.Id == result2.Id - 1 &&
+                        //        result1.Cycle == result2.Cycle) {
+                        //        resultQueue.Enqueue(Join(result1, result2));
+                        //        resultBuf.RemoveAt(i);
+                        //        resultBuf.RemoveAt(i+1);
+                        //        progressMade += 1;
+                        //    }
+                        //}
                     }
-                    else {
+                    else if ((mapJoinMode & JoinMode.Linear) != 0) {
                         var currentResult = resultBuf[0];
                         if (currentResult.Id == 0) {
                             priorResult = Join(currentResult, currentResult);
                             resultBuf.RemoveAt(0);
                             progressMade = 1;
-                    }
+                        }
                         else if (currentResult.Id == priorResult.Id + 1) {
                             priorResult = Join(priorResult, currentResult);
                             resultBuf.RemoveAt(0);
                             progressMade = 1;
                         }
+                    }
+                    else { // MapJoinMode.None
+                        progressMade = resultBuf.Count;
+                        resultBuf.Clear();
                     }
                 }
                 foreach (var result in resultBuf) {
@@ -220,12 +218,18 @@ namespace Imagibee {
             // private data
             readonly AutoResetEvent synchronizer;
             readonly AutoResetEvent progress;
-            readonly MapJoinOption options;
-            readonly int chunkSize;
+            readonly JoinMode mapJoinMode;
             readonly int maxWorkers;
             ConcurrentQueue<FileMapJoinData> jobQueue;
             ConcurrentQueue<T> resultQueue;
             int scheduledChunks;
         }
+
+        // FileMapJoin job data
+        public struct FileMapJoinData : IMapJoinData {
+            public int Id { get; set; }
+            public int Cycle { get; set; }
+            public long StartFpos { get; set; }
+        };
     }
 }

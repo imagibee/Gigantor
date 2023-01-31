@@ -10,7 +10,8 @@ using Imagibee.Gigantor;
 // The main purpose of this app is to assist with performance benchmarking.
 //
 // Usage - benchmarking
-//   dotnet LineApp/bin/Release/netcoreapp3.1/LineApp.dll benchmark /tmp/enwik9.txt /tmp/enwik9-1.txt
+//   dotnet LineApp/bin/Release/netcoreapp3.1/LineApp.dll benchmark \
+//   /tmp/enwik9.txt /tmp/enwik9-1.txt
 //
 class LineApp {
     static string Error = "";
@@ -68,7 +69,8 @@ class LineApp {
         return new Tuple<SessionType, SessionData>(sessionType, sessionData);
     }
 
-    static ICollection<SessionData> CreateSessionData(SessionType sessionType, SessionData sessionData)
+    static ICollection<SessionData> CreateSessionData(
+        SessionType sessionType, SessionData sessionData)
     {
         if (sessionType == SessionType.Benchmark) {
             return CreateBenchmarkSession(sessionData);
@@ -128,23 +130,30 @@ class LineApp {
                 }
             }
             Console.Write('\n');
-            ResultData resultData = new ResultData() { lineCount = lineCount, elapsedTime = stopwatch.Elapsed.TotalSeconds };
+            ResultData resultData = new ResultData()
+            {
+                lineCount = lineCount,
+                elapsedTime = stopwatch.Elapsed.TotalSeconds
+            };
             DisplayResults(resultData, sessionData);
         }
     }
 
-    static ICollection<LineIndexer> StartIndexing(AutoResetEvent progress, SessionData sessionData)
+    static ICollection<LineIndexer> StartIndexing(
+        AutoResetEvent progress, SessionData sessionData)
     {
         List<LineIndexer> indexers = new();
         foreach (var path in sessionData.paths) {
-            var indexer = new LineIndexer(progress, sessionData.chunkKiBytes, sessionData.maxWorkers);
-            indexer.Start(path);
+            var indexer = new LineIndexer(
+                path, progress, sessionData.chunkKiBytes, sessionData.maxWorkers);
+            indexer.Start();
             indexers.Add(indexer);
         }
         return indexers;
     }
 
-    static void WaitForCompletion(AutoResetEvent progress, ICollection<LineIndexer> indexers, Stopwatch stopwatch)
+    static void WaitForCompletion(
+        AutoResetEvent progress, ICollection<LineIndexer> indexers, Stopwatch stopwatch)
     {
         double lastTime = 0;
         stopwatch.Start();
@@ -171,9 +180,14 @@ class LineApp {
     {
         long totalBytes = sessionData.iterations * sessionData.byteCount;
         ThreadPool.GetMaxThreads(out int maxThreads, out int _);
-        Console.WriteLine($"maxWorkers={sessionData.maxWorkers}, chunkKiBytes={sessionData.chunkKiBytes}, maxThread={maxThreads}");
-        Console.WriteLine(       $"   {resultData.lineCount} lines indexed");
-        Console.WriteLine(value: $"   indexed {totalBytes} bytes in {resultData.elapsedTime} seconds");
-        Console.WriteLine(value: $"-> {totalBytes/resultData.elapsedTime/1e6} MBytes/s");
+        Console.WriteLine(
+            $"maxWorkers={sessionData.maxWorkers}, " +
+            $"chunkKiBytes={sessionData.chunkKiBytes}, " +
+            $"maxThread={maxThreads}");
+        Console.WriteLine($"   {resultData.lineCount} lines indexed");
+        Console.WriteLine(
+            $"   indexed {totalBytes} bytes in " +
+            $"{resultData.elapsedTime} seconds");
+        Console.WriteLine($"-> {totalBytes/resultData.elapsedTime/1e6} MBytes/s");
     }
 }

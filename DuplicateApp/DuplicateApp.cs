@@ -10,7 +10,8 @@ using Imagibee.Gigantor;
 // The main purpose of this app is to assist with performance benchmarking.
 //
 // Usage - benchmarking
-//   dotnet DuplicateApp/bin/Release/netcoreapp3.1/DuplicateApp.dll benchmark /tmp/enwik9.txt;/tmp/enwik9-1.txt
+//   dotnet DuplicateApp/bin/Release/netcoreapp3.1/DuplicateApp.dll benchmark \
+//   "/tmp/enwik9.txt;/tmp/enwik9-1.txt"
 //
 class DuplicateApp {
     static string Error = "";
@@ -150,8 +151,12 @@ class DuplicateApp {
         List<DuplicateChecker> checkers = new();
         for (var i=0; i<sessionData.paths1.Count; i++) {
             var checker = new DuplicateChecker(
-                progress, sessionData.chunkKiBytes, sessionData.maxWorkers);
-            checker.Start(sessionData.paths1[i], sessionData.paths2[i]);
+                sessionData.paths1[i],
+                sessionData.paths2[i],
+                progress,
+                sessionData.chunkKiBytes,
+                sessionData.maxWorkers);
+            checker.Start();
             checkers.Add(checker);
         }
         return checkers;
@@ -161,7 +166,7 @@ class DuplicateApp {
     {
         double lastTime = 0;
         stopwatch.Start();
-        DuplicateChecker.Wait(
+        Utilities.Wait(
             checkers,
             progress,
             (runningCount) =>
@@ -174,8 +179,8 @@ class DuplicateApp {
             1000);
         stopwatch.Stop();
         foreach (var indexer in checkers) {
-            if (Error.Length == 0 && indexer.LastError.Length != 0) {
-                Error = indexer.LastError;
+            if (Error.Length == 0 && indexer.Error.Length != 0) {
+                Error = indexer.Error;
             }
         }
     }
