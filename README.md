@@ -28,7 +28,7 @@ RegexSearcher searcher = new("~/VeryLarge.txt", regex, progress, 5000, 12);
 
 // Start and wait for completion 
 searcher.Start();
-Console.WriteLine($"searching {indexer.Path}");
+Console.WriteLine($"searching {searcher.Path}");
 while (searcher.Running) {
     progress.WaitOne(1000);
     Console.Write('.');
