@@ -24,7 +24,7 @@ Regex regex = new(
 AutoResetEvent progress = new(false);
 
 // Instantiate a searcher
-RegexSearcher searcher = new("~/VeryLarge.txt", regex, 5000, 12, progress);
+RegexSearcher searcher = new("~/VeryLarge.txt", regex, progress, 5000, 12);
 
 // Start and wait for completion 
 searcher.Start();
@@ -36,8 +36,8 @@ while (searcher.Running) {
 Console.Write('\n');
 
 // All done
-if (checker.LastError.Length != 0) {
-    throw new Exception(checker.LastError);
+if (searcher.Error.Length != 0) {
+    throw new Exception(searcher.Error);
 }
 Console.WriteLine($"Found {searcher.MatchCount} matches");
 foreach (var matchData in searcher.GetMatchData()) {
@@ -66,8 +66,8 @@ while (indexer.Running) {
 Console.Write('\n');
 
 // All done
-if (checker.LastError.Length != 0) {
-    throw new Exception(checker.LastError);
+if (indexer.Error.Length != 0) {
+    throw new Exception(indexer.Error);
 }
 Console.WriteLine(
     $"Found {indexer.LineCount} lines " +
@@ -109,8 +109,8 @@ while (checker.Running) {
 Console.Write('\n');
 
 // All done
-if (checker.LastError.Length != 0) {
-    throw new Exception(checker.LastError);
+if (checker.Error.Length != 0) {
+    throw new Exception(checker.Error);
 }
 
 // Print results
