@@ -23,5 +23,11 @@
     <Compile Include="..\DuplicateChecker.cs">
       <Link>DuplicateChecker.cs</Link>
     </Compile>
+    <Compile Include="..\MapJoin.cs">
+      <Link>MapJoin.cs</Link>
+    </Compile>
+    <Compile Include="..\FileMapJoin.cs">
+      <Link>FileMapJoin.cs</Link>
+    </Compile>
   </ItemGroup>
 </Project>
