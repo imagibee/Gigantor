@@ -51,6 +51,7 @@
     <None Remove="Assets\BibleTest.txt" />
     <None Remove="Assets\SimpleTest.txt" />
     <None Remove="Assets\SimpleTest2.txt" />
+    <None Remove="Assets\ChunkTest.txt" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Assets\" />
@@ -63,6 +64,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Assets\SimpleTest2.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\ChunkTest.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

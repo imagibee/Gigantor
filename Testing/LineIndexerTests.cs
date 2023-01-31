@@ -31,25 +31,27 @@ namespace Testing {
             LineIndexer indexer = new(new AutoResetEvent(false), chunkKiBytes, maxWorkers);
             Assert.AreEqual(false, indexer.Running);
             Assert.AreEqual(0, indexer.LineCount);
-            Assert.AreEqual(true, indexer.LastError == "");
+            Assert.AreEqual(true, indexer.Error == "");
         }
 
         [Test]
         public void EmptyPathTest()
         {
-            LineIndexer indexer = new(new AutoResetEvent(false), chunkKiBytes, maxWorkers);
+            AutoResetEvent progress = new(false);
+            LineIndexer indexer = new(progress, chunkKiBytes, maxWorkers);
             indexer.Start("");
-            indexer.Wait();
-            Assert.AreEqual(true, indexer.LastError != "");
+            Utilities.Wait(indexer, progress);
+            Assert.AreEqual(true, indexer.Error != "");
         }
 
         [Test]
         public void MissingPathTest()
         {
-            LineIndexer indexer = new(new AutoResetEvent(false), chunkKiBytes, maxWorkers);
+            AutoResetEvent progress = new(false);
+            LineIndexer indexer = new(progress, chunkKiBytes, maxWorkers);
             indexer.Start("A Missing File");
-            indexer.Wait();
-            Assert.AreEqual(true, indexer.LastError != "");
+            Utilities.Wait(indexer, progress);
+            Assert.AreEqual(true, indexer.Error != "");
         }
 
         [Test]
@@ -58,12 +60,12 @@ namespace Testing {
             AutoResetEvent progress = new(false);
             LineIndexer indexer = new(progress, chunkKiBytes, maxWorkers);
             indexer.Start(biblePath);
-            LineIndexer.Wait(
-                new List<LineIndexer>() { indexer },
+            Utilities.Wait(
+                indexer,
                 progress,
                 (_) => { },
                 1000);
-            Assert.AreEqual(true, indexer.LastError == "");
+            Assert.AreEqual(true, indexer.Error == "");
             Assert.AreEqual(-1, indexer.PositionFromLine(0));
             Assert.AreEqual(0, indexer.PositionFromLine(1));
             using var fileStream = new FileStream(biblePath, FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -85,13 +87,79 @@ namespace Testing {
             }
         }
 
+        // Depricated since GetChunk was made private (KiBytes units are now used for chunk size)
+        //[Test]
+        //public void ChunkTest()
+        //{
+        //    string chunkPath = Path.Combine("Assets", "ChunkTest.txt");
+        //    AutoResetEvent progress = new(false);
+        //    // 19 byte chunk size
+        //    LineIndexer indexer = new(progress, 19, maxWorkers);
+        //    indexer.Start(chunkPath);
+        //    Utilities.Wait(indexer, progress);
+        //    //Assert.AreEqual(false, true);
+        //    Assert.AreEqual(true, indexer.Error == "");
+        //    Assert.AreEqual(false, indexer.GetChunk(0).HasValue);
+        //    var chunk = indexer.GetChunk(1).Value;
+        //    Assert.AreEqual(0, chunk.StartFpos);
+        //    Assert.AreEqual(1, chunk.StartLine);
+        //    Assert.AreEqual(2, chunk.EndLine);
+        //    Assert.AreEqual(19, chunk.ByteCount);
+        //    chunk = indexer.GetChunk(2).Value;
+        //    Assert.AreEqual(0, chunk.StartFpos);
+        //    Assert.AreEqual(1, chunk.StartLine);
+        //    Assert.AreEqual(2, chunk.EndLine);
+        //    Assert.AreEqual(19, chunk.ByteCount);
+        //    chunk = indexer.GetChunk(3).Value;
+        //    Assert.AreEqual(22, chunk.StartFpos);
+        //    Assert.AreEqual(3, chunk.StartLine);
+        //    Assert.AreEqual(4, chunk.EndLine);
+        //    Assert.AreEqual(19, chunk.ByteCount);
+        //    chunk = indexer.GetChunk(4).Value;
+        //    Assert.AreEqual(22, chunk.StartFpos);
+        //    Assert.AreEqual(3, chunk.StartLine);
+        //    Assert.AreEqual(4, chunk.EndLine);
+        //    Assert.AreEqual(19, chunk.ByteCount);
+        //    chunk = indexer.GetChunk(5).Value;
+        //    Assert.AreEqual(44, chunk.StartFpos);
+        //    Assert.AreEqual(5, chunk.StartLine);
+        //    Assert.AreEqual(6, chunk.EndLine);
+        //    Assert.AreEqual(19, chunk.ByteCount);
+        //    chunk = indexer.GetChunk(6).Value;
+        //    Assert.AreEqual(44, chunk.StartFpos);
+        //    Assert.AreEqual(5, chunk.StartLine);
+        //    Assert.AreEqual(6, chunk.EndLine);
+        //    Assert.AreEqual(19, chunk.ByteCount);
+        //    chunk = indexer.GetChunk(7).Value;
+        //    Assert.AreEqual(66, chunk.StartFpos);
+        //    Assert.AreEqual(7, chunk.StartLine);
+        //    Assert.AreEqual(7, chunk.EndLine);
+        //    Assert.AreEqual(19, chunk.ByteCount);
+        //    chunk = indexer.GetChunk(8).Value;
+        //    Assert.AreEqual(77, chunk.StartFpos);
+        //    Assert.AreEqual(8, chunk.StartLine);
+        //    Assert.AreEqual(9, chunk.EndLine);
+        //    Assert.AreEqual(19, chunk.ByteCount);
+        //    chunk = indexer.GetChunk(9).Value;
+        //    Assert.AreEqual(77, chunk.StartFpos);
+        //    Assert.AreEqual(8, chunk.StartLine);
+        //    Assert.AreEqual(9, chunk.EndLine);
+        //    Assert.AreEqual(19, chunk.ByteCount);
+        //    chunk = indexer.GetChunk(10).Value;
+        //    Assert.AreEqual(99, chunk.StartFpos);
+        //    Assert.AreEqual(10, chunk.StartLine);
+        //    Assert.AreEqual(10, chunk.EndLine);
+        //    Assert.AreEqual(15, chunk.ByteCount);
+        //}
+
         [Test]
         public void LineNumberTest()
         {
-            LineIndexer indexer = new(new AutoResetEvent(false), chunkKiBytes, maxWorkers);
+            AutoResetEvent progress = new(false);
+            LineIndexer indexer = new(progress, chunkKiBytes, maxWorkers);
             indexer.Start(biblePath);
-            indexer.Wait();
-            Assert.AreEqual(true, indexer.LastError == "");
+            Utilities.Wait(indexer, progress);
+            Assert.AreEqual(true, indexer.Error == "");
             foreach (var line in new List<int>() { 1, 1515, 1516, 2989, 2990, 2991, 100263, 100264 }) {
                 Assert.AreEqual(line, indexer.LineFromPosition(indexer.PositionFromLine(line)));
             }
@@ -100,16 +168,17 @@ namespace Testing {
         [Test]
         public void SimpleTest()
         {
-            LineIndexer indexer = new(new AutoResetEvent(false), chunkKiBytes, maxWorkers);
+            AutoResetEvent progress = new(false);
+            LineIndexer indexer = new(progress, chunkKiBytes, maxWorkers);
             indexer.Start(simplePath);
-            indexer.Wait();
-            Assert.AreEqual(true, indexer.LastError == "");
+            Utilities.Wait(indexer, progress);
+            Assert.AreEqual(true, indexer.Error == "");
             Assert.AreEqual(6, indexer.LineCount);
             using var fileStream = new FileStream(simplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
             Imagibee.Gigantor.StreamReader reader = new(fileStream);
             fileStream.Seek(indexer.PositionFromLine(1), SeekOrigin.Begin);
             var lines = new List<string>() { "hello", "world", "", "", "foo", "bar" };
-            for (var i=0; i<lines.Count; i++) {
+            for (var i = 0; i < lines.Count; i++) {
                 Assert.AreEqual(lines[i], reader.ReadLine());
             }
         }
