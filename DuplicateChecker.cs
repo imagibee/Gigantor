@@ -1,30 +1,27 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.Concurrent;
 using System.Threading;
 using System.IO;
 
 namespace Imagibee {
     namespace Gigantor {
         //
-        // Determine if very large files are duplicates of one another
+        // Optimized file duplicate checker for very large files
         //
-        // To achieve this goal a background process partitions the files,
-        // compares each partition, aborting as soon as any two partitions
-        // don't match.
+        // Users should begin the process by calling Start.  All public
+        // methods and properties are well-behaved while the background
+        // process is running.
         //
-        // Users should begin the process by calling Start with the path
-        // of the files to check.
+        // After the process is finished, the results are kept until Start
+        // is called again.  However, calls to Start while Running is true
+        // are ignored.
         //
-        // After the process is finished the value of Identical indicates
-        // if the files are identical.
+        // Exceptions during the background processing are caught and
+        // stored in Error.  Exceptions during Start are not handled.
         //
-        // Performance can be tailored to a particular system by varying
-        // the chunkSize and maxWorkers parameters.
+        // A balance between memory footprint and performance can be achieved
+        // by varying chunkKiBytes and maxWorkers parameters.
         //
-        public class DuplicateChecker {
-            // true if the files are identical, otherwise false,
-            // indeterminate while Running is true
+        public class DuplicateChecker : FileMapJoin<MapJoinData> {
+            // True if the files are identical, otherwise false
             public bool Identical {
                 get {
                     return Interlocked.Read(ref mismatches) == 0;
@@ -39,186 +36,88 @@ namespace Imagibee {
                 }
             }
 
-            // True while index process is running
-            public bool Running { get; private set; } = false;
-
-            // The number of bytes that have been tested so far
+            // The number of bytes that have been compared so far
             public long ByteCount { get { return Interlocked.Read(ref byteCount); } }
-
-            // The error that caused the index process to end prematurely (if any)
-            public string LastError { get; private set; } = "";
 
             // Create a new instance
             //
-            // progress - signaled each time MatchCount is updated
+            // path1, path2 - the paths of the files to compare
+            // progress - signaled each time ByteCount is updated
             // chunkKiBytes - the chunk size in KiBytes that each worker works on
             // maxWorkers - optional limit to the maximum number of simultaneous workers
-            public DuplicateChecker(AutoResetEvent progress, int chunkKiBytes=512, int maxWorkers=0)
+            public DuplicateChecker(
+                string path1,
+                string path2,
+                AutoResetEvent progress,
+                int chunkKiBytes = 512,
+                int maxWorkers = 0) : base(
+                    path1,
+                    progress,
+                    JoinMode.None,
+                    chunkKiBytes,
+                    maxWorkers)
             {
-                if (chunkKiBytes < 1) {
-                    chunkKiBytes = 1;
-                }
-                chunkSize = chunkKiBytes * 1024;
-                this.maxWorkers = maxWorkers;
-                this.progress = progress;
-                synchronizer = new AutoResetEvent(false);
+                this.path2 = path2;
                 byteCount = 0;
                 mismatches = 1;
             }
 
-            // Begin the indexing process in the background
-            public void Start(string filePath1, string filePath2)
+            public override void Start()
             {
                 if (!Running) {
                     mismatches = 0;
-                    LastError = "";
-                    path1 = filePath1;
-                    path2 = filePath2;
-                    byteCount = 0;
-                    Running = true;
-                    scheduledChunks = 0;
-                    chunkJobs = new ConcurrentQueue<ChunkJob>();
-                    ThreadPool.QueueUserWorkItem((_) => ManageJobs());
-                }
-            }
-
-            // Efficiently block until background work completes
-            public void Wait()
-            {
-                while (Running) {
-                    progress.WaitOne(1000);
-                }
-            }
-
-            // Wait for multiple line checkers to all complete their background work
-            //
-            // checkers - a enumerable set of started checkers to wait for
-            // OnProgressOrTimeout - called each time LineCount is updated, or at frequency determined by the timeout parameter
-            // timeoutMilliSeconds - the time in milliseconds between callbacks
-            public static void Wait(ICollection<DuplicateChecker> checkers, AutoResetEvent progress, Action<int> OnProgressOrTimeout, int timeoutMilliSeconds)
-            {
-                while (true) {
-                    var runningCount = 0;
-                    foreach (var checker in checkers) {
-                        if (checker.Running) {
-                            runningCount++;
-                        }
-                    }
-                    if (runningCount == 0) {
-                        break;
-                    }
-                    progress.WaitOne(timeoutMilliSeconds);
-                    OnProgressOrTimeout(runningCount);
-                }
-            }
-
-            void ManageJobs()
-            {
-                try {
-                    FileInfo fileInfo1 = new(path1);
+                    FileInfo fileInfo1 = new(Path);
                     FileInfo fileInfo2 = new(path2);
                     // save some time if file lengths don't match
                     if (fileInfo1.Length == fileInfo2.Length) {
-                        // Create all the chunk jobs (in order)
-                        for (long pos = 0; pos < fileInfo1.Length; pos += chunkSize) {
-                            chunkJobs.Enqueue(
-                                new ChunkJob()
-                                {
-                                    StartFpos = pos,
-                                });
-                        }
-                        // Work until the queues are empty
-                        while (chunkJobs.Count != 0 || scheduledChunks != 0) {
-                            ScheduleChunks();
-                            synchronizer.WaitOne(1000);
-                            if (Identical == false) {
-                                chunkJobs.Clear();
-                                break;
-                            }
-                        }
+                        base.Start();
                     }
                     else {
                         Identical = false;
                     }
                 }
-                catch (Exception e) {
-                    // In the background catch all exceptions, record the text
-                    // for debugging, and abort the indexing process
-                    LastError = e.ToString();
-                }
-                Running = false;
-                progress.Set();
             }
 
-            void ScheduleChunks()
+            protected override MapJoinData Join(MapJoinData a, MapJoinData b)
             {
-                while (scheduledChunks < maxWorkers || maxWorkers < 1) {
-                    if (chunkJobs.TryDequeue(out ChunkJob chunkJob)) {
-                        Interlocked.Add(ref scheduledChunks, 1);
-                        ThreadPool.QueueUserWorkItem((_) => MapChunk(chunkJob));
-                    }
-                    else {
-                        break;
-                    }
-                }
+                return a;
             }
 
-            void MapChunk(ChunkJob chunk)
+            protected override MapJoinData Map(FileMapJoinData data)
             {
-                try {
-                    using var fileStream1 = new FileStream(
-                        path1,
-                        FileMode.Open,
-                        FileAccess.Read,
-                        FileShare.Read,
-                        chunkSize,
-                        FileOptions.Asynchronous);
-                    fileStream1.Seek(chunk.StartFpos, SeekOrigin.Begin);
-                    var streamReader1 = new BinaryReader(fileStream1, System.Text.Encoding.UTF8, true);
-                    var buf1 = streamReader1.ReadBytes(chunkSize);
-                    using var fileStream2 = new FileStream(
-                        path2,
-                        FileMode.Open,
-                        FileAccess.Read,
-                        FileShare.Read,
-                        chunkSize,
-                        FileOptions.Asynchronous);
-                    fileStream2.Seek(chunk.StartFpos, SeekOrigin.Begin);
-                    var streamReader2 = new BinaryReader(fileStream2, System.Text.Encoding.UTF8, true);
-                    var buf2 = streamReader2.ReadBytes(chunkSize);
-                    if (!Utilities.UnsafeIsEqual(buf1, buf2)) {
-                        if (Identical) {
-                            Identical = false;
-                        }
+                MapJoinData result = new(){};
+                using var fileStream1 = new FileStream(
+                    Path,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read,
+                    chunkSize,
+                    FileOptions.Asynchronous);
+                fileStream1.Seek(data.StartFpos, SeekOrigin.Begin);
+                var streamReader1 = new BinaryReader(fileStream1, System.Text.Encoding.UTF8, true);
+                var buf1 = streamReader1.ReadBytes(chunkSize);
+                using var fileStream2 = new FileStream(
+                    path2,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read,
+                    chunkSize,
+                    FileOptions.Asynchronous);
+                fileStream2.Seek(data.StartFpos, SeekOrigin.Begin);
+                var streamReader2 = new BinaryReader(fileStream2, System.Text.Encoding.UTF8, true);
+                var buf2 = streamReader2.ReadBytes(chunkSize);
+                if (!Utilities.UnsafeIsEqual(buf1, buf2)) {
+                    if (Identical) {
+                        Identical = false;
                     }
-                    Interlocked.Add(ref byteCount, buf1.Length);
                 }
-                catch (Exception e) {
-                    // In the background catch all exceptions, record the text
-                    // for debugging, and abort the indexing process
-                    LastError = e.ToString();
-                }
-                Interlocked.Add(ref scheduledChunks, -1);
-                synchronizer.Set();
-                progress.Set();
+                Interlocked.Add(ref byteCount, buf1.Length);
+                return result;
             }
-
-            // private types
-            struct ChunkJob {
-                public long StartFpos;
-            };
 
             // private data
-            ConcurrentQueue<ChunkJob> chunkJobs;
-            readonly AutoResetEvent synchronizer;
-            readonly AutoResetEvent progress;
-            // Paths of the files being compared
-            string path1;
-            string path2;
-            readonly int chunkSize;
-            readonly int maxWorkers;
+            readonly string path2;
             long mismatches;
-            int scheduledChunks;
             long byteCount;
         }
     }

@@ -28,7 +28,7 @@ namespace Testing {
         [Test]
         public void InitialStateTest()
         {
-            LineIndexer indexer = new(new AutoResetEvent(false), chunkKiBytes, maxWorkers);
+            LineIndexer indexer = new("", new AutoResetEvent(false), chunkKiBytes, maxWorkers);
             Assert.AreEqual(false, indexer.Running);
             Assert.AreEqual(0, indexer.LineCount);
             Assert.AreEqual(true, indexer.Error == "");
@@ -38,8 +38,8 @@ namespace Testing {
         public void EmptyPathTest()
         {
             AutoResetEvent progress = new(false);
-            LineIndexer indexer = new(progress, chunkKiBytes, maxWorkers);
-            indexer.Start("");
+            LineIndexer indexer = new("", progress, chunkKiBytes, maxWorkers);
+            indexer.Start();
             Utilities.Wait(indexer, progress);
             Assert.AreEqual(true, indexer.Error != "");
         }
@@ -48,8 +48,8 @@ namespace Testing {
         public void MissingPathTest()
         {
             AutoResetEvent progress = new(false);
-            LineIndexer indexer = new(progress, chunkKiBytes, maxWorkers);
-            indexer.Start("A Missing File");
+            LineIndexer indexer = new("A Missing File", progress, chunkKiBytes, maxWorkers);
+            indexer.Start();
             Utilities.Wait(indexer, progress);
             Assert.AreEqual(true, indexer.Error != "");
         }
@@ -58,8 +58,8 @@ namespace Testing {
         public void FilePositionTest()
         {
             AutoResetEvent progress = new(false);
-            LineIndexer indexer = new(progress, chunkKiBytes, maxWorkers);
-            indexer.Start(biblePath);
+            LineIndexer indexer = new(biblePath, progress, chunkKiBytes, maxWorkers);
+            indexer.Start();
             Utilities.Wait(
                 indexer,
                 progress,
@@ -156,8 +156,8 @@ namespace Testing {
         public void LineNumberTest()
         {
             AutoResetEvent progress = new(false);
-            LineIndexer indexer = new(progress, chunkKiBytes, maxWorkers);
-            indexer.Start(biblePath);
+            LineIndexer indexer = new(biblePath, progress, chunkKiBytes, maxWorkers);
+            indexer.Start();
             Utilities.Wait(indexer, progress);
             Assert.AreEqual(true, indexer.Error == "");
             foreach (var line in new List<int>() { 1, 1515, 1516, 2989, 2990, 2991, 100263, 100264 }) {
@@ -169,8 +169,8 @@ namespace Testing {
         public void SimpleTest()
         {
             AutoResetEvent progress = new(false);
-            LineIndexer indexer = new(progress, chunkKiBytes, maxWorkers);
-            indexer.Start(simplePath);
+            LineIndexer indexer = new(simplePath, progress, chunkKiBytes, maxWorkers);
+            indexer.Start();
             Utilities.Wait(indexer, progress);
             Assert.AreEqual(true, indexer.Error == "");
             Assert.AreEqual(6, indexer.LineCount);
