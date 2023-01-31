@@ -144,11 +144,15 @@ class SearchApp {
     {
         List<RegexSearcher> searchers = new();
         foreach (var path in sessionData.paths) {
-            var searcher = new RegexSearcher(progress, sessionData.chunkKiBytes, sessionData.maxWorkers);
-            searcher.Start(
+            var searcher = new RegexSearcher(
                 path,
                 new Regex(sessionData.pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled),
-                sessionData.pattern.Length);
+                progress,
+                50000,
+                sessionData.pattern.Length,
+                sessionData.chunkKiBytes,
+                sessionData.maxWorkers);
+            searcher.Start();
             searchers.Add(searcher);
         }
         return searchers;
@@ -158,7 +162,7 @@ class SearchApp {
     {
         double lastTime = 0;
         stopwatch.Start();
-        RegexSearcher.Wait(
+        Utilities.Wait(
             searchers,
             progress,
             (runningCount) =>
@@ -171,8 +175,8 @@ class SearchApp {
             1000);
         stopwatch.Stop();
         foreach (var searcher in searchers) {
-            if (Error.Length == 0 && searcher.LastError.Length != 0) {
-                Error = searcher.LastError;
+            if (Error.Length == 0 && searcher.Error.Length != 0) {
+                Error = searcher.Error;
             }
         }
     }

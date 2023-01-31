@@ -5,41 +5,27 @@ using System.IO;
 
 namespace Imagibee {
     namespace Gigantor {
-
-        // LineIndexer job data
-        public struct LineIndexerData : IMapJoinData {
-            public int Id { get; set; }
-            public int Cycle { get; set; }
-            public long StartFpos;
-            public long LineCount;
-            public long StartLine;
-            public long EndLine;
-            public int ByteCount;
-            public bool EolEnding;
-            public int FirstEolOffset;
-            public bool FinalChunk;
-        }
-
         //
-        // Helper for optimizing reading lines for very large files
+        // Optimized line counting and random access for very large files
         //
-        // To achieve this goal the index process runs in the background,
-        // seperates the file into chunks, and counts the lines in each
-        // chunk.  These chunks are ultimately joined into a continuous
-        // result.  Much of this functionality is provided by the
-        // FileMapJoin base class.
+        // The file is processed in the background to get a total LineCount 
+        // and to create an index.  The index is cached and used by subsequent
+        // calls to optimize random access to the file by either line or
+        // position.
         //
-        // Users should begin the process by calling Start with the path
-        // of the file to index.  All public methods and properties are
-        // well behaved at any time.  Although, while Running is true only
-        // partial results are available.
+        // Users should begin the process by calling Start.  All public
+        // methods and properties are well-behaved while the background
+        // process is running.
         //
-        // After the process is finished, the results are stored until Start
-        // is called again.  Although, calling Start while Running is true
-        // will have no effect.
+        // After the process is finished, the results are kept until Start
+        // is called again.  However, calls to Start while Running is true
+        // are ignored.
         //
-        // Performance can be tailored to a particular system by varying
-        // chunkKiBytes and maxWorkers parameters.
+        // Exceptions during the background processing are caught and
+        // stored in Error.  Exceptions during Start are not handled.
+        //
+        // A balance between memory footprint and performance can be achieved
+        // by varying chunkKiBytes and maxWorkers parameters.
         //
         public class LineIndexer : FileMapJoin<LineIndexerData> {
             // The number of lines that have been indexed so far
@@ -50,25 +36,37 @@ namespace Imagibee {
 
             // Create a new instance
             //
-            // progress - signaled each time MatchCount is updated
+            // filePath - the path to the file to process
+            // progress - signaled each time LineCount is updated
             // chunkKiBytes - the chunk size in KiBytes that each worker works on
             // maxWorkers - optional limit to the maximum number of simultaneous workers
             public LineIndexer(
+                string filePath,
                 AutoResetEvent progress,
                 int chunkKiBytes=512,
                 int maxWorkers=0) : base(
+                    filePath,
                     progress,
-                    MapJoinOption.None,
+                    JoinMode.Linear,
                     chunkKiBytes,
                     maxWorkers)
             {
-                if (chunkKiBytes < 1) {
-                    chunkKiBytes = 1;
-                }
-                chunkSize = chunkKiBytes * 1024;
             }
 
-            // Return the fpos of the requested line or -1 if the line does not exist
+            // Start the background process
+            public override void Start()
+            {
+                if (!Running) {
+                    chunks = new();
+                    base.Start();
+                }
+            }
+
+            // Get the fpos of a line
+            //
+            // line - the line number starting from 1
+            //
+            // Return the fpos at the beginning of line or -1 if none exists
             public long PositionFromLine(long line)
             {
                 long fpos = -1;
@@ -100,7 +98,11 @@ namespace Imagibee {
                 return fpos;
             }
 
-            // Return the line number of the requested fpos or -1 if the line does not exist
+            // Get the line of an fpos
+            //
+            // fpos - the byte offset from the beginning of the file
+            //
+            // Returns the line number that contains fpos or -1 if none exists
             public long LineFromPosition(long fpos)
             {
                 long line = -1;
@@ -160,11 +162,6 @@ namespace Imagibee {
                     }
                 }
                 return null;
-            }
-
-            protected override void Started()
-            {
-                chunks = new();
             }
 
             protected override LineIndexerData Join(LineIndexerData a, LineIndexerData b)
@@ -259,7 +256,20 @@ namespace Imagibee {
 
             // private data
             List<LineIndexerData> chunks;
-            readonly int chunkSize;
+        }
+
+        // FileMapJoin job data used internally but it must be declared public
+        public struct LineIndexerData : IMapJoinData {
+            public int Id { get; set; }
+            public int Cycle { get; set; }
+            public long StartFpos;
+            public long LineCount;
+            public long StartLine;
+            public long EndLine;
+            public int ByteCount;
+            public bool EolEnding;
+            public int FirstEolOffset;
+            public bool FinalChunk;
         }
     }
 }
