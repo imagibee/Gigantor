@@ -1,4 +1,4 @@
-using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Threading;
 using System.IO;
@@ -59,6 +59,7 @@ namespace Imagibee {
                     chunkKiBytes,
                     maxWorkers)
             {
+                mutex = new();
                 this.regex = regex;
                 this.maxMatchCount = maxMatchCount;
                 if (maxMatchSize < 1) {
@@ -76,6 +77,12 @@ namespace Imagibee {
                 }
             }
 
+            // Finished, sort match data
+            protected override void Finish()
+            {
+                matches = matches.OrderBy(x => x.StartFpos).ToList();
+            }
+
             // Return the MatchData of current progress
             public IReadOnlyList<MatchData> GetMatchData()
             {
@@ -90,7 +97,7 @@ namespace Imagibee {
             protected override MapJoinData Map(FileMapJoinData data)
             {
                 MapJoinData result = new();
-                //Logger.Log($"mapping chunk {chunk.Id} from {chunk.Path} at {chunk.StartFpos}");
+                //Logger.Log($"mapping chunk {data.Id} at {data.StartFpos}");
                 using var fileStream = new FileStream(
                     Path,
                     FileMode.Open,
@@ -99,9 +106,12 @@ namespace Imagibee {
                     chunkSize,
                     FileOptions.Asynchronous);
                 fileStream.Seek(data.StartFpos, SeekOrigin.Begin);
-                using var streamReader = new BinaryReader(fileStream);
-                var buf = streamReader.ReadBytes(chunkSize);
-                var partitionMatches = regex.Matches(System.Text.Encoding.UTF8.GetString(buf));
+                var buf = new BinaryReader(fileStream).ReadBytes(chunkSize);
+                var str = Utilities.UnsafeByteToString(buf);
+                if (buf.Length != str.Length) {
+                    throw new System.Exception($"{data.Id} {buf.Length} != {str.Length}");
+                }
+                var partitionMatches = regex.Matches(str);
                 if (partitionMatches.Count > 0) {
                     mutex.WaitOne();
                     try {
@@ -121,6 +131,7 @@ namespace Imagibee {
                         mutex.ReleaseMutex();
                     }                   
                 }
+                Interlocked.Add(ref byteCount, buf.Length);
                 return result;
             }
 
@@ -128,7 +139,7 @@ namespace Imagibee {
             List<MatchData> matches;
             readonly System.Text.RegularExpressions.Regex regex;
             readonly int maxMatchCount;
-            private static Mutex mutex = new();
+            readonly Mutex mutex;
 
             ~RegexSearcher()
             {
