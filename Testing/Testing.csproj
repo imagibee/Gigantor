@@ -45,6 +45,9 @@
     <Compile Include="..\FileMapJoin.cs">
       <Link>FileMapJoin.cs</Link>
     </Compile>
+    <Compile Include="..\Background.cs">
+      <Link>Background.cs</Link>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <None Remove="Assets\" />

@@ -31,9 +31,6 @@ namespace Imagibee {
             // The number of lines that have been indexed so far
             public long LineCount { get; private set; } = 0;
 
-            // The number of bytes that have been indexed so far
-            public long ByteCount { get; private set; } = 0;
-
             // Create a new instance
             //
             // filePath - the path to the file to process
@@ -190,7 +187,7 @@ namespace Imagibee {
                     }
                     chunks.Add(priorChunk);
                     LineCount += priorChunk.LineCount;
-                    ByteCount += priorChunk.ByteCount;
+                    Interlocked.Add(ref byteCount, priorChunk.ByteCount);
                     //Logger.Log($"finished {priorChunk.Id} at {priorChunk.StartFpos} between {priorChunk.StartLine} and {priorChunk.EndLine}, {priorChunk.LineCount} lines, {priorChunk.ByteCount} bytes");
                 }
                 if (b.FinalChunk) {
@@ -200,7 +197,7 @@ namespace Imagibee {
                     }
                     chunks.Add(currentChunk);
                     LineCount += currentChunk.LineCount;
-                    ByteCount += currentChunk.ByteCount;
+                    Interlocked.Add(ref byteCount, currentChunk.ByteCount);
                     //Logger.Log($"final {currentChunk.Id} between {currentChunk.StartLine} and {currentChunk.EndLine} at {currentChunk.StartFpos}");
                 }
                 return currentChunk;

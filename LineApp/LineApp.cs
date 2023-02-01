@@ -158,7 +158,7 @@ class LineApp {
         double lastTime = 0;
         stopwatch.Start();
         Utilities.Wait(
-            indexers,
+            new List<IBackground>(indexers),
             progress,
             (runningCount) =>
             {
