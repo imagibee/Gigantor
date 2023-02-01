@@ -68,7 +68,7 @@ for (var i=0; i<matchDatas.Count; i++) {
         $"({matchData.StartFpos})");
 }
 
-// Display the lines before and after the 1st search result
+// Display the lines before and after the 3rd match result
 var contextSize = 2;
 Console.WriteLine($"{2* contextSize + 1} line context ...");
 var match = searcher.GetMatchData()[2];
