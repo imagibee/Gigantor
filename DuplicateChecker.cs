@@ -36,9 +36,6 @@ namespace Imagibee {
                 }
             }
 
-            // The number of bytes that have been compared so far
-            public long ByteCount { get { return Interlocked.Read(ref byteCount); } }
-
             // Create a new instance
             //
             // path1, path2 - the paths of the files to compare
@@ -114,11 +111,10 @@ namespace Imagibee {
                 Interlocked.Add(ref byteCount, buf1.Length);
                 return result;
             }
-
+            
             // private data
             readonly string path2;
             long mismatches;
-            long byteCount;
         }
     }
 }

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
 using Imagibee.Gigantor;
+using System.Collections.ObjectModel;
 
 //
 // A command line app that performs regex searches over 1 or more file
@@ -163,9 +164,9 @@ class SearchApp {
         double lastTime = 0;
         stopwatch.Start();
         Utilities.Wait(
-            searchers,
+            new List<IBackground>(searchers),
             progress,
-            (runningCount) =>
+            (_) =>
             {
                 if (stopwatch.Elapsed.TotalSeconds - lastTime > 1) {
                     lastTime = stopwatch.Elapsed.TotalSeconds;

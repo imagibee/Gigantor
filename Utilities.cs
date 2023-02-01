@@ -8,16 +8,59 @@ namespace Imagibee {
     namespace Gigantor {
         public class Utilities
         {
+            // Start a background process and wait for it to complete
+            //
+            // process - the background process to start and wait for
+            // progress - shared wait event to facilitate progress, initially false
+            // OnProgressOrTimeout - called each time progress is updated, or at
+            // frequency determined by the timeout parameter, callback argument
+            // is a collection containing process
+            // timeoutMilliSeconds - the time in milliseconds between callbacks
+            public static void StartAndWait(
+                IBackground process,
+                AutoResetEvent progress,
+                Action<IReadOnlyCollection<IBackground>> OnProgressOrTimeout = null,
+                int timeoutMilliSeconds = 1000)
+            {
+                StartAndWait(
+                    new List<IBackground>() { process },
+                    progress,
+                    OnProgressOrTimeout,
+                    timeoutMilliSeconds);
+            }
+
+            // Start multiple background processes and wait for them all to complete
+            //
+            // processes - a collection of background processes to start and wait for
+            // progress - shared wait event to facilitate progress, initially false
+            // OnProgressOrTimeout - called each time progress is updated, or at
+            // frequency determined by the timeout parameter, callback argument
+            // is a collection containing processes
+            // timeoutMilliSeconds - the time in milliseconds between callbacks
+            public static void StartAndWait(
+                ICollection<IBackground> processes,
+                AutoResetEvent progress,
+                Action<IReadOnlyCollection<IBackground>> OnProgressOrTimeout = null,
+                int timeoutMilliSeconds = 1000)
+            {
+                foreach (var process in processes) {
+                    process.Start();
+                }
+                Wait(processes, progress, OnProgressOrTimeout, timeoutMilliSeconds);
+            }
+
             // Efficiently wait until background process completes
             //
-            // processes - a set of started indexers to wait for
-            // OnProgressOrTimeout - called each time LineCount is updated, or
-            // at frequency determined by the timeout parameter
+            // process - the background process to wait for
+            // progress - shared wait event to facilitate progress, initially false
+            // OnProgressOrTimeout - called each time progress is updated, or at
+            // frequency determined by the timeout parameter, callback argument
+            // is a collection containing process
             // timeoutMilliSeconds - the time in milliseconds between callbacks
             static public void Wait(
                 IBackground process,
                 AutoResetEvent progress,
-                Action<int> OnProgressOrTimeout = null,
+                Action<IReadOnlyCollection<IBackground>> OnProgressOrTimeout = null,
                 int timeoutMilliSeconds = 1000)
             {
                 Wait(
@@ -30,30 +73,36 @@ namespace Imagibee {
 
             // Efficiently wait for multiple background processes to all complete
             //
-            // processes - a set of started indexers to wait for
-            // OnProgressOrTimeout - called each time LineCount is updated, or at
-            // frequency determined by the timeout parameter
+            // processes - a collection of backround processes to wait for
+            // progress - shared wait event to facilitate progress, initially false
+            // OnProgressOrTimeout - called each time progress is updated, or at
+            // frequency determined by the timeout parameter, callback argument
+            // is a collection containing processes
             // timeoutMilliSeconds - the time in milliseconds between callbacks
             public static void Wait(
-                IEnumerable<IBackground> processes,
+                ICollection<IBackground> processes,
                 AutoResetEvent progress,
-                Action<int> OnProgressOrTimeout = null,
+                Action<IReadOnlyCollection<IBackground>> OnProgressOrTimeout = null,
                 int timeoutMilliSeconds = 1000)
             {
-                while (true) {
+                var run = true;
+                while (run) {
                     var runningCount = 0;
-                    foreach (var mr in processes) {
-                        if (mr.Running) {
+                    foreach (var process in processes) {
+                        if (process.Running) {
                             runningCount++;
+                        }
+                        if (process.Error.Length != 0) {
+                            run = false;
+                            break;
                         }
                     }
                     if (runningCount == 0) {
                         break;
                     }
                     progress.WaitOne(timeoutMilliSeconds);
-                    if (OnProgressOrTimeout != null) {
-                        OnProgressOrTimeout(runningCount);
-                    }
+                    OnProgressOrTimeout?.Invoke(
+                        (IReadOnlyCollection<IBackground>)processes);
                 }
             }
 
@@ -127,6 +176,42 @@ namespace Imagibee {
                     }
                 }
                 return true;
+            }
+            // Progress bar class for examples
+            public class ByteProgress {
+                int maxLength;
+                int lastLength;
+                long totalBytes;
+
+                public ByteProgress(int maxLength, long totalBytes)
+                {
+                    this.maxLength = maxLength;
+                    this.totalBytes = totalBytes;
+                }
+
+                public void Update(long byteCount)
+                {
+                    var progressLength = (int)(maxLength * byteCount / totalBytes);
+                    for (var i = 0; i < progressLength - lastLength; i++) {
+                        Console.Write('#');
+                    }
+                    lastLength = progressLength;
+                }
+            }
+
+            internal static unsafe string UnsafeByteToString(byte[] value)
+            {
+                var length = value.Length;
+                string str = new('\0', length);
+                unsafe {
+                    fixed (char* p1 = str) {
+                        byte* p2 = (byte*)p1;
+                        for (var i = 0; i < length / sizeof(byte); i++) {
+                            p2[i<<1] = value[i];
+                        }
+                    }
+                }
+                return str;
             }
         }
     }
