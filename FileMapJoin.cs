@@ -11,18 +11,17 @@ namespace Imagibee {
         //
         // The class dispatches threads that run in the background to
         // partition the file into chunks.  These chunks are mapped
-        // to a T result by the implementation of the abstract Map
-        // method.  Results are then joined by the implementation of
-        // the abstract Join method according to the modes defined
-        // in MapJoinMode.
+        // to a T result by the implementation of the Map method.
+        // Results are then joined by the implementation of the Join
+        // method according to the modes defined in MapJoinMode.
         //
         // Begin the process by calling Start with the path of the
         // file to process.  All public methods and properties are
-        // well behaved at any time.  Although, while Running is true
-        // only partial results are available.
+        // well behaved at any time.
         //
         // Exceptions during the background processing are caught and
-        // stored in Error.  Exceptions during Start are not handled.
+        // stored in Error.  If Error is not empty results are undefined.
+        // Exceptions during Start are not handled.
         //
         public abstract class FileMapJoin<T> : IBackground where T : IMapJoinData
         {
@@ -42,7 +41,6 @@ namespace Imagibee {
             // mapJoinMode - defines the map/join mode
             // chunkKiBytes - the chunk size in KiBytes that each worker works on
             // maxWorkers - optional limit to the maximum number of simultaneous workers
-            // overlap - optional bytes of overlap between buffers
             public FileMapJoin(
                 string filePath,
                 AutoResetEvent progress,
@@ -76,10 +74,25 @@ namespace Imagibee {
                 }
             }
 
+            // Called after all Join complete, override to perform final actions
+            protected virtual void Finish()
+            {
+            }
+
+            // FileMapJoin job data
+            public struct FileMapJoinData : IMapJoinData {
+                public int Id { get; set; }
+                public int Cycle { get; set; }
+                public long StartFpos { get; set; }
+            };
+
 
             //
             // PROTECTED INTERFACE
             //
+            // The quantity of bytes that have been completed
+            public long ByteCount { get { return Interlocked.Read(ref byteCount); } }
+            protected long byteCount;
 
             // Called by a background thread to map partition data to a T result
             protected abstract T Map(FileMapJoinData data);
@@ -96,8 +109,11 @@ namespace Imagibee {
             // Partitioning size in bytes
             protected readonly int chunkSize;
 
+            // Bytes of overlap between buffers
+            protected int overlap;
+
             //
-            // END OF PUBLIC AND PROTECTED INTERFACE
+            // PRIVATE INTERFACE
             //
 
             void ManageJobs(string filePath)
@@ -124,6 +140,7 @@ namespace Imagibee {
                         synchronizer.WaitOne(1000);
                         JoinResults();
                     }
+                    Finish();
                 }
                 catch (Exception e) {
                     // In the background catch all exceptions, record the text
@@ -223,17 +240,9 @@ namespace Imagibee {
             readonly AutoResetEvent progress;
             readonly JoinMode mapJoinMode;
             readonly int maxWorkers;
-            protected int overlap;
             ConcurrentQueue<FileMapJoinData> jobQueue;
             ConcurrentQueue<T> resultQueue;
             int scheduledChunks;
         }
-
-        // FileMapJoin job data
-        public struct FileMapJoinData : IMapJoinData {
-            public int Id { get; set; }
-            public int Cycle { get; set; }
-            public long StartFpos { get; set; }
-        };
     }
 }

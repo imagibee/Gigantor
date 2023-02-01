@@ -167,7 +167,7 @@ class DuplicateApp {
         double lastTime = 0;
         stopwatch.Start();
         Utilities.Wait(
-            checkers,
+            new List<IBackground>(checkers),
             progress,
             (runningCount) =>
             {

@@ -1,12 +1,6 @@
 namespace Imagibee {
     namespace Gigantor {
 
-        public interface IBackground
-        {
-            bool Running { get;  }
-            void Start();
-        }
-
         // JoinMode defines several modes for solving various problems
         public enum JoinMode {
             // No joining, Join is never called
