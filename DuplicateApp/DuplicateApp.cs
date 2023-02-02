@@ -10,8 +10,7 @@ using Imagibee.Gigantor;
 // The main purpose of this app is to assist with performance benchmarking.
 //
 // Usage - benchmarking
-//   dotnet DuplicateApp/bin/Release/netcoreapp3.1/DuplicateApp.dll benchmark \
-//   "/tmp/enwik9.txt;/tmp/enwik9-1.txt"
+//   dotnet DuplicateApp/bin/Release/netcoreapp3.1/DuplicateApp.dll benchmark "/tmp/enwik9.txt;/tmp/enwik9-1.txt"
 //
 class DuplicateApp {
     static string Error = "";
@@ -86,7 +85,7 @@ class DuplicateApp {
     static IList<SessionData> CreateBenchmarkSession(SessionData sessionInfo)
     {
         List<SessionData> sessionDatas = new();
-        foreach (var maxWorkers in new List<int>() { 1, 2, 16, 32, 64, 128 }) {
+        foreach (var maxWorkers in new List<int>() { 1, 2, 4, 8, 16, 32, 64, 128 }) {
             SessionData sessionData = new()
             {
                 paths1 = sessionInfo.paths1,
