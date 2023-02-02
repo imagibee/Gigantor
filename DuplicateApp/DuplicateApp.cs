@@ -86,7 +86,7 @@ class DuplicateApp {
     static IList<SessionData> CreateBenchmarkSession(SessionData sessionInfo)
     {
         List<SessionData> sessionDatas = new();
-        foreach (var maxWorkers in new List<int>() { 1, 2, 16, 0 }) {
+        foreach (var maxWorkers in new List<int>() { 1, 2, 16, 32, 64, 128 }) {
             SessionData sessionData = new()
             {
                 paths1 = sessionInfo.paths1,

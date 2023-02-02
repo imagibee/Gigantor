@@ -38,10 +38,11 @@ namespace Testing {
 
             // Start search and index in parallel and wait for completion
             Console.WriteLine($"Searching ...");
+            var processes = new List<IBackground>() { indexer, searcher };
             Utilities.StartAndWait(
-                new List<IBackground>() { indexer, searcher },
+                processes,
                 progress,
-                (processes) =>
+                (_) =>
                 {
                     progressBar.Update(
                         processes.Select((p) => p.ByteCount).Sum());
@@ -78,7 +79,7 @@ namespace Testing {
                     $"[{line}]({indexer.PositionFromLine(line)})  " +
                     gigantorReader.ReadLine());
             }
-            Assert.AreEqual(true, false);
+            //Assert.AreEqual(true, false);
         }
     }
 }
