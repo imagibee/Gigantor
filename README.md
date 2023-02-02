@@ -12,7 +12,6 @@ Gigantor includes classes that can be safely and effectively used with very larg
 ## Example
 Here is an examples that illustrate usage. Refer to the tests and console apps for additional examples.
 
-### Code
 ```csharp
 using System;
 using System.Linq;
@@ -83,7 +82,7 @@ for (var line = matchLine - contextSize; line <= matchLine + contextSize; line++
 }
 ```
 
-### Console output
+Console output
 ```console
  Searching ...
  ################################################################################
@@ -110,13 +109,10 @@ for (var line = matchLine - contextSize; line <= matchLine + contextSize; line++
 
 
 ## Performance
-The performance benchmark consists of running the included benchmarking apps over multiple copies of enwik9.  Enwik9 is a 1e9 byte file that is not included.
+The performance benchmark consists of running the included benchmarking apps over enwik9 and measuring the throughput.  Enwik9 is a 1e9 byte file that is not included.
 
-![DuplicateChecker Throughput Graph](https://github.com/imagibee/Gigantor/blob/main/Images/DuplicateCheckerThroughput.png?raw=true)
+![Throughput Graph](https://github.com/imagibee/Gigantor/blob/main/Images/Throughput.png?raw=true)
 
-![LineIndexer Throughput Graph](https://github.com/imagibee/Gigantor/blob/main/Images/LindeIndexerThroughput.png?raw=true)
-
-![RegexSearcher Throughput Graph](https://github.com/imagibee/Gigantor/blob/main/Images/RegexSearcherThroughput.png?raw=true)
 
 The hardware used to measure performance was a Macbook Pro
 - 8-Core Intel Core i9
