@@ -6,7 +6,7 @@ namespace Imagibee {
             // No joining, Join is never called
             None,
 
-            // Linear join, the Map results are joined in order with feedback
+            // Sequential join, the Map results are joined in order with feedback
             //
             // Given 5 partitions are mapped to results { A, B, C, D, E },
             // the Join sequence will be as follows:
@@ -16,10 +16,10 @@ namespace Imagibee {
             //    C' = Join(B', C)
             //    D' = Join(C', D)
             //         Join(D', E)
-            Linear,
+            Sequential,
 
 
-            // Exponential join, adjacent Map results are joined in parallel and
+            // Reduce join, adjacent Map results are joined in parallel and
             // the resulting join is placed back into the results queue with an
             // increased Cycle count.  This leads to an exponential reduction
             // in results every cycle until all results are joined.
@@ -36,7 +36,7 @@ namespace Imagibee {
             //
             //    Cycle 2
             //    ABCDE = Join(ABCD, E)
-            Exponential,
+            Reduce,
         }
 
         public interface IMapJoinData {

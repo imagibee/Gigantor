@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
 using Imagibee.Gigantor;
-using System.Collections.ObjectModel;
 
 //
 // A command line app that performs regex searches over 1 or more file
@@ -87,7 +86,7 @@ class SearchApp {
     static ICollection<SessionData> CreateBenchmarkSession(SessionData sessionInfo)
     {
         List<SessionData> sessionDatas = new();
-        foreach (var maxWorkers in new List<int>() { 1, 2, 16, 0 }) {
+        foreach (var maxWorkers in new List<int>() { 1, 2, 16, 32, 64, 128 }) {
             SessionData sessionData = new()
             {
                 paths = sessionInfo.paths,
@@ -122,7 +121,7 @@ class SearchApp {
     {
         AutoResetEvent progress = new(false);
         foreach (var sessionData in sessionDatas) {
-            var matchCount = 0;
+            long matchCount = 0;
             Stopwatch stopwatch = new();
             for (var i = 0; i < sessionData.iterations; i++) {
                 var searchers = StartSearching(progress, sessionData);
@@ -191,5 +190,4 @@ class SearchApp {
         Console.WriteLine(value: $"   searched {totalBytes} bytes in {resultData.elapsedTime} seconds");
         Console.WriteLine(value: $"-> {totalBytes / resultData.elapsedTime / 1e6} MBytes/s");
     }
-
 }

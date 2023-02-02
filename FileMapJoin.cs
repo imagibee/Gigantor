@@ -28,8 +28,22 @@ namespace Imagibee {
             // Path of the last successfully started indexing operation
             public string Path { get; private set; } = "";
 
-            // True while index process is running
-            public bool Running { get; private set; } = false;
+            // True while background process is running
+            public bool Running { get; private set; }
+
+            //public bool Running {
+            //    get {
+            //        return Interlocked.Read(ref running) != 0;
+            //    }
+            //    private set {
+            //        if (value == true) {
+            //            Interlocked.Exchange(ref running, 1);
+            //        }
+            //        else {
+            //            Interlocked.Exchange(ref running, 0);
+            //        }
+            //    }
+            //}
 
             // The error that caused the background process to end prematurely (if any)
             public string Error { get; private set; } = "";
@@ -44,7 +58,7 @@ namespace Imagibee {
             public FileMapJoin(
                 string filePath,
                 AutoResetEvent progress,
-                JoinMode mapJoinMode,
+                JoinMode joinMode,
                 int chunkKiBytes,
                 int maxWorkers=0,
                 int overlap=0)
@@ -54,23 +68,25 @@ namespace Imagibee {
                 }
                 Path = filePath;
                 this.progress = progress;
-                this.mapJoinMode = mapJoinMode;
+                this.joinMode = joinMode;
                 chunkSize = chunkKiBytes * 1024;
-                this.maxWorkers = maxWorkers;
+                this.maxWorkers = maxWorkers; //(maxWorkers == 1) ? 1:0;
                 this.overlap = overlap;
                 synchronizer = new AutoResetEvent(false);
+
             }
 
             // Begin the processing in the background
             public virtual void Start()
             {
                 if (!Running) {
+                    Running = true;
                     Error = "";
+                    joins = 0;
                     scheduledChunks = 0;
                     resultQueue = new ConcurrentQueue<T>();
                     jobQueue = new ConcurrentQueue<FileMapJoinData>();
                     ThreadPool.QueueUserWorkItem((_) => ManageJobs(Path));
-                    Running = true;
                 }
             }
 
@@ -136,6 +152,7 @@ namespace Imagibee {
                     while (jobQueue.Count != 0 ||
                            resultQueue.Count != 0 ||
                            scheduledChunks != 0) {
+                        //Logger.Log($"manager {jobQueue.Count} {resultQueue.Count} {scheduledChunks}");
                         ScheduleChunks();
                         synchronizer.WaitOne(1000);
                         JoinResults();
@@ -167,7 +184,8 @@ namespace Imagibee {
 
             void JoinResults()
             {
-                while (resultQueue.Count > 0) {
+                //var minWorkers = maxWorkers < 1 ? 0 : maxWorkers / 2;
+                while (resultQueue.Count != 0) {
                     JoinNextResult();
                 }
             }
@@ -181,7 +199,7 @@ namespace Imagibee {
                 }
                 if (resultBuf.Count > 0) {
                     resultBuf.Sort((a, b) => a.Id.CompareTo(b.Id));
-                    if ((mapJoinMode & JoinMode.Exponential) != 0) {
+                    if (joinMode == JoinMode.Reduce) {
                         throw new NotImplementedException();
                         //for (var i = 0; i < resultBuf.Count - 1; i++) {
                         //    var result1 = resultBuf[i];
@@ -195,17 +213,19 @@ namespace Imagibee {
                         //    }
                         //}
                     }
-                    else if ((mapJoinMode & JoinMode.Linear) != 0) {
+                    else if (joinMode == JoinMode.Sequential) {
                         var currentResult = resultBuf[0];
                         if (currentResult.Id == 0) {
                             priorResult = Join(currentResult, currentResult);
                             resultBuf.RemoveAt(0);
                             progressMade = 1;
+                            joins++;
                         }
-                        else if (currentResult.Id == priorResult.Id + 1) {
+                        else if (joins != 0 && currentResult.Id == priorResult.Id + 1) {
                             priorResult = Join(priorResult, currentResult);
                             resultBuf.RemoveAt(0);
                             progressMade = 1;
+                            joins++;
                         }
                     }
                     else { // MapJoinMode.None
@@ -218,8 +238,8 @@ namespace Imagibee {
                 }
                 if (progressMade != 0) {
                     Interlocked.Add(ref scheduledChunks, -progressMade);
-                    progress.Set();
                 }
+                progress.Set();
             }
 
             void MapJob(FileMapJoinData data)
@@ -238,11 +258,13 @@ namespace Imagibee {
             // private data
             readonly AutoResetEvent synchronizer;
             readonly AutoResetEvent progress;
-            readonly JoinMode mapJoinMode;
+            readonly JoinMode joinMode;
             readonly int maxWorkers;
             ConcurrentQueue<FileMapJoinData> jobQueue;
             ConcurrentQueue<T> resultQueue;
             int scheduledChunks;
+            int joins;
+            //long running;
         }
     }
 }

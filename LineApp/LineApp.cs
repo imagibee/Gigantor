@@ -83,7 +83,7 @@ class LineApp {
     static ICollection<SessionData> CreateBenchmarkSession(SessionData sessionInfo)
     {
         List<SessionData> sessionDatas = new();
-        foreach (var maxWorkers in new List<int>() { 1, 2, 16, 0 }) {
+        foreach (var maxWorkers in new List<int>() { 1, 2, 16, 32, 64, 128 }) {
             SessionData sessionData = new()
             {
                 paths = sessionInfo.paths,
@@ -130,7 +130,7 @@ class LineApp {
                 }
             }
             Console.Write('\n');
-            ResultData resultData = new ResultData()
+            ResultData resultData = new()
             {
                 lineCount = lineCount,
                 elapsedTime = stopwatch.Elapsed.TotalSeconds
@@ -160,7 +160,7 @@ class LineApp {
         Utilities.Wait(
             new List<IBackground>(indexers),
             progress,
-            (runningCount) =>
+            (_) =>
             {
                 if (stopwatch.Elapsed.TotalSeconds - lastTime > 1) {
                     lastTime = stopwatch.Elapsed.TotalSeconds;

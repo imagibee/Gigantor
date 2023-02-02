@@ -85,15 +85,14 @@ namespace Imagibee {
                 Action<IReadOnlyCollection<IBackground>> OnProgressOrTimeout = null,
                 int timeoutMilliSeconds = 1000)
             {
-                var run = true;
-                while (run) {
+                while (true) {
                     var runningCount = 0;
                     foreach (var process in processes) {
                         if (process.Running) {
                             runningCount++;
                         }
                         if (process.Error.Length != 0) {
-                            run = false;
+                            runningCount = 0;
                             break;
                         }
                     }
