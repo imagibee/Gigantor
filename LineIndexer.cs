@@ -1,5 +1,7 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.IO;
 
@@ -29,7 +31,7 @@ namespace Imagibee {
         //
         public class LineIndexer : FileMapJoin<LineIndexerData> {
             // The number of lines that have been indexed so far
-            public long LineCount { get; private set; } = 0;
+            public long LineCount { get { return Interlocked.Read(ref lineCount); } }
 
             // Create a new instance
             //
@@ -44,7 +46,7 @@ namespace Imagibee {
                 int maxWorkers=0) : base(
                     filePath,
                     progress,
-                    JoinMode.Linear,
+                    JoinMode.Sequential,
                     chunkKiBytes,
                     maxWorkers)
             {
@@ -54,9 +56,19 @@ namespace Imagibee {
             public override void Start()
             {
                 if (!Running) {
+                    Interlocked.Exchange(ref lineCount, 0);
+                    chunkQueue = new();
                     chunks = new();
                     base.Start();
                 }
+            }
+
+            protected override void Finish()
+            {
+                while (chunkQueue.TryDequeue(out LineIndexerData result)) {
+                    chunks.Add(result);
+                }
+                chunks = chunks.OrderBy(x => x.Id).ToList();
             }
 
             // Get the fpos of a line
@@ -136,7 +148,7 @@ namespace Imagibee {
 
             LineIndexerData? GetChunk(long line)
             {
-                if (line > 0 && line <= LineCount) {
+                if (line > 0 && line <= LineCount && chunks.Count > 0) {
                     // Make initial search start at the chunk where the average lines
                     // per chunk would suggest the line should be
                     var avgLinesPerChunk = LineCount / chunks.Count;
@@ -185,20 +197,20 @@ namespace Imagibee {
                         priorChunk.EndLine += 1;
                         currentChunk.StartFpos += b.FirstEolOffset + 1;
                     }
-                    chunks.Add(priorChunk);
-                    LineCount += priorChunk.LineCount;
+                    chunkQueue.Enqueue(priorChunk);
+                    Interlocked.Add(ref lineCount, priorChunk.LineCount);
                     Interlocked.Add(ref byteCount, priorChunk.ByteCount);
-                    //Logger.Log($"finished {priorChunk.Id} at {priorChunk.StartFpos} between {priorChunk.StartLine} and {priorChunk.EndLine}, {priorChunk.LineCount} lines, {priorChunk.ByteCount} bytes");
+                    //Logger.Log($"joined {priorChunk.Id} at {priorChunk.StartFpos} between {priorChunk.StartLine} and {priorChunk.EndLine}, {priorChunk.LineCount} lines, {priorChunk.ByteCount} bytes");
                 }
                 if (b.FinalChunk) {
                     if (b.EolEnding == false) {
                         // adjustment for last chunk not ending on eol
                         currentChunk.EndLine += 1;
                     }
-                    chunks.Add(currentChunk);
-                    LineCount += currentChunk.LineCount;
+                    chunkQueue.Enqueue(currentChunk);
+                    Interlocked.Add(ref lineCount, currentChunk.LineCount);
                     Interlocked.Add(ref byteCount, currentChunk.ByteCount);
-                    //Logger.Log($"final {currentChunk.Id} between {currentChunk.StartLine} and {currentChunk.EndLine} at {currentChunk.StartFpos}");
+                    //Logger.Log($"*joined {currentChunk.Id} between {currentChunk.StartLine} and {currentChunk.EndLine} at {currentChunk.StartFpos}");
                 }
                 return currentChunk;
             }
@@ -252,7 +264,9 @@ namespace Imagibee {
             }
 
             // private data
+            ConcurrentQueue<LineIndexerData> chunkQueue;
             List<LineIndexerData> chunks;
+            long lineCount;
         }
 
         // FileMapJoin job data used internally but it must be declared public
