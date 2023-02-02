@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.IO;
 
@@ -27,7 +28,7 @@ namespace Imagibee {
         //
         public class RegexSearcher : FileMapJoin<MapJoinData> {
             // The number of matches found so far
-            public int MatchCount { get; private set; }
+            public long MatchCount { get { return Interlocked.Read(ref matchCount); } }
 
             // A structure for storing a single match value
             public struct MatchData {
@@ -59,7 +60,6 @@ namespace Imagibee {
                     chunkKiBytes,
                     maxWorkers)
             {
-                mutex = new();
                 this.regex = regex;
                 this.maxMatchCount = maxMatchCount;
                 if (maxMatchSize < 1) {
@@ -73,6 +73,8 @@ namespace Imagibee {
             {
                 if (!Running) {
                     matches = new();
+                    matchQueue = new();
+                    matchCount = 0;
                     base.Start();
                 }
             }
@@ -80,6 +82,9 @@ namespace Imagibee {
             // Finished, sort match data
             protected override void Finish()
             {
+                while (matchQueue.TryDequeue(out MatchData result)) {
+                    matches.Add(result);
+                }
                 matches = matches.OrderBy(x => x.StartFpos).ToList();
             }
 
@@ -113,38 +118,30 @@ namespace Imagibee {
                 }
                 var partitionMatches = regex.Matches(str);
                 if (partitionMatches.Count > 0) {
-                    mutex.WaitOne();
-                    try {
-                        foreach (System.Text.RegularExpressions.Match match in partitionMatches) {
-                            if (match != null &&  MatchCount < maxMatchCount) {
-                                matches.Add(new MatchData()
-                                {
-                                    StartFpos = data.StartFpos + match.Index,
-                                    Name = match.Name,
-                                    Value = match.Value
-                                });
-                                MatchCount++;
-                            }
+                    var newMatches = 0;
+                    foreach (System.Text.RegularExpressions.Match match in partitionMatches) {
+                        if (match != null && matchCount < maxMatchCount) {
+                            matchQueue.Enqueue(new MatchData()
+                            {
+                                StartFpos = data.StartFpos + match.Index,
+                                Name = match.Name,
+                                Value = match.Value
+                            });
+                            newMatches++;
                         }
                     }
-                    finally {
-                        mutex.ReleaseMutex();
-                    }                   
+                    Interlocked.Add(ref matchCount, newMatches);
                 }
                 Interlocked.Add(ref byteCount, buf.Length);
                 return result;
             }
 
             // private data
+            ConcurrentQueue<MatchData> matchQueue;
             List<MatchData> matches;
             readonly System.Text.RegularExpressions.Regex regex;
             readonly int maxMatchCount;
-            readonly Mutex mutex;
-
-            ~RegexSearcher()
-            {
-                mutex.Dispose();
-            }
+            long matchCount;
         }
     }
 }
