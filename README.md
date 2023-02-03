@@ -10,15 +10,9 @@ Gigantor includes classes that can be safely and effectively used with very larg
 - `FileMapJoin<T>` - base class for creating new file-based map/join operations
 
 ## Example
-Here is an examples that illustrate usage. Refer to the tests and console apps for additional examples.
+Here is an examples that illustrate searching a large file and displaying several lines around a match. Refer to the tests and console apps for additional examples.
 
 ```csharp
-using System;
-using System.Linq;
-using System.Threading;
-using System.IO;
-using System.Text.RegularExpressions;
-using System.Collections.Generic;
 using Imagibee.Gigantor;
 
 // The path to be searched and indexed
@@ -26,24 +20,34 @@ var path = Path.Combine("Assets", "BibleTest.txt");
 
 // The regular expression for the search
 const string pattern = @"love\s*thy\s*neighbour";
-Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+Regex regex = new(
+    pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
 // A shared wait event to facilitate progress notifications
 AutoResetEvent progress = new(false);
 
-// Create the search and index workers
+// Create the search and indexing workers
 LineIndexer indexer = new(path, progress);
-RegexSearcher searcher = new(path, regex, progress, 5000, pattern.Length);
+RegexSearcher searcher = new(path, regex, progress);
 
-// A progress bar
-Utilities.ByteProgress progressBar = new(40, Utilities.FileByteCount(path));
 
-// Start search and index in parallel and wait for completion
+// Create a IBackground collection for convenient monitoring
+var processes = new List<IBackground>()
+{
+    indexer,
+    searcher
+};
+
+// Create a progress bar to illustrate progress updates
+Utilities.ByteProgress progressBar = new(
+    40, processes.Count * Utilities.FileByteCount(path));
+
+// Start search and indexing in parallel and wait for completion
 Console.WriteLine($"Searching ...");
-Utilities.StartAndWait(
-    new List<IBackground>() { indexer, searcher },
+Background.StartAndWait(
+    processes,
     progress,
-    (processes) =>
+    (_) =>
     {
         progressBar.Update(
             processes.Select((p) => p.ByteCount).Sum());
@@ -52,8 +56,14 @@ Utilities.StartAndWait(
 Console.Write('\n');
 
 // All done, check for errors
-if (searcher.Error.Length != 0) {
-    throw new Exception(searcher.Error);
+var error = Background.AnyError(processes);
+if (error.Length != 0) {
+    throw new Exception(error);
+}
+
+// Check for cancellation
+if (Background.AnyCancelled(processes)) {
+    throw new Exception("search cancelled");
 }
 
 // Display search results
@@ -63,19 +73,27 @@ for (var i=0; i<matchDatas.Count; i++) {
     var matchData = matchDatas[i];
     Console.WriteLine(
         $"[{i}]({matchData.Value}) ({matchData.Name}) " +
-        $"at {indexer.LineFromPosition(matchData.StartFpos)} " +
-        $"({matchData.StartFpos})");
+        $"line {indexer.LineFromPosition(matchData.StartFpos)} " +
+        $"fpos {matchData.StartFpos}");
 }
 
-// Display the lines before and after the 3rd match result
-var contextSize = 2;
-Console.WriteLine($"{2* contextSize + 1} line context ...");
-var match = searcher.GetMatchData()[2];
-var matchLine = indexer.LineFromPosition(match.StartFpos);
+// Get the line of the 3rd match
+var matchLine = indexer.LineFromPosition(
+    searcher.GetMatchData()[2].StartFpos);
+
+// Open the searched file for reading
 using FileStream fileStream = new(path, FileMode.Open);
 Imagibee.Gigantor.StreamReader gigantorReader = new(fileStream);
-fileStream.Seek(indexer.PositionFromLine(matchLine - contextSize), SeekOrigin.Begin);
-for (var line = matchLine - contextSize; line <= matchLine + contextSize; line++) {
+
+// Seek to the first line we want to read
+var contextLines = 2;
+fileStream.Seek(indexer.PositionFromLine(
+    matchLine - contextLines), SeekOrigin.Begin);
+
+// Read and display a few lines around the match
+for (var line = matchLine - contextLines;
+    line <= matchLine + contextLines;
+    line++) {
     Console.WriteLine(
         $"[{line}]({indexer.PositionFromLine(line)})  " +
         gigantorReader.ReadLine());
@@ -85,26 +103,24 @@ for (var line = matchLine - contextSize; line <= matchLine + contextSize; line++
 Console output
 ```console
  Searching ...
- ################################################################################
+ ########################################
  Found 8 matches ...
- [0](love thy neighbour) (0) at 10773 (485642)
+ [0](love thy neighbour) (0) line 10773 fpos 485642
  [1](love thy
- neighbour) (0) at 77079 (3433850)
- [2](love thy neighbour) (0) at 78541 (3498270)
- [3](love thy neighbour) (0) at 78914 (3514744)
+ neighbour) (0) line 77079 fpos 3433850
+ [2](love thy neighbour) (0) line 78541 fpos 3498270
+ [3](love thy neighbour) (0) line 78914 fpos 3514744
  [4](love thy
- neighbour) (0) at 81186 (3613142)
- [5](love thy neighbour) (0) at 91645 (4070425)
- [6](love thy neighbour) (0) at 94224 (4182790)
+ neighbour) (0) line 81186 fpos 3613142
+ [5](love thy neighbour) (0) line 91645 fpos 4070425
+ [6](love thy neighbour) (0) line 94224 fpos 4182790
  [7](love thy
- neighbour) (0) at 97269 (4319613)
- 5 line context ...
+ neighbour) (0) line 97269 fpos 4319613
  [78539](3498123)  Thou shalt not commit adultery, Thou shalt not steal, Thou shalt not
  [78540](3498193)  bear false witness, 19:19 Honour thy father and thy mother: and, Thou
  [78541](3498264)  shalt love thy neighbour as thyself.
  [78542](3498302)  
  [78543](3498304)  19:20 The young man saith unto him, All these things have I kept from
-
 ```
 
 
