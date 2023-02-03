@@ -153,8 +153,8 @@ class DuplicateApp {
                 sessionData.paths1[i],
                 sessionData.paths2[i],
                 progress,
-                sessionData.chunkKiBytes,
-                sessionData.maxWorkers);
+                chunkKiBytes: sessionData.chunkKiBytes,
+                maxWorkers: sessionData.maxWorkers);
             checker.Start();
             checkers.Add(checker);
         }
@@ -165,7 +165,7 @@ class DuplicateApp {
     {
         double lastTime = 0;
         stopwatch.Start();
-        Utilities.Wait(
+        Background.Wait(
             new List<IBackground>(checkers),
             progress,
             (runningCount) =>
