@@ -26,7 +26,7 @@ using Imagibee.Gigantor;
 var path = Path.Combine("Assets", "BibleTest.txt");
 
 // The regular expression for the search
-const string pattern = @"love\s*thy\s*neighbour";
+const string pattern = @"my\s*yoke\s*is\s*easy";
 Regex regex = new(
     pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
@@ -36,7 +36,6 @@ AutoResetEvent progress = new(false);
 // Create the search and indexing workers
 LineIndexer indexer = new(path, progress);
 RegexSearcher searcher = new(path, regex, progress);
-
 
 // Create a IBackground collection for convenient monitoring
 var processes = new List<IBackground>()
@@ -84,16 +83,16 @@ for (var i=0; i<matchDatas.Count; i++) {
         $"fpos {matchData.StartFpos}");
 }
 
-// Get the line of the 3rd match
+// Get the line of the 1s5 match
 var matchLine = indexer.LineFromPosition(
-    searcher.GetMatchData()[2].StartFpos);
+    searcher.GetMatchData()[0].StartFpos);
 
 // Open the searched file for reading
 using FileStream fileStream = new(path, FileMode.Open);
 Imagibee.Gigantor.StreamReader gigantorReader = new(fileStream);
 
 // Seek to the first line we want to read
-var contextLines = 2;
+var contextLines = 6;
 fileStream.Seek(indexer.PositionFromLine(
     matchLine - contextLines), SeekOrigin.Begin);
 
@@ -111,23 +110,21 @@ Console output
 ```console
  Searching ...
  ########################################
- Found 8 matches ...
- [0](love thy neighbour) (0) line 10773 fpos 485642
- [1](love thy
- neighbour) (0) line 77079 fpos 3433850
- [2](love thy neighbour) (0) line 78541 fpos 3498270
- [3](love thy neighbour) (0) line 78914 fpos 3514744
- [4](love thy
- neighbour) (0) line 81186 fpos 3613142
- [5](love thy neighbour) (0) line 91645 fpos 4070425
- [6](love thy neighbour) (0) line 94224 fpos 4182790
- [7](love thy
- neighbour) (0) line 97269 fpos 4319613
- [78539](3498123)  Thou shalt not commit adultery, Thou shalt not steal, Thou shalt not
- [78540](3498193)  bear false witness, 19:19 Honour thy father and thy mother: and, Thou
- [78541](3498264)  shalt love thy neighbour as thyself.
- [78542](3498302)  
- [78543](3498304)  19:20 The young man saith unto him, All these things have I kept from
+ Found 1 matches ...
+ [0](my yoke is easy) (0) line 77689 fpos 3460426
+ [77683](3460202)  11:28 Come unto me, all ye that labour and are heavy laden, and I will
+ [77684](3460274)  give you rest.
+ [77685](3460290)  
+ [77686](3460292)  11:29 Take my yoke upon you, and learn of me; for I am meek and lowly
+ [77687](3460363)  in heart: and ye shall find rest unto your souls.
+ [77688](3460414)  
+ [77689](3460416)  11:30 For my yoke is easy, and my burden is light.
+ [77690](3460468)  
+ [77691](3460470)  12:1 At that time Jesus went on the sabbath day through the corn; and
+ [77692](3460541)  his disciples were an hungred, and began to pluck the ears of corn and
+ [77693](3460613)  to eat.
+ [77694](3460622)  
+ [77695](3460624)  12:2 But when the Pharisees saw it, they said unto him, Behold, thy
 ```
 Refer to the tests and console apps for additional examples.
 
