@@ -48,7 +48,7 @@ namespace Testing {
             AutoResetEvent progress = new(false);
             DuplicateChecker checker = new(biblePath, biblePath, progress);
             checker.Start();
-            Utilities.Wait(
+            Background.Wait(
                 checker,
                 progress,
                 (_) => { },
@@ -62,7 +62,7 @@ namespace Testing {
             AutoResetEvent progress = new(false);
             DuplicateChecker checker = new(biblePath, simplePath, progress);
             checker.Start();
-            Utilities.Wait(
+            Background.Wait(
                 checker,
                 progress,
                 (_) => { },
@@ -76,7 +76,7 @@ namespace Testing {
             AutoResetEvent progress = new(false);
             DuplicateChecker checker = new(simplePath, simplePath2, progress);
             checker.Start();
-            Utilities.Wait(
+            Background.Wait(
                 checker,
                 progress,
                 (_) => { },

@@ -7,7 +7,7 @@ using System.IO;
 namespace Imagibee {
     namespace Gigantor {
         //
-        // Helper for optimizing regex searching against very large files
+        // Supports regex searching for very large files
         //
         // To achieve this goal the search process runs in the background,
         // seperates the file into chunks, and counts the lines in each
@@ -23,8 +23,8 @@ namespace Imagibee {
         // is called again.  Although, calling Start while Running is true
         // will have no effect.
         //
-        // Performance can be tailored to a particular system by varying
-        // chunkKiBytes and maxWorkers parameters.
+        // A balance between memory footprint and performance can be achieved
+        // by varying maxMatchCount, chunkKiBytes and maxWorkers parameters.
         //
         public class RegexSearcher : FileMapJoin<MapJoinData> {
             // The number of matches found so far
@@ -43,37 +43,41 @@ namespace Imagibee {
             // filePath - the path to the file to search
             // regex - the regular expression to match against the file
             // progress - signaled each time MatchCount is updated
-            // maxMatchSize - the maximum size of a matched value, defaults to 1% of chunk size
+            // maxMatchCount - places a limit on the number of matches, defaults to 1000
             // chunkKiBytes - the chunk size in KiBytes that each worker works on
             // maxWorkers - optional limit to the maximum number of simultaneous workers
+            // overlap - the maximum size of a matched value, defaults to 1% of chunk size,
+            // hoping to depricate this parameter in the future
             public RegexSearcher(
                 string filePath,
                 System.Text.RegularExpressions.Regex regex,
                 AutoResetEvent progress,
-                int maxMatchCount,
-                int maxMatchSize,
+                int maxMatchCount=1000,
                 int chunkKiBytes=512,
-                int maxWorkers=0) : base(
+                int maxWorkers=0,
+                int overlap = -1) : base(
                     filePath,
                     progress,
                     JoinMode.None,
                     chunkKiBytes,
                     maxWorkers)
             {
+                matches = new();
+                matchQueue = new();
                 this.regex = regex;
                 this.maxMatchCount = maxMatchCount;
-                if (maxMatchSize < 1) {
-                    maxMatchSize = chunkSize / 100;
+                if (overlap < 0) {
+                    overlap = chunkKiBytes * 1024 / 100;
                 }
-                overlap = maxMatchSize;
+                base.overlap = overlap;
             }
 
             // Start the background process
-            public override void Start()
+            public new void Start()
             {
                 if (!Running) {
-                    matches = new();
-                    matchQueue = new();
+                    matches.Clear();
+                    matchQueue.Clear();
                     matchCount = 0;
                     base.Start();
                 }
@@ -91,7 +95,12 @@ namespace Imagibee {
             // Return the MatchData of current progress
             public IReadOnlyList<MatchData> GetMatchData()
             {
-                return matches.AsReadOnly();
+                if (Running) {
+                    return new List<MatchData>().AsReadOnly();
+                }
+                else {
+                    return matches.AsReadOnly();
+                }
             }
 
             protected override MapJoinData Join(MapJoinData a, MapJoinData b)

@@ -1,110 +1,13 @@
 ﻿using System;
 using System.IO;
-using System.Threading;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 namespace Imagibee {
     namespace Gigantor {
+        // Internal common code
         public class Utilities
         {
-            // Start a background process and wait for it to complete
-            //
-            // process - the background process to start and wait for
-            // progress - shared wait event to facilitate progress, initially false
-            // OnProgressOrTimeout - called each time progress is updated, or at
-            // frequency determined by the timeout parameter, callback argument
-            // is a collection containing process
-            // timeoutMilliSeconds - the time in milliseconds between callbacks
-            public static void StartAndWait(
-                IBackground process,
-                AutoResetEvent progress,
-                Action<IReadOnlyCollection<IBackground>> OnProgressOrTimeout = null,
-                int timeoutMilliSeconds = 1000)
-            {
-                StartAndWait(
-                    new List<IBackground>() { process },
-                    progress,
-                    OnProgressOrTimeout,
-                    timeoutMilliSeconds);
-            }
-
-            // Start multiple background processes and wait for them all to complete
-            //
-            // processes - a collection of background processes to start and wait for
-            // progress - shared wait event to facilitate progress, initially false
-            // OnProgressOrTimeout - called each time progress is updated, or at
-            // frequency determined by the timeout parameter, callback argument
-            // is a collection containing processes
-            // timeoutMilliSeconds - the time in milliseconds between callbacks
-            public static void StartAndWait(
-                ICollection<IBackground> processes,
-                AutoResetEvent progress,
-                Action<IReadOnlyCollection<IBackground>> OnProgressOrTimeout = null,
-                int timeoutMilliSeconds = 1000)
-            {
-                foreach (var process in processes) {
-                    process.Start();
-                }
-                Wait(processes, progress, OnProgressOrTimeout, timeoutMilliSeconds);
-            }
-
-            // Efficiently wait until background process completes
-            //
-            // process - the background process to wait for
-            // progress - shared wait event to facilitate progress, initially false
-            // OnProgressOrTimeout - called each time progress is updated, or at
-            // frequency determined by the timeout parameter, callback argument
-            // is a collection containing process
-            // timeoutMilliSeconds - the time in milliseconds between callbacks
-            static public void Wait(
-                IBackground process,
-                AutoResetEvent progress,
-                Action<IReadOnlyCollection<IBackground>> OnProgressOrTimeout = null,
-                int timeoutMilliSeconds = 1000)
-            {
-                Wait(
-                    new List<IBackground>() { process },
-                    progress,
-                    OnProgressOrTimeout,
-                    timeoutMilliSeconds);
-            }
-
-
-            // Efficiently wait for multiple background processes to all complete
-            //
-            // processes - a collection of backround processes to wait for
-            // progress - shared wait event to facilitate progress, initially false
-            // OnProgressOrTimeout - called each time progress is updated, or at
-            // frequency determined by the timeout parameter, callback argument
-            // is a collection containing processes
-            // timeoutMilliSeconds - the time in milliseconds between callbacks
-            public static void Wait(
-                ICollection<IBackground> processes,
-                AutoResetEvent progress,
-                Action<IReadOnlyCollection<IBackground>> OnProgressOrTimeout = null,
-                int timeoutMilliSeconds = 1000)
-            {
-                while (true) {
-                    var runningCount = 0;
-                    foreach (var process in processes) {
-                        if (process.Running) {
-                            runningCount++;
-                        }
-                        if (process.Error.Length != 0) {
-                            runningCount = 0;
-                            break;
-                        }
-                    }
-                    if (runningCount == 0) {
-                        break;
-                    }
-                    progress.WaitOne(timeoutMilliSeconds);
-                    OnProgressOrTimeout?.Invoke(
-                        (IReadOnlyCollection<IBackground>)processes);
-                }
-            }
-
             internal static string RemoveUsername(string path)
             {
                 // mac format
@@ -177,7 +80,7 @@ namespace Imagibee {
                 return true;
             }
             // Progress bar class for examples
-            public class ByteProgress {
+            internal class ByteProgress {
                 int maxLength;
                 int lastLength;
                 long totalBytes;

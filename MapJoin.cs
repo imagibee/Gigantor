@@ -1,7 +1,32 @@
+using System;
+
 namespace Imagibee {
     namespace Gigantor {
 
-        // JoinMode defines several modes for solving various problems
+        //
+        // The base class for map/join operations
+        //
+        // Defines an abstraction for mapping many JobT to 1 or many ResultT.
+        //
+        public abstract class MapJoin<JobT, ResultT> where JobT : IMapJoinData
+        {
+            // Called by a background worker thread to map partition data to a ResultT
+            protected abstract ResultT Map(JobT data);
+
+            // Called by a background worker thread to join a and b
+            //
+            // The interpretation of a, b, and return value depends on joinMode
+            protected abstract ResultT Join(ResultT a, ResultT b);
+
+            // Called in background manager thread after all Join complete,
+            // override to perform final actions
+            protected virtual void Finish() { }
+
+            // Defines the join mode
+            protected JoinMode joinMode;
+        }
+
+        // Defines several behaviour options for joining partitions
         public enum JoinMode {
             // No joining, Join is never called
             None,
@@ -39,11 +64,13 @@ namespace Imagibee {
             Reduce,
         }
 
+        // Required MapJoin job properties
         public interface IMapJoinData {
             public int Id { get; set; }
             public int Cycle { get; set; }
         }
 
+        // A default MapJoin job type for convenience
         public struct MapJoinData : IMapJoinData {
             public int Id { get; set; }
             public int Cycle { get; set; }
