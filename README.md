@@ -1,16 +1,23 @@
 # Gigantor
-A dotnet application library for working with very large files
+A dotnet application library for working with gigantic files
+
+
+## Introduction
+Have you ever had the need to work on a very large file?  Searching it?  Perhaps mapping file positions to line numbers? Or maybe something else entirely?  If so you may have learned that working with large files presents unique challenges.  The goal of Gigantor is to provide robust, easy, ready-made solutions for working with gigantic files.  These solutions are intended to be safe and effective by having a reasonable memory footprint and thoroughly and efficiently utilizing CPU and IO.
+
+In order to accomplish this goal, Gigantor uses parallel chunk processing.  For those unfamiliar with this terminology.  It encompasses partitioning the file into chunks, using a seperate thread to process each chunk into a result, and finally joining the results.
+
+Not all file processing problems will fit cleanly into this paradigm, but for those that do there is some opportunity for reuse.  Gigantor provides `FileMapJoin<T>` as a base class for reuse when working with files that are already uncompressed on disk.
 
 ## Contents
-Gigantor includes classes that can be safely and effectively used with very large files.  These classes are designed to operate within a reasonable memory footprint and to thoroughly and efficiently utilize CPU and IO.
-
-- `LineIndexer` - line counting, map line to fpos, map fpos to line
 - `RegexSearcher` - regex searching in the background
+- `LineIndexer` - line counting, map line to fpos, map fpos to line
 - `DuplicateChecker` - detects if two files are duplicates
-- `FileMapJoin<T>` - base class for creating new file-based map/join operations
+- `FileMapJoin<T>` - base class for implementing custom file-based map/join operations
+
 
 ## Example
-Here is an examples that illustrate searching a large file and displaying several lines around a match. Refer to the tests and console apps for additional examples.
+Here is an examples that illustrate searching a large file and displaying several lines around a match.
 
 ```csharp
 using Imagibee.Gigantor;
@@ -122,7 +129,7 @@ Console output
  [78542](3498302)  
  [78543](3498304)  19:20 The young man saith unto him, All these things have I kept from
 ```
-
+Refer to the tests and console apps for additional examples.
 
 ## Performance
 The performance benchmark consists of running the included benchmarking apps over enwik9 and measuring the throughput.  Enwik9 is a 1e9 byte file that is not included.
