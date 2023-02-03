@@ -7,52 +7,40 @@ using System.IO;
 namespace Imagibee {
     namespace Gigantor {
         //
-        // Abstract base class for chunk processing very large files
+        // Base class for chunk processing very large files
         //
-        // The class dispatches threads that run in the background to
-        // partition the file into chunks.  These chunks are mapped
-        // to a T result by the implementation of the Map method.
-        // Results are then joined by the implementation of the Join
-        // method according to the modes defined in MapJoinMode.
+        // Creates a background manager thread that dispatches
+        // additional background worker threads to partition the
+        // file into chunks.  These chunks are mapped to a T result
+        // by the implementation of the Map method.  Results are
+        // then joined by the implementation of the Join method
+        // according to the JoinMode.
         //
         // Begin the process by calling Start with the path of the
         // file to process.  All public methods and properties are
         // well behaved at any time.
         //
-        // Exceptions during the background processing are caught and
-        // stored in Error.  If Error is not empty results are undefined.
-        // Exceptions during Start are not handled.
+        // Exceptions during the background processing are caught
+        // and stored in Error.  If Error is not empty or Cancelled
+        // is true results are undefined.  Exceptions during Start
+        // are not handled.
         //
-        public abstract class FileMapJoin<T> : IBackground where T : IMapJoinData
+        public abstract class FileMapJoin<T> : MapJoin<FileMapJoinData, T>, IBackground where T : IMapJoinData
         {
             // Path of the last successfully started indexing operation
             public string Path { get; private set; } = "";
 
-            // True while background process is running
             public bool Running { get; private set; }
 
-            //public bool Running {
-            //    get {
-            //        return Interlocked.Read(ref running) != 0;
-            //    }
-            //    private set {
-            //        if (value == true) {
-            //            Interlocked.Exchange(ref running, 1);
-            //        }
-            //        else {
-            //            Interlocked.Exchange(ref running, 0);
-            //        }
-            //    }
-            //}
+            public bool Cancelled { get; private set; }
 
-            // The error that caused the background process to end prematurely (if any)
             public string Error { get; private set; } = "";
 
             // Create a new instance
             //
             // filePath - the path to the file to process
-            // progress - signaled each time MatchCount is updated
-            // mapJoinMode - defines the map/join mode
+            // progress - signaled each time a thread completes
+            // joinMode - defines the map/join mode
             // chunkKiBytes - the chunk size in KiBytes that each worker works on
             // maxWorkers - optional limit to the maximum number of simultaneous workers
             public FileMapJoin(
@@ -72,14 +60,14 @@ namespace Imagibee {
                 chunkSize = chunkKiBytes * 1024;
                 this.maxWorkers = maxWorkers; //(maxWorkers == 1) ? 1:0;
                 this.overlap = overlap;
-                synchronizer = new AutoResetEvent(false);
-
+                synchronize = new AutoResetEvent(false);
+                cancel = new ManualResetEvent(false);
             }
 
-            // Begin the processing in the background
-            public virtual void Start()
+            public void Start()
             {
                 if (!Running) {
+                    cancel.Reset();
                     Running = true;
                     Error = "";
                     joins = 0;
@@ -90,33 +78,29 @@ namespace Imagibee {
                 }
             }
 
-            // Called after all Join complete, override to perform final actions
-            protected virtual void Finish()
+            public void Cancel()
             {
+                if (Running) {
+                    cancel.Set();
+                }
             }
-
-            // FileMapJoin job data
-            public struct FileMapJoinData : IMapJoinData {
-                public int Id { get; set; }
-                public int Cycle { get; set; }
-                public long StartFpos { get; set; }
-            };
 
 
             //
             // PROTECTED INTERFACE
             //
+
             // The quantity of bytes that have been completed
             public long ByteCount { get { return Interlocked.Read(ref byteCount); } }
             protected long byteCount;
 
-            // Called by a background thread to map partition data to a T result
-            protected abstract T Map(FileMapJoinData data);
-
-            // Called by a background thread to join two results a and b
-            //
-            // The interpretation of a, b, and T depend on MapJoinOption
-            protected abstract T Join(T a, T b);
+            // Normally false, this canel event can by set by the user calling Cancel,
+            // or by the implementation Map or Join method calling cancel.Set.  The
+            // base class manager thread periodically polls the event and, if it is
+            // ever set, cancels the entire job and sets Cancelled property to true.
+            // If necessary the implementation Map and Join methods can also check for
+            // this event being set and exit early.
+            protected readonly ManualResetEvent cancel;
 
             // When used from Join, this value contains the T result returned
             // from the prior call of Join
@@ -127,6 +111,7 @@ namespace Imagibee {
 
             // Bytes of overlap between buffers
             protected int overlap;
+
 
             //
             // PRIVATE INTERFACE
@@ -154,8 +139,12 @@ namespace Imagibee {
                            scheduledChunks != 0) {
                         //Logger.Log($"manager {jobQueue.Count} {resultQueue.Count} {scheduledChunks}");
                         ScheduleChunks();
-                        synchronizer.WaitOne(1000);
+                        synchronize.WaitOne(1000);
                         JoinResults();
+                        if (cancel.WaitOne(0)) {
+                            Cancelled = true;
+                            break;
+                        }
                     }
                     Finish();
                 }
@@ -228,7 +217,7 @@ namespace Imagibee {
                             joins++;
                         }
                     }
-                    else { // MapJoinMode.None
+                    else { // JoinMode.None
                         progressMade = resultBuf.Count;
                         resultBuf.Clear();
                     }
@@ -252,19 +241,24 @@ namespace Imagibee {
                     // for debugging, and abort the indexing process
                     Error = e.ToString();
                 }
-                synchronizer.Set();
+                synchronize.Set();
             }
 
             // private data
-            readonly AutoResetEvent synchronizer;
+            readonly AutoResetEvent synchronize;
             readonly AutoResetEvent progress;
-            readonly JoinMode joinMode;
             readonly int maxWorkers;
             ConcurrentQueue<FileMapJoinData> jobQueue;
             ConcurrentQueue<T> resultQueue;
             int scheduledChunks;
             int joins;
-            //long running;
         }
+
+        // FileMapJoin job data
+        public struct FileMapJoinData : IMapJoinData {
+            public int Id { get; set; }
+            public int Cycle { get; set; }
+            public long StartFpos { get; set; }
+        };
     }
 }

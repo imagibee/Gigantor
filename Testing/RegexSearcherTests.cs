@@ -9,7 +9,7 @@ using Imagibee.Gigantor;
 namespace Testing {
     public class RegexSearchTests {
         readonly int maxMatchCount = 5000;
-        readonly int maxMatchSize = 0;
+        readonly int overlap = 0;
         readonly int chunkSize = 64;
         readonly int maxWorkers = 1;
 
@@ -23,7 +23,7 @@ namespace Testing {
         {
             AutoResetEvent progress = new(false);
             RegexSearcher searcher = new(
-                "", new Regex(""), progress, maxMatchCount, maxMatchSize, chunkSize, maxWorkers);
+                "", new Regex(""), progress, maxMatchCount, chunkSize, maxWorkers, overlap);
             Assert.AreEqual(false, searcher.Running);
             Assert.AreEqual(0, searcher.MatchCount);
             Assert.AreEqual(true, searcher.Error == "");
@@ -34,9 +34,9 @@ namespace Testing {
         {
             AutoResetEvent progress = new(false);
             RegexSearcher searcher = new(
-                "", new Regex(""), progress, maxMatchCount, maxMatchSize, chunkSize, maxWorkers);
+                "", new Regex(""), progress, maxMatchCount, chunkSize, maxWorkers, overlap);
             searcher.Start();
-            Utilities.Wait(
+            Background.Wait(
                 searcher,
                 progress,
                 (_) => { },
@@ -50,9 +50,9 @@ namespace Testing {
         {
             AutoResetEvent progress = new(false);
             RegexSearcher searcher = new(
-                "A Missing File", new Regex(""), progress, maxMatchCount, maxMatchSize, chunkSize, maxWorkers);
+                "A Missing File", new Regex(""), progress, maxMatchCount, chunkSize, maxWorkers, overlap);
             searcher.Start();
-            Utilities.Wait(
+            Background.Wait(
                 searcher,
                 progress,
                 (_) => { },
@@ -69,9 +69,9 @@ namespace Testing {
             const string pattern = @"son\s*of\s*man";
             Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
             RegexSearcher searcher = new(
-                path, regex, progress, maxMatchCount, pattern.Length, chunkSize, maxWorkers);
+                path, regex, progress, maxMatchCount, chunkSize, maxWorkers, pattern.Length);
             searcher.Start();
-            Utilities.Wait(
+            Background.Wait(
                 searcher,
                 progress,
                 (_) => { },
@@ -94,14 +94,15 @@ namespace Testing {
             const string pattern = @"son\s*of\s*man";
             Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
             RegexSearcher searcher1 = new(
-                path, regex, progress, maxMatchCount, pattern.Length, 64, maxWorkers);
+                path, regex, progress, maxMatchCount, 64, maxWorkers, pattern.Length);
             RegexSearcher searcher2 = new(
-                path, regex, progress, maxMatchCount, pattern.Length, 65, maxWorkers);
-            Utilities.StartAndWait(
+                path, regex, progress, maxMatchCount, 65, maxWorkers, pattern.Length);
+            Background.StartAndWait(
                 new List<IBackground>() { searcher1, searcher2 },
                 progress,
                 (_) => { },
                 1000);
+            Logger.Log($"{searcher1.Error}");
             Assert.AreEqual(true, searcher1.Error == "");
             Assert.AreEqual(true, searcher2.Error == "");
             Assert.AreEqual(searcher1.MatchCount, searcher2.MatchCount);
@@ -122,9 +123,9 @@ namespace Testing {
             const string pattern = @"son\s*of\s*man";
             Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
             RegexSearcher searcher = new(
-                path, regex, progress, 209, pattern.Length, chunkSize, maxWorkers);
+                path, regex, progress, 209, chunkSize, maxWorkers, pattern.Length);
             searcher.Start();
-            Utilities.Wait(
+            Background.Wait(
                 searcher,
                 progress,
                 (_) => { },

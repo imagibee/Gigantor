@@ -8,7 +8,7 @@ using System.IO;
 namespace Imagibee {
     namespace Gigantor {
         //
-        // Optimized line counting and random access for very large files
+        // Supports line counting and fast indexing for very large files
         //
         // The file is processed in the background to get a total LineCount 
         // and to create an index.  The index is cached and used by subsequent
@@ -50,15 +50,16 @@ namespace Imagibee {
                     chunkKiBytes,
                     maxWorkers)
             {
+                chunkQueue = new();
+                chunks = new();
             }
 
-            // Start the background process
-            public override void Start()
+            public new void Start()
             {
                 if (!Running) {
+                    chunkQueue.Clear();
+                    chunks.Clear();
                     Interlocked.Exchange(ref lineCount, 0);
-                    chunkQueue = new();
-                    chunks = new();
                     base.Start();
                 }
             }

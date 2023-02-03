@@ -144,7 +144,10 @@ class LineApp {
         List<LineIndexer> indexers = new();
         foreach (var path in sessionData.paths) {
             var indexer = new LineIndexer(
-                path, progress, sessionData.chunkKiBytes, sessionData.maxWorkers);
+                path,
+                progress,
+                chunkKiBytes: sessionData.chunkKiBytes,
+                maxWorkers: sessionData.maxWorkers);
             indexer.Start();
             indexers.Add(indexer);
         }
@@ -156,7 +159,7 @@ class LineApp {
     {
         double lastTime = 0;
         stopwatch.Start();
-        Utilities.Wait(
+        Background.Wait(
             new List<IBackground>(indexers),
             progress,
             (_) =>

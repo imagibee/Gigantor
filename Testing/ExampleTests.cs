@@ -18,28 +18,35 @@ namespace Testing {
         [Test]
         public void MixedExampleTest()
         {
-
             // The path to be searched and indexed
             var path = Path.Combine("Assets", "BibleTest.txt");
 
             // The regular expression for the search
             const string pattern = @"love\s*thy\s*neighbour";
-            Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            Regex regex = new(
+                pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
             // A shared wait event to facilitate progress notifications
             AutoResetEvent progress = new(false);
 
-            // Create the search and index workers
+            // Create the search and indexing workers
             LineIndexer indexer = new(path, progress);
-            RegexSearcher searcher = new(path, regex, progress, 5000, pattern.Length);
+            RegexSearcher searcher = new(path, regex, progress);
 
-            // A progress bar
-            Utilities.ByteProgress progressBar = new(40, Utilities.FileByteCount(path));
+            // Create a IBackground collection for convenient monitoring
+            var processes = new List<IBackground>()
+            {
+                indexer,
+                searcher
+            };
 
-            // Start search and index in parallel and wait for completion
+            // Create a progress bar to illustrate progress updates
+            Utilities.ByteProgress progressBar = new(
+                40, processes.Count * Utilities.FileByteCount(path));
+
+            // Start search and indexing in parallel and wait for completion
             Console.WriteLine($"Searching ...");
-            var processes = new List<IBackground>() { indexer, searcher };
-            Utilities.StartAndWait(
+            Background.StartAndWait(
                 processes,
                 progress,
                 (_) =>
@@ -51,8 +58,14 @@ namespace Testing {
             Console.Write('\n');
 
             // All done, check for errors
-            if (searcher.Error.Length != 0) {
-                throw new Exception(searcher.Error);
+            var error = Background.AnyError(processes);
+            if (error.Length != 0) {
+                throw new Exception(error);
+            }
+
+            // Check for cancellation
+            if (Background.AnyCancelled(processes)) {
+                throw new Exception("search cancelled");
             }
 
             // Display search results
@@ -62,24 +75,61 @@ namespace Testing {
                 var matchData = matchDatas[i];
                 Console.WriteLine(
                     $"[{i}]({matchData.Value}) ({matchData.Name}) " +
-                    $"at {indexer.LineFromPosition(matchData.StartFpos)} " +
-                    $"({matchData.StartFpos})");
+                    $"line {indexer.LineFromPosition(matchData.StartFpos)} " +
+                    $"fpos {matchData.StartFpos}");
             }
 
-            // Display the lines before and after the 1st search result
-            var contextSize = 2;
-            Console.WriteLine($"{2* contextSize + 1} line context ...");
-            var match = searcher.GetMatchData()[2];
-            var matchLine = indexer.LineFromPosition(match.StartFpos);
+            // Get the line of the 3rd match
+            var matchLine = indexer.LineFromPosition(
+                searcher.GetMatchData()[2].StartFpos);
+
+            // Open the searched file for reading
             using FileStream fileStream = new(path, FileMode.Open);
             Imagibee.Gigantor.StreamReader gigantorReader = new(fileStream);
-            fileStream.Seek(indexer.PositionFromLine(matchLine - contextSize), SeekOrigin.Begin);
-            for (var line = matchLine - contextSize; line <= matchLine + contextSize; line++) {
+
+            // Seek to the first line we want to read
+            var contextLines = 2;
+            fileStream.Seek(indexer.PositionFromLine(
+                matchLine - contextLines), SeekOrigin.Begin);
+
+            // Read and display a few lines around the match
+            for (var line = matchLine - contextLines;
+                line <= matchLine + contextLines;
+                line++) {
                 Console.WriteLine(
                     $"[{line}]({indexer.PositionFromLine(line)})  " +
                     gigantorReader.ReadLine());
             }
             //Assert.AreEqual(true, false);
+        }
+
+        [Test]
+        public void MixedCancelTest()
+        {
+            var path = Path.Combine("Assets", "BibleTest.txt");
+            const string pattern = @"love\s*thy\s*neighbour";
+            Regex regex = new(
+                pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            AutoResetEvent progress = new(false);
+            LineIndexer indexer = new(path, progress);
+            RegexSearcher searcher = new(
+                path, regex, progress);
+            Console.WriteLine($"Searching ...");
+            var processes = new List<IBackground>()
+            {
+                indexer,
+                searcher
+            };
+            Background.StartAndWait(
+                processes,
+                progress,
+                (_) =>
+                {
+                    Background.CancelAll(processes);
+                },
+                1000);
+            Assert.AreEqual("", Background.AnyError(processes));
+            Assert.AreEqual(true, Background.AnyCancelled(processes));
         }
     }
 }

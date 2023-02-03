@@ -4,7 +4,7 @@ using System.IO;
 namespace Imagibee {
     namespace Gigantor {
         //
-        // Optimized file duplicate checker for very large files
+        // Supports duplicate testing for very large files
         //
         // Users should begin the process by calling Start.  All public
         // methods and properties are well-behaved while the background
@@ -59,7 +59,7 @@ namespace Imagibee {
                 mismatches = 1;
             }
 
-            public override void Start()
+            public new void Start()
             {
                 if (!Running) {
                     mismatches = 0;

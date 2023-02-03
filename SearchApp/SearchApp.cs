@@ -148,10 +148,10 @@ class SearchApp {
                 path,
                 new Regex(sessionData.pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled),
                 progress,
-                50000,
-                sessionData.pattern.Length,
-                sessionData.chunkKiBytes,
-                sessionData.maxWorkers);
+                maxMatchCount: 50000,
+                chunkKiBytes: sessionData.chunkKiBytes,
+                maxWorkers: sessionData.maxWorkers,
+                overlap: sessionData.pattern.Length);
             searcher.Start();
             searchers.Add(searcher);
         }
@@ -162,7 +162,7 @@ class SearchApp {
     {
         double lastTime = 0;
         stopwatch.Start();
-        Utilities.Wait(
+        Background.Wait(
             new List<IBackground>(searchers),
             progress,
             (_) =>

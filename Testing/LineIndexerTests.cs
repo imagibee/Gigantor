@@ -40,7 +40,7 @@ namespace Testing {
             AutoResetEvent progress = new(false);
             LineIndexer indexer = new("", progress, chunkKiBytes, maxWorkers);
             indexer.Start();
-            Utilities.Wait(indexer, progress);
+            Background.Wait(indexer, progress);
             Assert.AreEqual(true, indexer.Error != "");
         }
 
@@ -50,7 +50,7 @@ namespace Testing {
             AutoResetEvent progress = new(false);
             LineIndexer indexer = new("A Missing File", progress, chunkKiBytes, maxWorkers);
             indexer.Start();
-            Utilities.Wait(indexer, progress);
+            Background.Wait(indexer, progress);
             Assert.AreEqual(true, indexer.Error != "");
         }
 
@@ -60,7 +60,7 @@ namespace Testing {
             AutoResetEvent progress = new(false);
             LineIndexer indexer = new(biblePath, progress, chunkKiBytes, maxWorkers);
             indexer.Start();
-            Utilities.Wait(
+            Background.Wait(
                 indexer,
                 progress,
                 (_) => { },
@@ -96,7 +96,7 @@ namespace Testing {
         //    // 19 byte chunk size
         //    LineIndexer indexer = new(progress, 19, maxWorkers);
         //    indexer.Start(chunkPath);
-        //    Utilities.Wait(indexer, progress);
+        //    Background.Wait(indexer, progress);
         //    //Assert.AreEqual(false, true);
         //    Assert.AreEqual(true, indexer.Error == "");
         //    Assert.AreEqual(false, indexer.GetChunk(0).HasValue);
@@ -158,7 +158,7 @@ namespace Testing {
             AutoResetEvent progress = new(false);
             LineIndexer indexer = new(biblePath, progress, chunkKiBytes, maxWorkers);
             indexer.Start();
-            Utilities.Wait(indexer, progress);
+            Background.Wait(indexer, progress);
             Assert.AreEqual(true, indexer.Error == "");
             foreach (var line in new List<int>() { 1, 1515, 1516, 2989, 2990, 2991, 100263, 100264 }) {
                 Assert.AreEqual(line, indexer.LineFromPosition(indexer.PositionFromLine(line)));
@@ -171,7 +171,7 @@ namespace Testing {
             AutoResetEvent progress = new(false);
             LineIndexer indexer = new(simplePath, progress, chunkKiBytes, maxWorkers);
             indexer.Start();
-            Utilities.Wait(indexer, progress);
+            Background.Wait(indexer, progress);
             Assert.AreEqual(true, indexer.Error == "");
             Assert.AreEqual(6, indexer.LineCount);
             using var fileStream = new FileStream(simplePath, FileMode.Open, FileAccess.Read, FileShare.Read);
