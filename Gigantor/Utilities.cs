@@ -129,6 +129,47 @@ namespace Imagibee {
                 }
                 return Path.Combine(Path.GetTempPath(), "enwik9");
             }
+
+            internal static string GetGutenbergBible()
+            {
+                var path = Path.Combine(Path.GetTempPath(), "Gigantor-bible");
+                if (!File.Exists(path)) {
+                    Console.WriteLine($"downloading Gutenburg bible to {path}...");
+                    var wc = new WebClient();
+                    wc.DownloadFile(
+                            "https://www.gutenberg.org/ebooks/10.txt.utf-8",
+                            path);
+                }
+                return path;
+            }
+
+            internal static string GetSimpleFile()
+            {
+                var path = Path.Combine(Path.GetTempPath(), "Gigantor-simple");
+                if (!File.Exists(path)) {
+                    using var fileStream = new FileStream(path, FileMode.Create);
+                    var writer = new StreamWriter(fileStream);
+                    foreach (var line in new List<string>() { "hello", "world", "", "", "foo" }) {
+                        writer.WriteLine(line);
+                    }
+                    writer.Write("bar");
+                }
+                return path;
+            }
+
+            internal static string GetSimpleFile2()
+            {
+                var path = Path.Combine(Path.GetTempPath(), "Gigantor-simple2");
+                if (!File.Exists(path)) {
+                    using var fileStream = new FileStream(path, FileMode.Create);
+                    var writer = new StreamWriter(fileStream);
+                    foreach (var line in new List<string>() { "hello", "world", "", "", "foo" }) {
+                        writer.WriteLine(line);
+                    }
+                    writer.Write("bat");
+                }
+                return path;
+            }
         }
     }
 }

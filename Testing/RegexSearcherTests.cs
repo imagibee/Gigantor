@@ -12,10 +12,12 @@ namespace Testing {
         readonly int overlap = 0;
         readonly int chunkSize = 64;
         readonly int maxWorkers = 1;
+        string biblePath;
 
         [SetUp]
         public void Setup()
         {
+            biblePath = Utilities.GetGutenbergBible();
         }
 
         [Test]
@@ -65,11 +67,10 @@ namespace Testing {
         public void BibleTest()
         {
             AutoResetEvent progress = new(false);
-            var path = Path.Combine("Assets", "BibleTest.txt");
             const string pattern = @"son\s*of\s*man";
             Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
             RegexSearcher searcher = new(
-                path, regex, progress, maxMatchCount, chunkSize, maxWorkers, pattern.Length);
+                biblePath, regex, progress, maxMatchCount, chunkSize, maxWorkers, pattern.Length);
             searcher.Start();
             Background.Wait(
                 searcher,
@@ -90,13 +91,12 @@ namespace Testing {
         public void ChunkSizeTest()
         {
             AutoResetEvent progress = new(false);
-            var path = Path.Combine("Assets", "BibleTest.txt");
             const string pattern = @"son\s*of\s*man";
             Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
             RegexSearcher searcher1 = new(
-                path, regex, progress, maxMatchCount, 64, maxWorkers, pattern.Length);
+                biblePath, regex, progress, maxMatchCount, 64, maxWorkers, pattern.Length);
             RegexSearcher searcher2 = new(
-                path, regex, progress, maxMatchCount, 65, maxWorkers, pattern.Length);
+                biblePath, regex, progress, maxMatchCount, 65, maxWorkers, pattern.Length);
             Background.StartAndWait(
                 new List<IBackground>() { searcher1, searcher2 },
                 progress,
@@ -119,11 +119,10 @@ namespace Testing {
         public void MaxMatchCountTest()
         {
             AutoResetEvent progress = new(false);
-            var path = Path.Combine("Assets", "BibleTest.txt");
             const string pattern = @"son\s*of\s*man";
             Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
             RegexSearcher searcher = new(
-                path, regex, progress, 209, chunkSize, maxWorkers, pattern.Length);
+                biblePath, regex, progress, 209, chunkSize, maxWorkers, pattern.Length);
             searcher.Start();
             Background.Wait(
                 searcher,
