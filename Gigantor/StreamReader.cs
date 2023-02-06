@@ -38,12 +38,15 @@ namespace Imagibee {
                 char c;
                 var value = "";
                 var startPosition = BaseStream.Position;
-                while ((c = ReadChar()) != '\n') {
-                    if (c != '\r') {
-                        value += c;
-                        //Logger.Log($"{(byte)c}");
+                try {
+                    while ((c = ReadChar()) != '\n') {
+                        if (c != '\r') {
+                            value += c;
+                            //Logger.Log($"{(byte)c}");
+                        }
                     }
                 }
+                catch (System.IO.EndOfStreamException) { }
                 // strip byte order mark (aka BOM)
                 if (startPosition == 0) {
                     value = value.Trim(new char[] { '\uFEFF' });
