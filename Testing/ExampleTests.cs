@@ -11,18 +11,19 @@ using System.Net;
 
 namespace Testing {
     public class ExampleTests {
+        string enwik9Path;
+        string biblePath;
 
         [SetUp]
         public void Setup()
         {
+            enwik9Path = Utilities.GetEnwik9();
+            biblePath = Utilities.GetGutenbergBible();
         }
 
         [Test]
         public void MixedExampleTest()
         {
-            // Get enwik9 (this takes a moment)
-            var path = Utilities.GetEnwik9();
-
             // The regular expression for the search
             const string pattern = @"comfort\s*food";
             Regex regex = new(
@@ -32,8 +33,8 @@ namespace Testing {
             AutoResetEvent progress = new(false);
 
             // Create the search and indexing workers
-            LineIndexer indexer = new(path, progress);
-            RegexSearcher searcher = new(path, regex, progress);
+            LineIndexer indexer = new(enwik9Path, progress);
+            RegexSearcher searcher = new(enwik9Path, regex, progress);
 
             // Create a IBackground collection for convenient managment
             var processes = new List<IBackground>()
@@ -44,7 +45,7 @@ namespace Testing {
 
             // Create a progress bar to illustrate progress updates
             Utilities.ByteProgress progressBar = new(
-                40, processes.Count * Utilities.FileByteCount(path));
+                40, processes.Count * Utilities.FileByteCount(enwik9Path));
 
             // Start search and indexing in parallel and wait for completion
             Console.WriteLine($"Searching ...");
@@ -87,7 +88,7 @@ namespace Testing {
                     searcher.GetMatchData()[0].StartFpos);
 
                 // Open the searched file for reading
-                using FileStream fileStream = new(path, FileMode.Open);
+                using FileStream fileStream = new(enwik9Path, FileMode.Open);
                 Imagibee.Gigantor.StreamReader gigantorReader = new(fileStream);
 
                 // Seek to the first line we want to read
@@ -110,14 +111,13 @@ namespace Testing {
         [Test]
         public void MixedCancelTest()
         {
-            var path = Path.Combine("Assets", "BibleTest.txt");
             const string pattern = @"love\s*thy\s*neighbour";
             Regex regex = new(
                 pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
             AutoResetEvent progress = new(false);
-            LineIndexer indexer = new(path, progress);
+            LineIndexer indexer = new(biblePath, progress);
             RegexSearcher searcher = new(
-                path, regex, progress);
+                biblePath, regex, progress);
             Console.WriteLine($"Searching ...");
             var processes = new List<IBackground>()
             {
