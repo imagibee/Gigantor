@@ -132,11 +132,11 @@ namespace Imagibee {
                     using var streamReader = new BinaryReader(fileStream);
                     var buf = streamReader.ReadBytes(chunkSize);
                     for (var i = 0; i < buf.Length; i++) {
-                        if (buf[i] == '\n') {
-                            line++;
-                        }
                         if (i >= distance) {
                             break;
+                        }
+                        if (buf[i] == '\n') {
+                            line++;
                         }
                     }
                 }
