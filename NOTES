@@ -1,0 +1,3 @@
+dotnet pack Gigantor -c Release
+dotnet nuget push Gigantor/bin/Release/Imagibee.Gigantor.${MYVER}.nupkg --api-key ${MYKEY} --source https://api.nuget.org/v3/index.json
+
