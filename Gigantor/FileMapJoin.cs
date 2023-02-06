@@ -62,6 +62,8 @@ namespace Imagibee {
                 this.overlap = overlap;
                 synchronize = new AutoResetEvent(false);
                 cancel = new ManualResetEvent(false);
+                resultQueue = new ConcurrentQueue<T>();
+                jobQueue = new ConcurrentQueue<FileMapJoinData>();
             }
 
             public void Start()
@@ -72,8 +74,8 @@ namespace Imagibee {
                     Error = "";
                     joins = 0;
                     scheduledChunks = 0;
-                    resultQueue = new ConcurrentQueue<T>();
-                    jobQueue = new ConcurrentQueue<FileMapJoinData>();
+                    resultQueue.Clear();
+                    jobQueue.Clear();
                     ThreadPool.QueueUserWorkItem((_) => ManageJobs(Path));
                 }
             }
@@ -104,7 +106,7 @@ namespace Imagibee {
 
             // When used from Join, this value contains the T result returned
             // from the prior call of Join
-            protected T priorResult;
+            protected T? priorResult;
 
             // Partitioning size in bytes
             protected readonly int chunkSize;

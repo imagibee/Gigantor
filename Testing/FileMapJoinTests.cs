@@ -88,7 +88,8 @@ namespace Testing {
                     10);
                 Background.StartAndWait(
                     thrower,
-                    progress);
+                    progress,
+                    (_) => { });
                 Assert.AreNotEqual(0, thrower.Error.Length);
                 var error = Background.AnyError(new List<IBackground>() { thrower });
                 Assert.AreEqual(true, error.Contains("map"));
@@ -111,7 +112,8 @@ namespace Testing {
                     10);
                 Background.StartAndWait(
                     thrower,
-                    progress);
+                    progress,
+                    (_) => { });
                 var error = Background.AnyError(new List<IBackground>() { thrower });
                 Assert.AreEqual(true, error.Contains("join"));
             }
