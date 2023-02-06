@@ -2,27 +2,30 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.IO;
+using System.IO.Compression;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using NUnit.Framework;
 using Imagibee.Gigantor;
+using System.Net;
 
 namespace Testing {
     public class ExampleTests {
+        string enwik9Path;
+        string biblePath;
 
         [SetUp]
         public void Setup()
         {
+            enwik9Path = Utilities.GetEnwik9();
+            biblePath = Utilities.GetGutenbergBible();
         }
 
         [Test]
         public void MixedExampleTest()
         {
-            // The path to be searched and indexed
-            var path = Path.Combine("Assets", "BibleTest.txt");
-
             // The regular expression for the search
-            const string pattern = @"love\s*thy\s*neighbour";
+            const string pattern = @"comfort\s*food";
             Regex regex = new(
                 pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
@@ -30,10 +33,10 @@ namespace Testing {
             AutoResetEvent progress = new(false);
 
             // Create the search and indexing workers
-            LineIndexer indexer = new(path, progress);
-            RegexSearcher searcher = new(path, regex, progress);
+            LineIndexer indexer = new(enwik9Path, progress);
+            RegexSearcher searcher = new(enwik9Path, regex, progress);
 
-            // Create a IBackground collection for convenient monitoring
+            // Create a IBackground collection for convenient managment
             var processes = new List<IBackground>()
             {
                 indexer,
@@ -42,7 +45,7 @@ namespace Testing {
 
             // Create a progress bar to illustrate progress updates
             Utilities.ByteProgress progressBar = new(
-                40, processes.Count * Utilities.FileByteCount(path));
+                40, processes.Count * Utilities.FileByteCount(enwik9Path));
 
             // Start search and indexing in parallel and wait for completion
             Console.WriteLine($"Searching ...");
@@ -69,36 +72,38 @@ namespace Testing {
             }
 
             // Display search results
-            Console.WriteLine($"Found {searcher.MatchCount} matches ...");
-            var matchDatas = searcher.GetMatchData();
-            for (var i=0; i<matchDatas.Count; i++) {
-                var matchData = matchDatas[i];
-                Console.WriteLine(
-                    $"[{i}]({matchData.Value}) ({matchData.Name}) " +
-                    $"line {indexer.LineFromPosition(matchData.StartFpos)} " +
-                    $"fpos {matchData.StartFpos}");
-            }
+            if (searcher.MatchCount != 0) {
+                Console.WriteLine($"Found {searcher.MatchCount} matches ...");
+                var matchDatas = searcher.GetMatchData();
+                for (var i = 0; i < matchDatas.Count; i++) {
+                    var matchData = matchDatas[i];
+                    Console.WriteLine(
+                        $"[{i}]({matchData.Value}) ({matchData.Name}) " +
+                        $"line {indexer.LineFromPosition(matchData.StartFpos)} " +
+                        $"fpos {matchData.StartFpos}");
+                }
 
-            // Get the line of the 3rd match
-            var matchLine = indexer.LineFromPosition(
-                searcher.GetMatchData()[2].StartFpos);
+                // Get the line of the 1st match
+                var matchLine = indexer.LineFromPosition(
+                    searcher.GetMatchData()[0].StartFpos);
 
-            // Open the searched file for reading
-            using FileStream fileStream = new(path, FileMode.Open);
-            Imagibee.Gigantor.StreamReader gigantorReader = new(fileStream);
+                // Open the searched file for reading
+                using FileStream fileStream = new(enwik9Path, FileMode.Open);
+                Imagibee.Gigantor.StreamReader gigantorReader = new(fileStream);
 
-            // Seek to the first line we want to read
-            var contextLines = 2;
-            fileStream.Seek(indexer.PositionFromLine(
-                matchLine - contextLines), SeekOrigin.Begin);
+                // Seek to the first line we want to read
+                var contextLines = 6;
+                fileStream.Seek(indexer.PositionFromLine(
+                    matchLine - contextLines), SeekOrigin.Begin);
 
-            // Read and display a few lines around the match
-            for (var line = matchLine - contextLines;
-                line <= matchLine + contextLines;
-                line++) {
-                Console.WriteLine(
-                    $"[{line}]({indexer.PositionFromLine(line)})  " +
-                    gigantorReader.ReadLine());
+                // Read and display a few lines around the match
+                for (var line = matchLine - contextLines;
+                    line <= matchLine + contextLines;
+                    line++) {
+                    Console.WriteLine(
+                        $"[{line}]({indexer.PositionFromLine(line)})  " +
+                        gigantorReader.ReadLine());
+                }
             }
             //Assert.AreEqual(true, false);
         }
@@ -106,14 +111,13 @@ namespace Testing {
         [Test]
         public void MixedCancelTest()
         {
-            var path = Path.Combine("Assets", "BibleTest.txt");
             const string pattern = @"love\s*thy\s*neighbour";
             Regex regex = new(
                 pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
             AutoResetEvent progress = new(false);
-            LineIndexer indexer = new(path, progress);
+            LineIndexer indexer = new(biblePath, progress);
             RegexSearcher searcher = new(
-                path, regex, progress);
+                biblePath, regex, progress);
             Console.WriteLine($"Searching ...");
             var processes = new List<IBackground>()
             {

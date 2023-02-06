@@ -13,6 +13,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DuplicateApp", "DuplicateApp\DuplicateApp.csproj", "{1129842F-A6CC-44E6-AF1E-4465F54B1FDB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Gigantor", "Gigantor\Gigantor.csproj", "{5B2906BF-DA91-4C30-9B30-B2360EFA3927}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -35,6 +37,10 @@ Global
 		{1129842F-A6CC-44E6-AF1E-4465F54B1FDB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1129842F-A6CC-44E6-AF1E-4465F54B1FDB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1129842F-A6CC-44E6-AF1E-4465F54B1FDB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5B2906BF-DA91-4C30-9B30-B2360EFA3927}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5B2906BF-DA91-4C30-9B30-B2360EFA3927}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5B2906BF-DA91-4C30-9B30-B2360EFA3927}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5B2906BF-DA91-4C30-9B30-B2360EFA3927}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -7,6 +7,7 @@ using Imagibee.Gigantor;
 
 namespace Testing {
     public class FileMapJoinTests {
+        string biblePath;
 
         // Test class for throwing exceptions in the code path
         public class MapJoinErrorThrower : FileMapJoin<MapJoinData> {
@@ -68,26 +69,27 @@ namespace Testing {
         [SetUp]
         public void Setup()
         {
+            biblePath = Utilities.GetGutenbergBible();
         }
 
         [Test]
         public void MapExceptionTest()
         {
             const int iterations = 2;
-            var path = Path.Join("Assets", "BibleTest.txt");
             AutoResetEvent progress = new(false);
             for (var i = 0; i < iterations; i++) {
                 MapJoinErrorThrower thrower = new(
                     true,
                     100,
-                    path,
+                    biblePath,
                     progress,
                     JoinMode.Sequential,
                     8,
                     10);
                 Background.StartAndWait(
                     thrower,
-                    progress);
+                    progress,
+                    (_) => { });
                 Assert.AreNotEqual(0, thrower.Error.Length);
                 var error = Background.AnyError(new List<IBackground>() { thrower });
                 Assert.AreEqual(true, error.Contains("map"));
@@ -98,20 +100,20 @@ namespace Testing {
         public void JoinExceptionTest()
         {
             const int iterations = 2;
-            var path = Path.Join("Assets", "BibleTest.txt");
             AutoResetEvent progress = new(false);
             for (var i = 0; i < iterations; i++) {
                 MapJoinErrorThrower thrower = new(
                     false,
                     100,
-                    path,
+                    biblePath,
                     progress,
                     JoinMode.Sequential,
                     8,
                     10);
                 Background.StartAndWait(
                     thrower,
-                    progress);
+                    progress,
+                    (_) => { });
                 var error = Background.AnyError(new List<IBackground>() { thrower });
                 Assert.AreEqual(true, error.Contains("join"));
             }
