@@ -258,6 +258,9 @@ namespace Imagibee {
                 fileStream.Seek(0, SeekOrigin.End);
                 if (lastPosition == fileStream.Position) {
                     result.FinalChunk = true;
+                    if (result.EolEnding == false) {
+                        result.LineCount++;
+                    }
                 };
                 result.LineCount = Math.Max(1, result.LineCount);
                 //Logger.Log($"mapped {result.Id} at {result.StartFpos}, {result.LineCount} lines, {result.ByteCount} bytes");
