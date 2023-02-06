@@ -1,13 +1,14 @@
 ﻿using System;
 using System.IO;
+using System.IO.Compression;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using System.Net;
 
 namespace Imagibee {
     namespace Gigantor {
         // Internal common code
-        public class Utilities
-        {
+        public class Utilities {
             internal static string RemoveUsername(string path)
             {
                 // mac format
@@ -18,8 +19,7 @@ namespace Imagibee {
             internal static long FileByteCount(IEnumerable<string> paths)
             {
                 long byteCount = 0;
-                foreach (var path in paths)
-                {
+                foreach (var path in paths) {
                     byteCount += FileByteCount(path);
                 }
                 return byteCount;
@@ -109,11 +109,25 @@ namespace Imagibee {
                     fixed (char* p1 = str) {
                         byte* p2 = (byte*)p1;
                         for (var i = 0; i < length / sizeof(byte); i++) {
-                            p2[i<<1] = value[i];
+                            p2[i << 1] = value[i];
                         }
                     }
                 }
                 return str;
+            }
+
+            internal static string GetEnwik9()
+            {
+                var zipPath = Path.Combine(Path.GetTempPath(), "enwik9.zip");
+                if (!File.Exists(zipPath)) {
+                    Console.WriteLine($"downloading enwik9 to {zipPath}...");
+                    var wc = new WebClient();
+                    wc.DownloadFile(
+                            "https://archive.org/download/enwik9/enwik9.zip",
+                            zipPath);
+                    ZipFile.ExtractToDirectory(zipPath, Path.GetTempPath());
+                }
+                return Path.Combine(Path.GetTempPath(), "enwik9");
             }
         }
     }
