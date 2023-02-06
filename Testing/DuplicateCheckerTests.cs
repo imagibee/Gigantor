@@ -6,13 +6,16 @@ using Imagibee.Gigantor;
 
 namespace Testing {
     public class DuplicateCheckerTests {
-        readonly string biblePath = Path.Combine("Assets", "BibleTest.txt");
-        readonly string simplePath = Path.Combine("Assets", "SimpleTest.txt");
-        readonly string simplePath2 = Path.Combine("Assets", "SimpleTest2.txt");
+        string biblePath;
+        string simplePath;
+        string simplePath2;
 
         [SetUp]
         public void Setup()
         {
+            biblePath = Utilities.GetGutenbergBible();
+            simplePath = Utilities.GetSimpleFile();
+            simplePath2 = Utilities.GetSimpleFile2();
         }
 
         [Test]
