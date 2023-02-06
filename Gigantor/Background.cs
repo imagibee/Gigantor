@@ -41,7 +41,7 @@ namespace Imagibee {
             public static void StartAndWait(
                 IBackground process,
                 AutoResetEvent progress,
-                Action<IReadOnlyCollection<IBackground>> OnProgressOrTimeout = null,
+                Action<IReadOnlyCollection<IBackground>> OnProgressOrTimeout,
                 int timeoutMilliSeconds = 1000)
             {
                 StartAndWait(
@@ -62,7 +62,7 @@ namespace Imagibee {
             public static void StartAndWait(
                 ICollection<IBackground> processes,
                 AutoResetEvent progress,
-                Action<IReadOnlyCollection<IBackground>> OnProgressOrTimeout = null,
+                Action<IReadOnlyCollection<IBackground>> OnProgressOrTimeout,
                 int timeoutMilliSeconds = 1000)
             {
                 foreach (var process in processes) {
@@ -82,7 +82,7 @@ namespace Imagibee {
             static public void Wait(
                 IBackground process,
                 AutoResetEvent progress,
-                Action<IReadOnlyCollection<IBackground>> OnProgressOrTimeout = null,
+                Action<IReadOnlyCollection<IBackground>> OnProgressOrTimeout,
                 int timeoutMilliSeconds = 1000)
             {
                 Wait(
@@ -104,7 +104,7 @@ namespace Imagibee {
             public static void Wait(
                 ICollection<IBackground> processes,
                 AutoResetEvent progress,
-                Action<IReadOnlyCollection<IBackground>> OnProgressOrTimeout = null,
+                Action<IReadOnlyCollection<IBackground>> OnProgressOrTimeout,
                 int timeoutMilliSeconds = 1000)
             {
                 while (true) {
