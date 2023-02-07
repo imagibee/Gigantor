@@ -89,7 +89,8 @@ namespace Imagibee {
                 while (matchQueue.TryDequeue(out MatchData result)) {
                     matches.Add(result);
                 }
-                matches = matches.OrderBy(x => x.StartFpos).ToList();
+                //matches = matches.OrderBy(x => x.StartFpos).ToList();
+                matches.Sort((a, b) => a.StartFpos.CompareTo(b.StartFpos));
             }
 
             // Return the MatchData of current progress

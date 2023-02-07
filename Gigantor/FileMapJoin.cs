@@ -25,7 +25,7 @@ namespace Imagibee {
         // is true results are undefined.  Exceptions during Start
         // are not handled.
         //
-        public abstract class FileMapJoin<T> : MapJoin<FileMapJoinData, T>, IBackground where T : IMapJoinData
+        public abstract class FileMapJoin<T> : MapJoin<FileMapJoinData, T>, IBackground where T : struct, IMapJoinData
         {
             // Path of the last successfully started indexing operation
             public string Path { get; private set; } = "";
@@ -64,6 +64,7 @@ namespace Imagibee {
                 cancel = new ManualResetEvent(false);
                 resultQueue = new ConcurrentQueue<T>();
                 jobQueue = new ConcurrentQueue<FileMapJoinData>();
+                priorResult = new();
             }
 
             public void Start()
@@ -106,7 +107,7 @@ namespace Imagibee {
 
             // When used from Join, this value contains the T result returned
             // from the prior call of Join
-            protected T? priorResult;
+            protected T priorResult;
 
             // Partitioning size in bytes
             protected readonly int chunkSize;
@@ -250,8 +251,8 @@ namespace Imagibee {
             readonly AutoResetEvent synchronize;
             readonly AutoResetEvent progress;
             readonly int maxWorkers;
-            ConcurrentQueue<FileMapJoinData> jobQueue;
-            ConcurrentQueue<T> resultQueue;
+            readonly ConcurrentQueue<FileMapJoinData> jobQueue;
+            readonly ConcurrentQueue<T> resultQueue;
             int scheduledChunks;
             int joins;
         }

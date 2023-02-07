@@ -4,6 +4,8 @@ using System.IO.Compression;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Net;
+using System.Net.Http;
+using System.Threading.Tasks;
 
 namespace Imagibee {
     namespace Gigantor {
@@ -119,15 +121,15 @@ namespace Imagibee {
             internal static string GetEnwik9()
             {
                 var zipPath = Path.Combine(Path.GetTempPath(), "enwik9.zip");
-                if (!File.Exists(zipPath)) {
-                    Console.WriteLine($"downloading enwik9 to {zipPath}...");
-                    var wc = new WebClient();
-                    wc.DownloadFile(
-                            "https://archive.org/download/enwik9/enwik9.zip",
-                            zipPath);
+                var enwik9Path = Path.Combine(Path.GetTempPath(), "enwik9");
+                if (!File.Exists(enwik9Path)) {
+                    if (!File.Exists(zipPath)) {
+                        Console.WriteLine($"downloading enwik9 to {zipPath}...");
+                        Wget("https://archive.org/download/enwik9/enwik9.zip", zipPath).Wait();
+                    }
                     ZipFile.ExtractToDirectory(zipPath, Path.GetTempPath());
                 }
-                return Path.Combine(Path.GetTempPath(), "enwik9");
+                return enwik9Path;
             }
 
             internal static string GetGutenbergBible()
@@ -135,10 +137,7 @@ namespace Imagibee {
                 var path = Path.Combine(Path.GetTempPath(), "Gigantor-bible");
                 if (!File.Exists(path)) {
                     Console.WriteLine($"downloading Gutenburg bible to {path}...");
-                    var wc = new WebClient();
-                    wc.DownloadFile(
-                            "https://www.gutenberg.org/ebooks/10.txt.utf-8",
-                            path);
+                    Wget("https://www.gutenberg.org/ebooks/10.txt.utf-8", path).Wait();
                 }
                 return path;
             }
@@ -169,6 +168,17 @@ namespace Imagibee {
                     writer.Write("bat");
                 }
                 return path;
+            }
+
+            internal static async Task Wget(string url, string destinationPath)
+            {
+                using (HttpClient httpClient = new()) {
+                    using (var stream = await httpClient.GetStreamAsync(url)) {
+                        using (var fileStream = new FileStream(destinationPath, FileMode.CreateNew)) {
+                            await stream.CopyToAsync(fileStream);
+                        }
+                    }
+                }
             }
         }
     }
