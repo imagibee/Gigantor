@@ -1,3 +1,10 @@
+Benchmarks
+----------
+dotnet SearchApp/bin/Release/netcoreapp3.1/SearchApp.dll benchmark ${TMPDIR}/enwik9
+dotnet LineApp/bin/Release/netcoreapp3.1/LineApp.dll benchmark ${TMPDIR}/enwik9
+
+Nuget
+-----
 dotnet pack Gigantor -c Release
 dotnet nuget push Gigantor/bin/Release/Imagibee.Gigantor.${MYVER}.nupkg --api-key ${MYKEY} --source https://api.nuget.org/v3/index.json
 
