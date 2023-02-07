@@ -108,7 +108,7 @@ if (searcher.MatchCount != 0) {
 }
 ```
 
-Console output
+Example console output
 ```console
  Searching ...
  ########################################
@@ -145,6 +145,52 @@ Refer to the tests and console apps for additional examples.
 The performance benchmark consists of running the included benchmarking apps over enwik9 and measuring the throughput.  Enwik9 is a 1e9 byte file that is not included.
 
 ![Throughput Graph](https://github.com/imagibee/Gigantor/blob/main/Images/Throughput.png?raw=true)
+
+Here is the search benchmark console output for a 5 GiByte search.  On the test system, performance peaked around 16 worker threads, and the peak is roughly eight times faster (8x) than the single threaded baseline.
+
+```console
+$ dotnet SearchApp/bin/Release/netcoreapp3.1/SearchApp.dll benchmark ${TMPDIR}/enwik9
+..................................
+maxWorkers=1, chunkKiBytes=512, maxThread=32767
+   105160 matches found
+   searched 5000000000 bytes in 31.0263856 seconds
+-> 161.1531573307076 MBytes/s
+...................
+maxWorkers=2, chunkKiBytes=512, maxThread=32767
+   105160 matches found
+   searched 5000000000 bytes in 16.8778632 seconds
+-> 296.24603190290105 MBytes/s
+.........
+maxWorkers=4, chunkKiBytes=512, maxThread=32767
+   105160 matches found
+   searched 5000000000 bytes in 9.1642743 seconds
+-> 545.5969383194914 MBytes/s
+.........
+maxWorkers=8, chunkKiBytes=512, maxThread=32767
+   105160 matches found
+   searched 5000000000 bytes in 5.2054124 seconds
+-> 960.5386885388754 MBytes/s
+....
+maxWorkers=16, chunkKiBytes=512, maxThread=32767
+   105160 matches found
+   searched 5000000000 bytes in 3.7841506 seconds
+-> 1321.3004788974308 MBytes/s
+....
+maxWorkers=32, chunkKiBytes=512, maxThread=32767
+   105160 matches found
+   searched 5000000000 bytes in 3.714317 seconds
+-> 1346.1425074919562 MBytes/s
+....
+maxWorkers=64, chunkKiBytes=512, maxThread=32767
+   105160 matches found
+   searched 5000000000 bytes in 3.7860814 seconds
+-> 1320.6266510804548 MBytes/s
+....
+maxWorkers=128, chunkKiBytes=512, maxThread=32767
+   105160 matches found
+   searched 5000000000 bytes in 3.8072122 seconds
+-> 1313.296905278881 MBytes/s
+```
 
 
 The hardware used to measure performance was a Macbook Pro

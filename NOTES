@@ -6,5 +6,8 @@ dotnet LineApp/bin/Release/netcoreapp3.1/LineApp.dll benchmark ${TMPDIR}/enwik9
 Nuget
 -----
 dotnet pack Gigantor -c Release
+nuget push Gigantor/bin/Release/Imagibee.Gigantor.${MYVER}.nupkg -source https://api.nuget.org/v3/index.json
+
+(if apikey isn't saved)
 dotnet nuget push Gigantor/bin/Release/Imagibee.Gigantor.${MYVER}.nupkg --api-key ${MYKEY} --source https://api.nuget.org/v3/index.json
 
