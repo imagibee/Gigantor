@@ -86,9 +86,16 @@ namespace Imagibee {
             // Finished, sort match data
             protected override void Finish()
             {
+                HashSet<long> matchPositions = new();
                 while (matchQueue.TryDequeue(out MatchData result)) {
-                    matches.Add(result);
+                    // Ignore duplicates
+                    if (!matchPositions.Contains(result.StartFpos)) {
+                        matches.Add(result);
+                        matchPositions.Add(result.StartFpos);
+                    }
                 }
+                // Adjust matchCount after dedup
+                matchCount = matches.Count;
                 //matches = matches.OrderBy(x => x.StartFpos).ToList();
                 matches.Sort((a, b) => a.StartFpos.CompareTo(b.StartFpos));
             }
@@ -147,8 +154,8 @@ namespace Imagibee {
             }
 
             // private data
-            ConcurrentQueue<MatchData> matchQueue;
-            List<MatchData> matches;
+            readonly ConcurrentQueue<MatchData> matchQueue;
+            readonly List<MatchData> matches;
             readonly System.Text.RegularExpressions.Regex regex;
             readonly int maxMatchCount;
             long matchCount;

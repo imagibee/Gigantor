@@ -124,13 +124,14 @@ namespace Testing {
                 indexer,
                 searcher
             };
-            Background.StartAndWait(
+            foreach (var process in processes) {
+                process.Start();
+            }
+            Background.CancelAll(processes);
+            Background.Wait(
                 processes,
                 progress,
-                (_) =>
-                {
-                    Background.CancelAll(processes);
-                },
+                (_) => {},
                 1000);
             Assert.AreEqual("", Background.AnyError(processes));
             Assert.AreEqual(true, Background.AnyCancelled(processes));
