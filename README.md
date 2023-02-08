@@ -149,47 +149,47 @@ The performance benchmark consists of running the included benchmarking apps ove
 Here is the search benchmark console output for a 5 GiByte search.  On the test system, performance peaked around 16 worker threads, and the peak is roughly eight times faster (8x) than the single threaded baseline.
 
 ```console
-$ dotnet SearchApp/bin/Release/netcoreapp3.1/SearchApp.dll benchmark ${TMPDIR}/enwik9
-..................................
+$ dotnet SearchApp/bin/Release/net6.0/SearchApp.dll benchmark ${TMPDIR}/enwik9
+........................
 maxWorkers=1, chunkKiBytes=512, maxThread=32767
    105160 matches found
-   searched 5000000000 bytes in 31.0263856 seconds
--> 161.1531573307076 MBytes/s
-...................
+   searched 5000000000 bytes in 24.0289207 seconds
+-> 208.0825877460239 MBytes/s
+..............
 maxWorkers=2, chunkKiBytes=512, maxThread=32767
    105160 matches found
-   searched 5000000000 bytes in 16.8778632 seconds
--> 296.24603190290105 MBytes/s
+   searched 5000000000 bytes in 12.692795 seconds
+-> 393.92426963485974 MBytes/s
 .........
 maxWorkers=4, chunkKiBytes=512, maxThread=32767
    105160 matches found
-   searched 5000000000 bytes in 9.1642743 seconds
--> 545.5969383194914 MBytes/s
-.........
+   searched 5000000000 bytes in 6.8668367 seconds
+-> 728.1373095707955 MBytes/s
+....
 maxWorkers=8, chunkKiBytes=512, maxThread=32767
    105160 matches found
-   searched 5000000000 bytes in 5.2054124 seconds
--> 960.5386885388754 MBytes/s
+   searched 5000000000 bytes in 3.7174496 seconds
+-> 1345.0081475213544 MBytes/s
 ....
 maxWorkers=16, chunkKiBytes=512, maxThread=32767
    105160 matches found
-   searched 5000000000 bytes in 3.7841506 seconds
--> 1321.3004788974308 MBytes/s
+   searched 5000000000 bytes in 3.0211296 seconds
+-> 1655.0100995336313 MBytes/s
 ....
 maxWorkers=32, chunkKiBytes=512, maxThread=32767
    105160 matches found
-   searched 5000000000 bytes in 3.714317 seconds
--> 1346.1425074919562 MBytes/s
+   searched 5000000000 bytes in 3.191699 seconds
+-> 1566.5637643148682 MBytes/s
 ....
 maxWorkers=64, chunkKiBytes=512, maxThread=32767
    105160 matches found
-   searched 5000000000 bytes in 3.7860814 seconds
--> 1320.6266510804548 MBytes/s
+   searched 5000000000 bytes in 3.2240221 seconds
+-> 1550.8578554718963 MBytes/s
 ....
 maxWorkers=128, chunkKiBytes=512, maxThread=32767
    105160 matches found
-   searched 5000000000 bytes in 3.8072122 seconds
--> 1313.296905278881 MBytes/s
+   searched 5000000000 bytes in 3.3693127 seconds
+-> 1483.982178323787 MBytes/s
 ```
 
 
