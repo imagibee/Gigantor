@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading;
 using System.IO;
@@ -9,13 +9,15 @@ using System.Net;
 using NUnit.Framework;
 using Imagibee.Gigantor;
 
-namespace Testing {
+namespace NugetTesting {
+
     public class ExampleTests {
         string enwik9Path;
         string biblePath;
 
         [SetUp]
         public void Setup()
+#pragma warning disable CS0436
         {
             enwik9Path = Utilities.GetEnwik9();
             biblePath = Utilities.GetGutenbergBible();
@@ -43,20 +45,12 @@ namespace Testing {
                 searcher
             };
 
-            // Create a progress bar to illustrate progress updates
-            Utilities.ByteProgress progressBar = new(
-                40, processes.Count * Utilities.FileByteCount(enwik9Path));
-
             // Start search and indexing in parallel and wait for completion
             Console.WriteLine($"Searching ...");
             Background.StartAndWait(
                 processes,
                 progress,
-                (_) =>
-                {
-                    progressBar.Update(
-                        processes.Select((p) => p.ByteCount).Sum());
-                },
+                (_) => {},
                 1000);
             Console.Write('\n');
 
@@ -105,7 +99,6 @@ namespace Testing {
                         gigantorReader.ReadLine());
                 }
             }
-            //Assert.AreEqual(true, false);
         }
 
         [Test]
@@ -132,8 +125,11 @@ namespace Testing {
                     Background.CancelAll(processes);
                 },
                 1000);
-            Assert.AreEqual("", Background.AnyError(processes));
-            Assert.AreEqual(true, Background.AnyCancelled(processes));
+            Assert.Multiple(() =>
+            {
+                Assert.That(Background.AnyError(processes), Is.EqualTo(""));
+                Assert.That(Background.AnyCancelled(processes), Is.EqualTo(true));
+            });
         }
     }
 }
