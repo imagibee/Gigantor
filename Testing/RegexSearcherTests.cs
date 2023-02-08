@@ -133,6 +133,33 @@ namespace Testing {
             Assert.AreEqual(209, searcher.MatchCount);
             Assert.AreEqual(209, searcher.GetMatchData().Count);
         }
+
+        [Test]
+        public void DedupTest()
+        {
+            AutoResetEvent progress = new(false);
+            const string pattern = @"son\s*of\s*man";
+            Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            RegexSearcher searcher1 = new(
+                biblePath, regex, progress, maxMatchCount, 64, maxWorkers, 32 * 1024);
+            RegexSearcher searcher2 = new(
+                biblePath, regex, progress, maxMatchCount, 64, maxWorkers, pattern.Length);
+            Background.StartAndWait(
+                new List<IBackground>() { searcher1, searcher2 },
+                progress,
+                (_) => { },
+                1000);
+            Logger.Log($"{searcher1.Error}");
+            var m1 = searcher1.GetMatchData();
+            var m2 = searcher1.GetMatchData();
+            for (var i=0; i<10; i++) {
+                Logger.Log($"1-> [{i}] {m1[i].Value} {m1[i].StartFpos}");
+                Logger.Log($"2-> [{i}] {m2[i].Value} {m2[i].StartFpos}");
+            }
+            Assert.AreEqual(true, searcher1.Error == "");
+            Assert.AreEqual(true, searcher2.Error == "");
+            Assert.AreEqual(searcher1.MatchCount, searcher2.MatchCount);
+        }
     }
 }
 
