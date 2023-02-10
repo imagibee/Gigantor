@@ -10,7 +10,7 @@ using Imagibee.Gigantor;
 // The main purpose of this app is to assist with performance benchmarking.
 //
 // Usage - benchmarking
-//   dotnet LineApp/bin/Release/netcoreapp3.1/LineApp.dll benchmark /tmp/enwik9.txt
+//   dotnet LineApp/bin/Release/net6.0/LineApp.dll benchmark ${TMPDIR}/enwik9.txt
 //
 class LineApp {
     static string Error = "";

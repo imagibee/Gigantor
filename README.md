@@ -144,7 +144,7 @@ Refer to the tests and console apps for additional examples.
 ## Performance
 The performance benchmark consists of running the included benchmarking apps over enwik9 and measuring the throughput.  Enwik9 is a 1e9 byte file that is not included.
 
-![Throughput Graph](https://github.com/imagibee/Gigantor/blob/main/Images/Throughput.png?raw=true)
+![Throughput Graph](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/Throughput.png)
 
 Here is the search benchmark console output for a 5 GiByte search.  On the test system, performance peaked around 16 worker threads, and the peak is roughly eight times faster (8x) than the single threaded baseline.
 

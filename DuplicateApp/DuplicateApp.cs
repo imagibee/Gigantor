@@ -10,7 +10,7 @@ using Imagibee.Gigantor;
 // The main purpose of this app is to assist with performance benchmarking.
 //
 // Usage - benchmarking
-//   dotnet DuplicateApp/bin/Release/netcoreapp3.1/DuplicateApp.dll benchmark "/tmp/enwik9.txt;/tmp/enwik9-1.txt"
+//   dotnet DuplicateApp/bin/Release/net6.0/DuplicateApp.dll benchmark "${TMPDIR}enwik9;${TMPDIR}enwik91"
 //
 class DuplicateApp {
     static string Error = "";
