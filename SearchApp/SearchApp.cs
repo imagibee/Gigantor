@@ -11,7 +11,7 @@ using Imagibee.Gigantor;
 // The main purpose of this app is to assist with performance benchmarking.
 //
 // Usage - benchmarking
-//   dotnet SearchApp/bin/Release/netcoreapp3.1/SearchApp.dll benchmark /tmp/enwik9.txt
+//   dotnet SearchApp/bin/Release/net6.0/SearchApp.dll benchmark ${TMPDIR}/enwik9.txt
 //
 class SearchApp {
     static string Error = "";

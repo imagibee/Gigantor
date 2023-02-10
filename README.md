@@ -144,7 +144,7 @@ Refer to the tests and console apps for additional examples.
 ## Performance
 The performance benchmark consists of running the included benchmarking apps over enwik9 and measuring the throughput.  Enwik9 is a 1e9 byte file that is not included.
 
-![Throughput Graph](https://github.com/imagibee/Gigantor/blob/main/Images/Throughput.png?raw=true)
+![Throughput Graph](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/Throughput.png)
 
 Here is the search benchmark console output for a 5 GiByte search.  On the test system, performance peaked around 16 worker threads, and the peak is roughly eight times faster (8x) than the single threaded baseline.
 
@@ -200,7 +200,7 @@ The hardware used to measure performance was a Macbook Pro
 - Memory:	16 GB
 
 ## License
-[MIT](https://www.mit.edu/~amini/LICENSE.md)
+[MIT](https://raw.githubusercontent.com/imagibee/Gigantor/main/LICENSE)
 
 ## Versioning
 This package uses [semantic versioning](https://en.wikipedia.org/wiki/Software_versioning#Semantic_versioning).  Tags on the main branch indicate versions.  It is recomended to use a tagged version.  The latest version on the main branch should be considered _under development_ when it is not tagged.
