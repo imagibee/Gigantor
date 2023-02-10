@@ -200,7 +200,7 @@ The hardware used to measure performance was a Macbook Pro
 - Memory:	16 GB
 
 ## License
-[MIT](https://www.mit.edu/~amini/LICENSE.md)
+[MIT](https://raw.githubusercontent.com/imagibee/Gigantor/main/LICENSE)
 
 ## Versioning
 This package uses [semantic versioning](https://en.wikipedia.org/wiki/Software_versioning#Semantic_versioning).  Tags on the main branch indicate versions.  It is recomended to use a tagged version.  The latest version on the main branch should be considered _under development_ when it is not tagged.
