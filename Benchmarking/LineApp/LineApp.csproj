@@ -14,25 +14,25 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\Gigantor\Background.cs">
+    <Compile Include="..\..\Gigantor\Background.cs">
       <Link>Background.cs</Link>
     </Compile>
-    <Compile Include="..\Gigantor\FileMapJoin.cs">
+    <Compile Include="..\..\Gigantor\FileMapJoin.cs">
       <Link>FileMapJoin.cs</Link>
     </Compile>
-    <Compile Include="..\Gigantor\Logging.cs">
+    <Compile Include="..\..\Gigantor\Logging.cs">
       <Link>Logging.cs</Link>
     </Compile>
-    <Compile Include="..\Gigantor\MapJoin.cs">
+    <Compile Include="..\..\Gigantor\MapJoin.cs">
       <Link>MapJoin.cs</Link>
     </Compile>
-    <Compile Include="..\Gigantor\StreamReader.cs">
+    <Compile Include="..\..\Gigantor\StreamReader.cs">
       <Link>StreamReader.cs</Link>
     </Compile>
-    <Compile Include="..\Gigantor\Utilities.cs">
+    <Compile Include="..\..\Gigantor\Utilities.cs">
       <Link>Utilities.cs</Link>
     </Compile>
-    <Compile Include="..\Gigantor\LineIndexer.cs">
+    <Compile Include="..\..\Gigantor\LineIndexer.cs">
       <Link>LineIndexer.cs</Link>
     </Compile>
   </ItemGroup>

@@ -1,12 +1,13 @@
 Benchmarks
 ----------
-dotnet SearchApp/bin/Release/net6.0/SearchApp.dll benchmark ${TMPDIR}/enwik9
-dotnet LineApp/bin/Release/net6.0/LineApp.dll benchmark ${TMPDIR}/enwik9
-dotnet DuplicatApp/bin/Release/net6.0/DuplicateApp.dll benchmark "${TMPDIR}/enwik9;${TMPDIR}/enwik91"
+dotnet Benchmarking/SearchApp/bin/Release/net6.0/SearchApp.dll benchmark ${TMPDIR}/enwik9
+dotnet Benchmarking/LineApp/bin/Release/net6.0/LineApp.dll benchmark ${TMPDIR}/enwik9
+dotnet Benchmarking/DuplicatApp/bin/Release/net6.0/DuplicateApp.dll benchmark "${TMPDIR}/enwik9;${TMPDIR}/enwik91"
 
 Nuget
 -----
 export MYVER=
+nuget add Gigantor/bin/Release/Imagibee.Gigantor.${MYVER}.nupkg -source ~/nuget
 dotnet pack Gigantor -c Release
 nuget push Gigantor/bin/Release/Imagibee.Gigantor.${MYVER}.nupkg -source https://api.nuget.org/v3/index.json
 
