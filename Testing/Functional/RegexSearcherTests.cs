@@ -160,6 +160,38 @@ namespace Testing {
             Assert.AreEqual(true, searcher2.Error == "");
             Assert.AreEqual(searcher1.MatchCount, searcher2.MatchCount);
         }
+
+        [Test]
+        public void GroupTest()
+        {
+            var maxMatches = 5;
+            AutoResetEvent progress = new(false);
+            const string pattern = @"(\w+)\s+is\s+(\w+)";
+            Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            RegexSearcher searcher = new(
+                biblePath, regex, progress, maxMatchCount: maxMatches, 64, maxWorkers);
+            Background.StartAndWait(
+                new List<IBackground>() { searcher },
+                progress,
+                (_) => { },
+                1000);
+            Logger.Log($"{searcher.Error}");
+            var m = searcher.GetMatchData();
+            for (var i = 0; i < maxMatches; i++) {
+                Logger.Log($"1-> [{i}] {m[i].Value} {m[i].StartFpos}");
+            }
+            Assert.AreEqual(true, searcher.Error == "");
+            Assert.AreEqual(maxMatches, searcher.MatchCount);
+            var matches = searcher.GetMatchData();
+            foreach (var match in matches) {
+                foreach (var group in match.Groups) {
+                    Logger.Log($"{group.Name} {group.Value} {group.StartFpos}");
+                    foreach (var c in group.Captures) {
+                        Logger.Log($"{c.Value} {c.StartFpos}");
+                    }
+                }
+            }
+        }
     }
 }
 
