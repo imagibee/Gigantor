@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+
+    <IsPackable>false</IsPackable>
+    <AssemblyName>Functional</AssemblyName>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <LangVersion>9.0</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>Functional</AssemblyName>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <LangVersion>9.0</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="3.2.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="NUnit" Version="3.13.3" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.3.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.4.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\Gigantor\Background.cs">
+      <Link>Background.cs</Link>
+    </Compile>
+    <Compile Include="..\..\Gigantor\DuplicateChecker.cs">
+      <Link>DuplicateChecker.cs</Link>
+    </Compile>
+    <Compile Include="..\..\Gigantor\FileMapJoin.cs">
+      <Link>FileMapJoin.cs</Link>
+    </Compile>
+    <Compile Include="..\..\Gigantor\LineIndexer.cs">
+      <Link>LineIndexer.cs</Link>
+    </Compile>
+    <Compile Include="..\..\Gigantor\Logging.cs">
+      <Link>Logging.cs</Link>
+    </Compile>
+    <Compile Include="..\..\Gigantor\MapJoin.cs">
+      <Link>MapJoin.cs</Link>
+    </Compile>
+    <Compile Include="..\..\Gigantor\RegexSearcher.cs">
+      <Link>RegexSearcher.cs</Link>
+    </Compile>
+    <Compile Include="..\..\Gigantor\StreamReader.cs">
+      <Link>StreamReader.cs</Link>
+    </Compile>
+    <Compile Include="..\..\Gigantor\Utilities.cs">
+      <Link>Utilities.cs</Link>
+    </Compile>
+  </ItemGroup>
+</Project>

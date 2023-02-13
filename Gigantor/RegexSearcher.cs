@@ -30,12 +30,25 @@ namespace Imagibee {
             // The number of matches found so far
             public long MatchCount { get { return Interlocked.Read(ref matchCount); } }
 
+            // A structure for storing capture data
+            public struct CaptureData {
+                public long StartFpos;
+                public string Value;
+            }
+            // A structure for storing match group data
+            public struct GroupData
+            {
+                public long StartFpos;
+                public string Name;
+                public string Value;
+                public IReadOnlyList<CaptureData> Captures;
+            }
             // A structure for storing a single match value
             public struct MatchData {
                 public long StartFpos;
                 public string Name;
                 public string Value;
-                // TODO: add support for Groups
+                public IReadOnlyList<GroupData> Groups;
             }
 
             // Create a new instance
@@ -46,8 +59,13 @@ namespace Imagibee {
             // maxMatchCount - places a limit on the number of matches, defaults to 1000
             // chunkKiBytes - the chunk size in KiBytes that each worker works on
             // maxWorkers - optional limit to the maximum number of simultaneous workers
-            // overlap - the maximum size of a matched value, defaults to 1% of chunk size,
-            // hoping to depricate this parameter in the future
+            // overlap - size in bytes of partition overlap, used for finding matches that
+            // span two partitions, when set greater than or equal to the maximum size
+            // then all matches will be found, when set smaller there is a chance that a
+            // match on a partition boundary will not be found, very large values
+            // negatively impact performance, the optimal value is the exact size of the
+            // maximum matched value (which may not be known), defaults to 1/128th of
+            // chunk size, may not exceed half the chunk size
             public RegexSearcher(
                 string filePath,
                 System.Text.RegularExpressions.Regex regex,
@@ -66,10 +84,7 @@ namespace Imagibee {
                 matchQueue = new();
                 this.regex = regex;
                 this.maxMatchCount = maxMatchCount;
-                if (overlap < 0) {
-                    overlap = chunkKiBytes * 1024 / 100;
-                }
-                base.overlap = overlap;
+                base.Overlap = overlap;
             }
 
             // Start the background process
@@ -138,18 +153,40 @@ namespace Imagibee {
                     var newMatches = 0;
                     foreach (System.Text.RegularExpressions.Match match in partitionMatches) {
                         if (match != null && matchCount < maxMatchCount) {
-                            matchQueue.Enqueue(new MatchData()
-                            {
-                                StartFpos = data.StartFpos + match.Index,
-                                Name = match.Name,
-                                Value = match.Value
-                            });
+                            var groups = new List<GroupData>();
+                            foreach (System.Text.RegularExpressions.Group group in match.Groups) {
+                                List<CaptureData> cd = new();
+                                foreach (System.Text.RegularExpressions.Capture capture in group.Captures) {
+                                    cd.Add(
+                                        new CaptureData()
+                                        {
+                                            StartFpos = capture.Index + data.StartFpos,
+                                            Value = capture.Value,
+                                        });
+                                }
+                                groups.Add(
+                                    new GroupData()
+                                    {
+                                        StartFpos = data.StartFpos + group.Index,
+                                        Name = group.Name,
+                                        Value = group.Value,
+                                        Captures = cd.AsReadOnly(),
+                                    });
+                            }
+                            matchQueue.Enqueue(
+                                new MatchData()
+                                {
+                                    StartFpos = data.StartFpos + match.Index,
+                                    Name = match.Name,
+                                    Value = match.Value,
+                                    Groups = groups.AsReadOnly(),
+                                });
                             newMatches++;
                         }
+                        Interlocked.Add(ref matchCount, 1);
                     }
-                    Interlocked.Add(ref matchCount, newMatches);
                 }
-                Interlocked.Add(ref byteCount, buf.Length);
+                Interlocked.Add(ref byteCount, buf.Length - Overlap / 2);
                 return result;
             }
 
