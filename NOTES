@@ -4,6 +4,13 @@ dotnet Benchmarking/SearchApp/bin/Release/net6.0/SearchApp.dll benchmark ${TMPDI
 dotnet Benchmarking/LineApp/bin/Release/net6.0/LineApp.dll benchmark ${TMPDIR}/enwik9
 dotnet Benchmarking/DuplicatApp/bin/Release/net6.0/DuplicateApp.dll benchmark "${TMPDIR}/enwik9;${TMPDIR}/enwik91"
 
+Code Coverage
+------------
+cd Testing/Functional
+dotnet coverage collect dotnet test -f xml
+reportgenerator "-reports:output.xml" "-targetdir:TestResults"
+open TestResults/index.html
+
 Nuget
 -----
 export MYVER=
