@@ -87,8 +87,30 @@ namespace Imagibee {
                 base.Overlap = overlap;
             }
 
+            public RegexSearcher(
+                Stream stream,
+                System.Text.RegularExpressions.Regex regex,
+                AutoResetEvent progress,
+                int maxMatchCount = 1000,
+                int chunkKiBytes = 512,
+                int maxWorkers = 0,
+                int overlap = -1) : base(
+                    "",
+                    progress,
+                    JoinMode.None,
+                    chunkKiBytes,
+                    maxWorkers)
+            {
+                matches = new();
+                matchQueue = new();
+                this.regex = regex;
+                this.maxMatchCount = maxMatchCount;
+                base.Overlap = overlap;
+                base.Stream = stream;
+            }
+
             // Start the background process
-            public new void Start()
+            public override void Start()
             {
                 if (!Running) {
                     matches.Clear();
@@ -135,18 +157,20 @@ namespace Imagibee {
             {
                 MapJoinData result = new();
                 //Logger.Log($"mapping chunk {data.Id} at {data.StartFpos}");
-                using var fileStream = new FileStream(
-                    Path,
-                    FileMode.Open,
-                    FileAccess.Read,
-                    FileShare.Read,
-                    chunkSize,
-                    FileOptions.Asynchronous);
-                fileStream.Seek(data.StartFpos, SeekOrigin.Begin);
-                var buf = new BinaryReader(fileStream).ReadBytes(chunkSize);
-                var str = Utilities.UnsafeByteToString(buf);
-                if (buf.Length != str.Length) {
-                    throw new System.Exception($"{data.Id} {buf.Length} != {str.Length}");
+                if (data.Buf == null) {
+                    using var fileStream = new FileStream(
+                        Path,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.Read,
+                        chunkSize,
+                        FileOptions.Asynchronous);
+                    fileStream.Seek(data.StartFpos, SeekOrigin.Begin);
+                    data.Buf = new BinaryReader(fileStream).ReadBytes(chunkSize);
+                }
+                var str = Utilities.UnsafeByteToString(data.Buf);
+                if (data.Buf.Length != str.Length) {
+                    throw new System.Exception($"{data.Id} {data.Buf.Length} != {str.Length}");
                 }
                 var partitionMatches = regex.Matches(str);
                 if (partitionMatches.Count > 0) {
@@ -186,7 +210,7 @@ namespace Imagibee {
                         Interlocked.Add(ref matchCount, 1);
                     }
                 }
-                Interlocked.Add(ref byteCount, buf.Length - Overlap / 2);
+                Interlocked.Add(ref byteCount, data.Buf.Length - Overlap / 2);
                 return result;
             }
 

@@ -5,19 +5,25 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using Imagibee.Gigantor;
+using System.IO.Compression;
+using Microsoft.VisualStudio.TestPlatform.Utilities;
 
 namespace Testing {
     public class RegexSearchTests {
         readonly int maxMatchCount = 5000;
         readonly int overlap = 0;
-        readonly int chunkSize = 64;
+        readonly int chunkKiBytes = 64;
         readonly int maxWorkers = 1;
         string biblePath;
+        string enwik9Gz;
+        string enwik9;
 
         [SetUp]
         public void Setup()
         {
             biblePath = Utilities.GetGutenbergBible();
+            enwik9Gz = Utilities.GetEnwik9Gz();
+            enwik9 = Utilities.GetEnwik9();
         }
 
         [Test]
@@ -25,7 +31,7 @@ namespace Testing {
         {
             AutoResetEvent progress = new(false);
             RegexSearcher searcher = new(
-                "", new Regex(""), progress, maxMatchCount, chunkSize, maxWorkers, overlap);
+                "", new Regex(""), progress, maxMatchCount, chunkKiBytes, maxWorkers, overlap);
             Assert.AreEqual(false, searcher.Running);
             Assert.AreEqual(0, searcher.MatchCount);
             Assert.AreEqual(true, searcher.Error == "");
@@ -36,9 +42,8 @@ namespace Testing {
         {
             AutoResetEvent progress = new(false);
             RegexSearcher searcher = new(
-                "", new Regex(""), progress, maxMatchCount, chunkSize, maxWorkers, overlap);
-            searcher.Start();
-            Background.Wait(
+                "", new Regex(""), progress, maxMatchCount, chunkKiBytes, maxWorkers, overlap);
+            Background.StartAndWait(
                 searcher,
                 progress,
                 (_) => { },
@@ -52,9 +57,8 @@ namespace Testing {
         {
             AutoResetEvent progress = new(false);
             RegexSearcher searcher = new(
-                "A Missing File", new Regex(""), progress, maxMatchCount, chunkSize, maxWorkers, overlap);
-            searcher.Start();
-            Background.Wait(
+                "A Missing File", new Regex(""), progress, maxMatchCount, chunkKiBytes, maxWorkers, overlap);
+            Background.StartAndWait(
                 searcher,
                 progress,
                 (_) => { },
@@ -70,9 +74,8 @@ namespace Testing {
             const string pattern = @"son\s*of\s*man";
             Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
             RegexSearcher searcher = new(
-                biblePath, regex, progress, maxMatchCount, chunkSize, maxWorkers, pattern.Length);
-            searcher.Start();
-            Background.Wait(
+                biblePath, regex, progress, maxMatchCount, chunkKiBytes, maxWorkers, pattern.Length);
+            Background.StartAndWait(
                 searcher,
                 progress,
                 (_) => { },
@@ -122,9 +125,8 @@ namespace Testing {
             const string pattern = @"son\s*of\s*man";
             Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
             RegexSearcher searcher = new(
-                biblePath, regex, progress, 209, chunkSize, maxWorkers, pattern.Length);
-            searcher.Start();
-            Background.Wait(
+                biblePath, regex, progress, 209, chunkKiBytes, maxWorkers, pattern.Length);
+            Background.StartAndWait(
                 searcher,
                 progress,
                 (_) => { },
@@ -190,6 +192,72 @@ namespace Testing {
                         Logger.Log($"{c.Value} {c.StartFpos}");
                     }
                 }
+            }
+        }
+
+        [Test]
+        public void StreamTest()
+        {
+            AutoResetEvent progress = new(false);
+            const string pattern = @"comfort\s*food";
+            Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            using var fileStream = new FileStream(
+                enwik9,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                chunkKiBytes,
+                FileOptions.Asynchronous);
+            RegexSearcher searcher = new(
+                fileStream, regex, progress, maxMatchCount, chunkKiBytes: 512, maxWorkers: 16, overlap:pattern.Length);
+            Background.StartAndWait(
+                searcher,
+                progress,
+                (_) => { },
+                1000);
+            Console.WriteLine(searcher.Error);
+            Assert.AreEqual(true, searcher.Error == "");
+            Assert.AreEqual(11, searcher.MatchCount);
+            Assert.AreEqual(11, searcher.GetMatchData().Count);
+            foreach (var matchData in searcher.GetMatchData()) {
+                Logger.Log($"{matchData.Value} named '{matchData.Name}' " +
+                    $"at {matchData.StartFpos}]");
+            }
+        }
+
+        [Test]
+        public void GzStreamTest()
+        {
+            AutoResetEvent progress = new(false);
+            const string pattern = @"comfort\s*food";
+            Regex regex = new(
+                pattern,
+                RegexOptions.IgnoreCase |
+                RegexOptions.Compiled);
+            using var fs = new FileStream(
+                enwik9Gz, FileMode.Open);
+            var stream = new GZipStream(
+                fs, CompressionMode.Decompress, true);
+            RegexSearcher searcher = new(
+                stream,
+                regex,
+                progress,
+                maxMatchCount,
+                chunkKiBytes:512,
+                maxWorkers: 16,
+                overlap: pattern.Length);
+            Background.StartAndWait(
+                searcher,
+                progress,
+                (_) => { },
+                1000);
+            Console.WriteLine(searcher.Error);
+            Assert.AreEqual(true, searcher.Error == "");
+            Assert.AreEqual(11, searcher.MatchCount);
+            Assert.AreEqual(11, searcher.GetMatchData().Count);
+            foreach (var matchData in searcher.GetMatchData()) {
+                Logger.Log($"{matchData.Value} named '{matchData.Name}' " +
+                    $"at {matchData.StartFpos}]");
             }
         }
     }

@@ -54,7 +54,7 @@ namespace Imagibee {
                 chunks = new();
             }
 
-            public new void Start()
+            public override void Start()
             {
                 if (!Running) {
                     chunkQueue.Clear();

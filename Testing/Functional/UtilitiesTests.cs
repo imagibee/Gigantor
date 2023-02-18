@@ -6,11 +6,12 @@ using Imagibee.Gigantor;
 
 namespace Testing {
     public class UtilitiesTests {
-        readonly string biblePath = Path.Combine("Assets", "BibleTest.txt");
+        string biblePath;
 
         [SetUp]
         public void Setup()
         {
+            biblePath = Utilities.GetGutenbergBible();
         }
 
         [Test]

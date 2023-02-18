@@ -50,8 +50,7 @@ namespace Testing {
         {
             AutoResetEvent progress = new(false);
             DuplicateChecker checker = new(biblePath, biblePath, progress);
-            checker.Start();
-            Background.Wait(
+            Background.StartAndWait(
                 checker,
                 progress,
                 (_) => { },
@@ -60,12 +59,12 @@ namespace Testing {
             Assert.AreEqual(true, checker.Identical);
         }
 
+        [Test]
         public void SizeMismatchTest()
         {
             AutoResetEvent progress = new(false);
             DuplicateChecker checker = new(biblePath, simplePath, progress);
-            checker.Start();
-            Background.Wait(
+            Background.StartAndWait(
                 checker,
                 progress,
                 (_) => { },
@@ -74,12 +73,12 @@ namespace Testing {
             Assert.AreEqual(false, checker.Identical);
         }
 
+        [Test]
         public void ValueMismatchTest()
         {
             AutoResetEvent progress = new(false);
             DuplicateChecker checker = new(simplePath, simplePath2, progress);
-            checker.Start();
-            Background.Wait(
+            Background.StartAndWait(
                 checker,
                 progress,
                 (_) => { },

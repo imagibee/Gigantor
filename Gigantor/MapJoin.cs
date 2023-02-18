@@ -20,7 +20,7 @@ namespace Imagibee {
 
             // Called in background manager thread after all Join complete,
             // override to perform final actions
-            protected virtual void Finish() { }
+            protected virtual void Finish() {}
 
             // Defines the join mode
             protected JoinMode joinMode;

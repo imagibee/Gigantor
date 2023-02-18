@@ -1,7 +1,7 @@
 # Gigantor
 Gigantor provides classes that support regular expression searches of gigantic files
 
-The purpose of Gigantor is robust, easy, ready-made searching of gigantic files that avoids common pitfalls.  These goals include overcoming the problems of responsiveness, memory footprint, and processing time that are often encountered with this type of application.
+The purpose of Gigantor is robust, easy, ready-made searching of gigantic files that avoids common pitfalls including unresponsiveness, excessive memory usage, and processing time that are often encountered with this type of application.
 
 In order to accomplish this goal, Gigantor provides `RegexSearcher` and `LineIndexer` classes that work together to search and read a file.  Both these classes use a similar approach.  They partition the file into chunks in the background, launch threads to work on each partition, update progress statistics, and finally join and sort the results.
 
@@ -16,8 +16,41 @@ Since many file processing applications fit into this parallel chunk processing 
 - `Background` - functions for managing collections of IBackground
 
 
-## Example
-Here is an examples that illustrate searching a large file and reading several lines around a match.
+## Example 1
+Here is an example that illustrates constructing a searcher to search a gzipped file without decompressing it to disk.
+
+```csharp
+using Imagibee.Gigantor;
+using System.IO.Compression;
+
+// Open a decompressed stream
+using var fs = new FileStream(
+    "myfile.gz", FileMode.Open);
+var stream = new GZipStream(
+    fs, CompressionMode.Decompress, true);
+
+// Create a regular expression
+Regex regex = new(
+    @"comfort\s*food",
+    RegexOptions.IgnoreCase |
+    RegexOptions.Compiled);
+
+// Create a shared wait event for progress notifications
+AutoResetEvent progress = new(false);
+
+// Create the searcher
+RegexSearcher searcher = new(
+    stream,
+    regex,
+    progress,
+    maxMatchCount,
+    chunkKiBytes:512,
+    maxWorkers: 16,
+    overlap: pattern.Length);
+```
+
+## Example 2
+Here is a more extensive examples that illustrate searching a large file and reading several lines around a match.
 
 ```csharp
 using Imagibee.Gigantor;
@@ -30,7 +63,7 @@ const string pattern = @"comfort\s*food";
 Regex regex = new(
     pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-// A shared wait event to facilitate progress notifications
+// A shared wait event for progress notifications
 AutoResetEvent progress = new(false);
 
 // Create the search and indexing workers

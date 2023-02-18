@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.IO;
+using System.IO.Pipes;
 
 namespace Imagibee {
     namespace Gigantor {
@@ -25,8 +26,7 @@ namespace Imagibee {
         // is true results are undefined.  Exceptions during Start
         // are not handled.
         //
-        public abstract class FileMapJoin<T> : MapJoin<FileMapJoinData, T>, IBackground where T : struct, IMapJoinData
-        {
+        public abstract class FileMapJoin<T> : MapJoin<FileMapJoinData, T>, IBackground where T : struct, IMapJoinData {
             // Path of the last successfully started indexing operation
             public string Path { get; private set; } = "";
 
@@ -49,8 +49,8 @@ namespace Imagibee {
                 AutoResetEvent progress,
                 JoinMode joinMode,
                 int chunkKiBytes,
-                int maxWorkers=0,
-                int overlap=0)
+                int maxWorkers = 0,
+                int overlap = 0)
             {
                 if (chunkKiBytes < 1) {
                     chunkKiBytes = 1;
@@ -68,9 +68,10 @@ namespace Imagibee {
                 priorResult = new();
             }
 
-            public void Start()
+            public virtual void Start()
             {
                 if (!Running) {
+                    queueDone = false;
                     cancel.Reset();
                     Running = true;
                     Error = "";
@@ -82,7 +83,7 @@ namespace Imagibee {
                 }
             }
 
-            public void Cancel()
+            public virtual void Cancel()
             {
                 if (Running) {
                     cancel.Set();
@@ -116,17 +117,18 @@ namespace Imagibee {
             // Bytes of overlap between buffers
             protected int Overlap {
                 set {
-                    if (value < 0) {
+                    overlap = value;
+                    if (overlap < 0) {
                         // default to 128th the chunk size
                         overlap = chunkSize / 128;
                     }
-                    if (value > chunkSize / 2) {
+                    if (overlap > chunkSize / 2) {
                         // enforce that overlap cannot exceed 1/2 the chunk size
                         overlap = chunkSize / 2;
                     }
-                    if (value % 2 != 0) {
+                    if (overlap % 2 != 0) {
                         // enforce that overlap must be even valued
-                        overlap = value + 1;
+                        overlap = overlap + 1;
                     }
                 }
                 get {
@@ -134,28 +136,86 @@ namespace Imagibee {
                 }
             }
 
+            // Optional streaming mode
+            protected Stream? Stream { get; set; }
+
+
             //
-            // PRIVATE INTERFACE
+            // PRIVATE IMPLEMENTATION
             //
+
+            void QueueFileJobs(string filePath)
+            {
+                // Create all the chunk jobs (in order)
+                var chunkNum = 0;
+                FileInfo fileInfo = new(filePath);
+                //Logger.Log($"{filePath} is {fileInfo.Length} bytes");
+                for (long pos = 0; pos < fileInfo.Length; pos += chunkSize - Overlap) {
+                    jobQueue.Enqueue(
+                        new FileMapJoinData()
+                        {
+                            Id = chunkNum++,
+                            StartFpos = pos,
+                            Buf = null,
+                        });
+                }
+                queueDone = true;
+            }
+
+            void QueueStreamJobs(Stream stream)
+            {
+                try {
+                    var buf = new byte[chunkSize];
+                    var readSize = chunkSize - overlap;
+                    var chunkNum = 0;
+                    long pos = 0;
+                    var bytesRead = Utilities.ReadChunk(stream, buf, 0, overlap);
+                    while (bytesRead != 0) {
+                        if (jobQueue.Count < maxWorkers) {
+                            bytesRead = Utilities.ReadChunk(stream, buf, overlap, readSize);
+                            var job = new FileMapJoinData()
+                            {
+                                Id = chunkNum++,
+                                StartFpos = pos,
+                                Buf = new byte[bytesRead + overlap],
+                            };
+                            Array.Copy(buf, job.Buf, job.Buf.Length);
+                            jobQueue.Enqueue(job);
+                            if (bytesRead < readSize || cancel.WaitOne(0)) {
+                                break;
+                            }
+                            pos += readSize;
+                            Array.Copy(buf, buf.Length - overlap, buf, 0, overlap);
+                            synchronize.Set();
+                        }
+                        else {
+                            synchronize.WaitOne(0);
+                        }
+                    }
+                }
+                catch (Exception e) {
+                    // In the background catch all exceptions, record the text
+                    // for debugging, and abort the indexing process
+                    Error = e.ToString();
+                    cancel.Set();
+                }
+                queueDone = true;
+            }
 
             void ManageJobs(string filePath)
             {
                 try {
-                    // Create all the chunk jobs (in order)
-                    var chunkNum = 0;
-                    FileInfo fileInfo = new(filePath);
-                    //Logger.Log($"{filePath} is {fileInfo.Length} bytes");
-                    for (long pos = 0; pos < fileInfo.Length; pos += chunkSize - Overlap) {
-                        jobQueue.Enqueue(
-                            new FileMapJoinData()
-                            {
-                                Id = chunkNum++,
-                                StartFpos = pos,
-                            });
+                    if (Stream == null) {
+                        QueueFileJobs(filePath);
+                    }
+                    else {
+                        ThreadPool.QueueUserWorkItem((_) => QueueStreamJobs(Stream));
+                        synchronize.WaitOne(1000);
                     }
                     //Logger.Log($"{jobQueue.Count} chunks");
                     // Work until the queues are empty
-                    while (jobQueue.Count != 0 ||
+                    while (queueDone == false ||
+                           jobQueue.Count != 0 ||
                            resultQueue.Count != 0 ||
                            scheduledChunks != 0) {
                         //Logger.Log($"manager {jobQueue.Count} {resultQueue.Count} {scheduledChunks}");
@@ -261,6 +321,7 @@ namespace Imagibee {
                     // In the background catch all exceptions, record the text
                     // for debugging, and abort the indexing process
                     Error = e.ToString();
+                    cancel.Set();
                 }
                 synchronize.Set();
             }
@@ -274,6 +335,7 @@ namespace Imagibee {
             int overlap;
             int scheduledChunks;
             int joins;
+            bool queueDone;
         }
 
         // FileMapJoin job data
@@ -281,6 +343,7 @@ namespace Imagibee {
             public int Id { get; set; }
             public int Cycle { get; set; }
             public long StartFpos { get; set; }
+            public byte[]? Buf { get; set; }
         };
     }
 }
