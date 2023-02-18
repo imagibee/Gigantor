@@ -95,7 +95,11 @@ class SearchApp {
     static ICollection<SessionData> CreateBenchmarkSession(SessionData sessionInfo)
     {
         List<SessionData> sessionDatas = new();
-        foreach (var maxWorkers in new List<int>() { 1 , 2, 4, 8, 16, 32, 64, 128 }) {
+        var maxWorkerPermutations = new List<int>() { 1, 2, 4, 8, 16, 32, 64, 128 };
+        if (sessionInfo.paths.Count > 1) {
+            maxWorkerPermutations = new List<int>() { 16 };
+        }
+        foreach (var maxWorkers in maxWorkerPermutations) {
             SessionData sessionData = new()
             {
                 paths = sessionInfo.paths,
