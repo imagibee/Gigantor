@@ -84,6 +84,7 @@ namespace Testing {
             Assert.AreEqual(true, searcher.Error == "");
             Assert.AreEqual(210, searcher.MatchCount);
             Assert.AreEqual(210, searcher.GetMatchData().Count);
+            Assert.AreEqual(4457889, searcher.ByteCount);
             foreach (var matchData in searcher.GetMatchData()) {
                 Logger.Log($"{matchData.Value} named '{matchData.Name}' " +
                     $"at {matchData.StartFpos}]");
@@ -219,6 +220,7 @@ namespace Testing {
             Assert.AreEqual(true, searcher.Error == "");
             Assert.AreEqual(11, searcher.MatchCount);
             Assert.AreEqual(11, searcher.GetMatchData().Count);
+            Assert.AreEqual(1000000000, searcher.ByteCount);
             foreach (var matchData in searcher.GetMatchData()) {
                 Logger.Log($"{matchData.Value} named '{matchData.Name}' " +
                     $"at {matchData.StartFpos}]");
@@ -255,6 +257,7 @@ namespace Testing {
             Assert.AreEqual(true, searcher.Error == "");
             Assert.AreEqual(11, searcher.MatchCount);
             Assert.AreEqual(11, searcher.GetMatchData().Count);
+            Assert.AreEqual(1000000000, searcher.ByteCount);
             foreach (var matchData in searcher.GetMatchData()) {
                 Logger.Log($"{matchData.Value} named '{matchData.Name}' " +
                     $"at {matchData.StartFpos}]");

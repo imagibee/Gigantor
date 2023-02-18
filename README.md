@@ -15,42 +15,30 @@ Since many file processing applications fit into this parallel chunk processing 
 - `IBackground` - common interface for contolling a background job
 - `Background` - functions for managing collections of IBackground
 
+## Stream Mode
+RegexSearcher supports stream and file modes.  File mode is faster and more flexible, but in some situations stream mode may be preferable.  For example, stream mode allows searching a compressed file without decompressing it to disk.
 
 ## Example 1
 Here is an example that illustrates constructing a searcher to search a gzipped file without decompressing it to disk.
 
 ```csharp
-using Imagibee.Gigantor;
-using System.IO.Compression;
-
-// Open a decompressed stream
+// Open a compressed file stream
 using var fs = new FileStream(
     "myfile.gz", FileMode.Open);
+
+// Create a decompression stream
 var stream = new GZipStream(
     fs, CompressionMode.Decompress, true);
 
-// Create a regular expression
-Regex regex = new(
-    @"comfort\s*food",
-    RegexOptions.IgnoreCase |
-    RegexOptions.Compiled);
-
-// Create a shared wait event for progress notifications
-AutoResetEvent progress = new(false);
-
-// Create the searcher
+// Create the searcher passing it the decompressed stream
 RegexSearcher searcher = new(
     stream,
     regex,
-    progress,
-    maxMatchCount,
-    chunkKiBytes:512,
-    maxWorkers: 16,
-    overlap: pattern.Length);
+    progress);
 ```
 
 ## Example 2
-Here is a more extensive examples that illustrate searching a large file and reading several lines around a match.
+Here is a more extensive examples that illustrate searching a large uncompressed file and reading several lines around a match.
 
 ```csharp
 using Imagibee.Gigantor;
@@ -175,7 +163,7 @@ Example console output
 Refer to the tests and console apps for additional examples.
 
 ## Performance
-The performance benchmark consists of running the included benchmarking apps over enwik9 and measuring the throughput.  Enwik9 is a 1e9 byte file that is not included.
+The first performance graph consists of running the included benchmarking apps over enwik9 and measuring the throughput at different values of `maxWorkers`.  For RegexSearcher file, stream, and gzipped stream modes are all benchmarked.  Enwik9 is a 1e9 byte file that is not included.
 
 ![Throughput Graph](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/Throughput.png)
 
@@ -224,6 +212,10 @@ maxWorkers=128, chunkKiBytes=512, maxThread=32767
    searched 5000000000 bytes in 3.3693127 seconds
 -> 1483.982178323787 MBytes/s
 ```
+
+For the gzip stream mode, throughput caps out at 2 workers.  Another option for getting more throughput in this mode is to search multiple files in parallel.  The following data compares searching multiple copies of Enwik9 with `maxWorkers=16` in gzip stream mode.
+
+![Gzip Throughput Graph](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/GzipThroughput.png)
 
 
 The hardware used to measure performance was a Macbook Pro

@@ -28,7 +28,6 @@ class SearchApp {
         public int chunkKiBytes;
         public int maxWorkers;
         public int iterations;
-        public long byteCount;
         public string pattern;
         public bool useStream;
         public System.IO.Stream stream;
@@ -36,6 +35,7 @@ class SearchApp {
 
     struct ResultData {
         public long matchCount;
+        public long byteCount;
         public double elapsedTime;
     }
 
@@ -75,8 +75,10 @@ class SearchApp {
         }
         for (var i = startPathIndex; i < args.Length; i++) {
             sessionData.paths.Add(args[i]);
+            if (args[i].Contains(".gz")) {
+                sessionData.chunkKiBytes = 512;
+            }
         }
-        sessionData.byteCount = Utilities.FileByteCount(sessionData.paths);
         return new Tuple<SessionType, SessionData>(sessionType, sessionData);
     }
 
@@ -93,15 +95,19 @@ class SearchApp {
     static ICollection<SessionData> CreateBenchmarkSession(SessionData sessionInfo)
     {
         List<SessionData> sessionDatas = new();
-        foreach (var maxWorkers in new List<int>() { 1, 2, 4, 8, 16, 32, 64, 128 }) {
+        var maxWorkerPermutations = new List<int>() { 1, 2, 4, 8, 16, 32, 64, 128 };
+        if (sessionInfo.paths.Count > 1) {
+            maxWorkerPermutations = new List<int>() { 16 };
+        }
+        foreach (var maxWorkers in maxWorkerPermutations) {
             SessionData sessionData = new()
             {
                 paths = sessionInfo.paths,
                 chunkKiBytes = sessionInfo.chunkKiBytes,
                 maxWorkers = maxWorkers,
                 iterations = sessionInfo.iterations,
-                byteCount = sessionInfo.byteCount,
                 pattern = sessionInfo.pattern,
+                useStream = sessionInfo.useStream,
             };
             sessionDatas.Add(sessionData);
         }
@@ -117,7 +123,6 @@ class SearchApp {
             chunkKiBytes = sessionInfo.chunkKiBytes,
             maxWorkers = sessionInfo.maxWorkers,
             iterations = 1,
-            byteCount = sessionInfo.byteCount,
             pattern = sessionInfo.pattern,
         };
         sessionDatas.Add(sessionData);
@@ -129,6 +134,7 @@ class SearchApp {
         AutoResetEvent progress = new(false);
         foreach (var sessionData in sessionDatas) {
             long matchCount = 0;
+            long byteCount = 0;
             Stopwatch stopwatch = new();
             for (var i = 0; i < sessionData.iterations; i++) {
                 var searchers = StartSearching(progress, sessionData);
@@ -139,10 +145,16 @@ class SearchApp {
                 }
                 foreach (var searcher in searchers) {
                     matchCount += searcher.MatchCount;
+                    byteCount += searcher.ByteCount;
                 }
             }
             Console.Write('\n');
-            ResultData resultData = new ResultData() { matchCount = matchCount, elapsedTime = stopwatch.Elapsed.TotalSeconds };
+            ResultData resultData = new ResultData()
+            {
+                matchCount = matchCount,
+                byteCount = byteCount,
+                elapsedTime = stopwatch.Elapsed.TotalSeconds
+            };
             DisplayResults(resultData, sessionData);
         }
     }
@@ -153,18 +165,13 @@ class SearchApp {
         foreach (var path in sessionData.paths) {
             RegexSearcher searcher;
             if (sessionData.useStream) {
-                var stream = new FileStream(
-                    path,
-                    FileMode.Open,
-                    FileAccess.Read,
-                    FileShare.Read,
-                    sessionData.chunkKiBytes * 1024,
-                    FileOptions.Asynchronous);
+                var fs = new FileStream(path, FileMode.Open);
                 if (path.Contains(".gz")) {
-                    sessionData.stream = new GZipStream(stream, CompressionMode.Decompress, true);
+                    sessionData.stream = new GZipStream(
+                    fs, CompressionMode.Decompress, true);
                 }
                 else {
-                    sessionData.stream = stream;
+                    sessionData.stream = fs;
                 }
                 searcher = new RegexSearcher(
                     sessionData.stream,
@@ -216,7 +223,7 @@ class SearchApp {
 
     static void DisplayResults(ResultData resultData, SessionData sessionData)
     {
-        long totalBytes = sessionData.iterations * sessionData.byteCount;
+        long totalBytes = resultData.byteCount;
         ThreadPool.GetMaxThreads(out int maxThreads, out int _);
         Console.WriteLine($"maxWorkers={sessionData.maxWorkers}, chunkKiBytes={sessionData.chunkKiBytes}, maxThread={maxThreads}");
         Console.WriteLine($"   {resultData.matchCount} matches found");
