@@ -19,10 +19,10 @@ namespace Imagibee {
             string Error { get; }
 
             // Start the background process
-            void Start();
+            virtual void Start() { }
 
             // Cancel the background process
-            void Cancel();
+            virtual void Cancel() { }
         }
 
         //
@@ -109,19 +109,15 @@ namespace Imagibee {
             {
                 while (true) {
                     var runningCount = 0;
+                    progress.WaitOne(timeoutMilliSeconds);
                     foreach (var process in processes) {
                         if (process.Running) {
                             runningCount++;
-                        }
-                        if (process.Error.Length != 0) {
-                            runningCount = 0;
-                            break;
                         }
                     }
                     if (runningCount == 0) {
                         break;
                     }
-                    progress.WaitOne(timeoutMilliSeconds);
                     OnProgressOrTimeout?.Invoke(
                         (IReadOnlyCollection<IBackground>)processes);
                 }

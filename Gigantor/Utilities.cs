@@ -35,15 +35,34 @@ namespace Imagibee {
 
             internal static bool UnsafeIsEqual(byte[] value1, byte[] value2)
             {
-                if (IntPtr.Size == 4) {
-                    return UnsafeIsEqual32(value1, value2);
+                return UnsafeIsEqual8(value1, value2);
+                //if (IntPtr.Size == 4) {
+                //    return UnsafeIsEqual32(value1, value2);
+                //}
+                //else if (IntPtr.Size == 8) {
+                //    return UnsafeIsEqual64(value1, value2);
+                //}
+                //else {
+                //    throw new NotImplementedException();
+                //}
+            }
+
+            internal static unsafe bool UnsafeIsEqual8(byte[] value1, byte[] value2)
+            {
+                var length = value1.Length;
+                if (length != value2.Length) {
+                    return false;
                 }
-                else if (IntPtr.Size == 8) {
-                    return UnsafeIsEqual64(value1, value2);
+                fixed (byte* p1 = value1, p2 = value2) {
+                    byte* lp1 = (byte*)p1;
+                    byte* lp2 = (byte*)p2;
+                    for (var i = 0; i < length / sizeof(byte); i += 1) {
+                        if (lp1[i] != lp2[i]) {
+                            return false;
+                        }
+                    }
                 }
-                else {
-                    throw new NotImplementedException();
-                }
+                return true;
             }
 
             internal static unsafe bool UnsafeIsEqual32(byte[] value1, byte[] value2)
@@ -118,6 +137,20 @@ namespace Imagibee {
                 return str;
             }
 
+            internal static string GetEnwik9Gz()
+            {
+                var enwik9Path = GetEnwik9();
+                var gzPath = $"{enwik9Path}.gz";
+                if (!File.Exists(gzPath)) {
+                    Console.WriteLine($"gzipping enwik9 to {gzPath}...");
+                    using FileStream originalFileStream = File.Open(enwik9Path, FileMode.Open);
+                    using FileStream compressedFileStream = File.Create(gzPath);
+                    using var compressor = new GZipStream(compressedFileStream, CompressionMode.Compress);
+                    originalFileStream.CopyTo(compressor);
+                }
+                return gzPath;
+            }
+
             internal static string GetEnwik9()
             {
                 var zipPath = Path.Combine(Path.GetTempPath(), "enwik9.zip");
@@ -148,10 +181,10 @@ namespace Imagibee {
                 if (!File.Exists(path)) {
                     using var fileStream = new FileStream(path, FileMode.Create);
                     var writer = new StreamWriter(fileStream);
-                    foreach (var line in new List<string>() { "hello", "world", "", "", "foo" }) {
+                    foreach (var line in new List<string>() { "hello", "world", "", "", "foo", "bar" }) {
                         writer.WriteLine(line);
                     }
-                    writer.Write("bar");
+                    writer.Close();
                 }
                 return path;
             }
@@ -162,10 +195,10 @@ namespace Imagibee {
                 if (!File.Exists(path)) {
                     using var fileStream = new FileStream(path, FileMode.Create);
                     var writer = new StreamWriter(fileStream);
-                    foreach (var line in new List<string>() { "hello", "world", "", "", "foo" }) {
+                    foreach (var line in new List<string>() { "hello", "world", "", "", "foo", "bat"}) {
                         writer.WriteLine(line);
                     }
-                    writer.Write("bat");
+                    writer.Close();
                 }
                 return path;
             }
@@ -179,6 +212,18 @@ namespace Imagibee {
                         }
                     }
                 }
+            }
+
+            internal static int ReadChunk(Stream stream, byte[] buf, int offset, int chunkSize)
+            {
+                var count = 0;
+                var bytesRead = 0;
+                do {
+                    bytesRead = stream.Read(buf, count + offset, chunkSize - count);
+                    count += bytesRead;
+                }
+                while (count < chunkSize && bytesRead > 0);
+                return count;
             }
         }
     }

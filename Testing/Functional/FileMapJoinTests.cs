@@ -13,7 +13,7 @@ namespace Testing {
         public class MapJoinErrorThrower : FileMapJoin<MapJoinData> {
 
             private static readonly Random rand = new Random();
-            [ThreadStatic] private static Random tRand;
+            [ThreadStatic] private static Random? tRand;
 
             public int Next(int a, int b)
             {

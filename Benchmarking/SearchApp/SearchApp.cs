@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
 using Imagibee.Gigantor;
+using System.IO;
+using System.IO.Compression;
 
 //
 // A command line app that performs regex searches over 1 or more file
@@ -28,6 +30,8 @@ class SearchApp {
         public int iterations;
         public long byteCount;
         public string pattern;
+        public bool useStream;
+        public System.IO.Stream stream;
     }
 
     struct ResultData {
@@ -51,10 +55,13 @@ class SearchApp {
             chunkKiBytes = 512,
             maxWorkers = 0
         };
-        if (args[0] == "benchmark") {
+        if (args[0].Contains("benchmark")) {
             sessionType = SessionType.Benchmark;
             sessionData.pattern = "food";
             sessionData.iterations = 5;
+            if (args[0].Contains("stream")) {
+                sessionData.useStream = true;
+            }
         }
         else {
             if (int.TryParse(args[0], out int workers)) {
@@ -144,14 +151,40 @@ class SearchApp {
     {
         List<RegexSearcher> searchers = new();
         foreach (var path in sessionData.paths) {
-            var searcher = new RegexSearcher(
-                path,
-                new Regex(sessionData.pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled),
-                progress,
-                maxMatchCount: 50000,
-                chunkKiBytes: sessionData.chunkKiBytes,
-                maxWorkers: sessionData.maxWorkers,
-                overlap: sessionData.pattern.Length);
+            RegexSearcher searcher;
+            if (sessionData.useStream) {
+                var stream = new FileStream(
+                    path,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read,
+                    sessionData.chunkKiBytes * 1024,
+                    FileOptions.Asynchronous);
+                if (path.Contains(".gz")) {
+                    sessionData.stream = new GZipStream(stream, CompressionMode.Decompress, true);
+                }
+                else {
+                    sessionData.stream = stream;
+                }
+                searcher = new RegexSearcher(
+                    sessionData.stream,
+                    new Regex(sessionData.pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled),
+                    progress,
+                    maxMatchCount: 50000,
+                    chunkKiBytes: sessionData.chunkKiBytes,
+                    maxWorkers: sessionData.maxWorkers,
+                    overlap: sessionData.pattern.Length);
+            }
+            else {
+                searcher = new RegexSearcher(
+                    path,
+                    new Regex(sessionData.pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled),
+                    progress,
+                    maxMatchCount: 50000,
+                    chunkKiBytes: sessionData.chunkKiBytes,
+                    maxWorkers: sessionData.maxWorkers,
+                    overlap: sessionData.pattern.Length);
+            }
             searcher.Start();
             searchers.Add(searcher);
         }

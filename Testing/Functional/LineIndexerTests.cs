@@ -40,8 +40,7 @@ namespace Testing {
         {
             AutoResetEvent progress = new(false);
             LineIndexer indexer = new("", progress, chunkKiBytes, maxWorkers);
-            indexer.Start();
-            Background.Wait(indexer, progress, (_) => { });
+            Background.StartAndWait(indexer, progress, (_) => { });
             Assert.AreEqual(true, indexer.Error != "");
             Assert.AreEqual(false, indexer.Cancelled);
         }
@@ -62,8 +61,7 @@ namespace Testing {
         {
             AutoResetEvent progress = new(false);
             LineIndexer indexer = new(enwik9Path, progress, chunkKiBytes: 512, maxWorkers: 0);
-            indexer.Start();
-            Background.Wait(
+            Background.StartAndWait(
                 indexer,
                 progress,
                 (_) => { },
@@ -97,8 +95,7 @@ namespace Testing {
         {
             AutoResetEvent progress = new(false);
             LineIndexer indexer = new(enwik9Path, progress, chunkKiBytes: 511, maxWorkers: 0);
-            indexer.Start();
-            Background.Wait(indexer, progress, (_) => { });
+            Background.StartAndWait(indexer, progress, (_) => { });
             Assert.AreEqual(true, indexer.Error == "");
             Assert.AreEqual(false, indexer.Cancelled);
             using var fileStream = new FileStream(enwik9Path, FileMode.Open, FileAccess.Read, FileShare.Read);

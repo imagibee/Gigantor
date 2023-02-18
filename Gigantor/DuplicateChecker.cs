@@ -59,7 +59,7 @@ namespace Imagibee {
                 mismatches = 1;
             }
 
-            public new void Start()
+            public override void Start()
             {
                 if (!Running) {
                     mismatches = 0;
@@ -67,10 +67,12 @@ namespace Imagibee {
                     FileInfo fileInfo2 = new(path2);
                     // save some time if file lengths don't match
                     if (fileInfo1.Length == fileInfo2.Length) {
+                        //Logger.Log($"***full compare");
                         base.Start();
                     }
                     else {
                         Identical = false;
+                        //Logger.Log($"***different size");
                     }
                 }
             }
@@ -104,6 +106,7 @@ namespace Imagibee {
                 var streamReader2 = new BinaryReader(fileStream2, System.Text.Encoding.UTF8, true);
                 var buf2 = streamReader2.ReadBytes(chunkSize);
                 if (!Utilities.UnsafeIsEqual(buf1, buf2)) {
+                    //Logger.Log($"{data.Id}");
                     if (Identical) {
                         Identical = false;
                     }
