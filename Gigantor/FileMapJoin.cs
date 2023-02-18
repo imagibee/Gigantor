@@ -71,6 +71,7 @@ namespace Imagibee {
             public virtual void Start()
             {
                 if (!Running) {
+                    byteCount = 0;
                     queueDone = false;
                     cancel.Reset();
                     Running = true;
