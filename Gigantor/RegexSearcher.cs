@@ -135,6 +135,8 @@ namespace Imagibee {
                 matchCount = matches.Count;
                 //matches = matches.OrderBy(x => x.StartFpos).ToList();
                 matches.Sort((a, b) => a.StartFpos.CompareTo(b.StartFpos));
+                // Adjust byte count for overlap
+                Interlocked.Add(ref byteCount, Overlap);
             }
 
             // Return the MatchData of current progress
@@ -210,7 +212,7 @@ namespace Imagibee {
                         Interlocked.Add(ref matchCount, 1);
                     }
                 }
-                Interlocked.Add(ref byteCount, data.Buf.Length - Overlap / 2);
+                Interlocked.Add(ref byteCount, data.Buf.Length - Overlap);
                 return result;
             }
 
