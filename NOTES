@@ -20,8 +20,8 @@ open TestResults/index.html
 Nuget
 -----
 export MYVER=
-nuget add Gigantor/bin/Release/Imagibee.Gigantor.${MYVER}.nupkg -source ~/nuget
 dotnet pack Gigantor -c Release
+nuget add Gigantor/bin/Release/Imagibee.Gigantor.${MYVER}.nupkg -source ~/nuget
 nuget push Gigantor/bin/Release/Imagibee.Gigantor.${MYVER}.nupkg -source https://api.nuget.org/v3/index.json
 nuget delete Imagibee.Gigantor ${MYVER}  -source ~/nuget
 
