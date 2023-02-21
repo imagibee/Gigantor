@@ -15,30 +15,28 @@ Since many file processing applications fit into this parallel chunk processing 
 - `IBackground` - common interface for contolling a background job
 - `Background` - functions for managing collections of IBackground
 
-## Stream Mode
-RegexSearcher supports stream and file modes.  File mode is faster and more flexible, but in some situations stream mode may be preferable.  For example, stream mode allows searching a compressed file without decompressing it to disk.
+## File vs Stream Mode
+RegexSearcher supports file and stream modes.  For file mode the user specifies the path to a file on disk as the input.  For stream mode the user specifies an open `Stream` as the input.  File mode is generally more performant and it is recomended to use file mode in situations where the file to be searched is already stored on disk.  The main use case for stream mode is searching a compressed file without decompressing it to disk, but it is considerably slower.
 
-## Example 1
-Here is an example that illustrates constructing a searcher to search a gzipped file without decompressing it to disk.
+## Example - stream mode search
+Here is an example that illustrates constructing RegexSearcher to search a gzipped file without decompressing it to disk.
 
 ```csharp
-// Open a compressed file stream
+// Open a compressed file
 using var fs = new FileStream(
     "myfile.gz", FileMode.Open);
 
-// Create a decompression stream
+// Create a decompressed stream
 var stream = new GZipStream(
     fs, CompressionMode.Decompress, true);
 
 // Create the searcher passing it the decompressed stream
 RegexSearcher searcher = new(
-    stream,
-    regex,
-    progress);
+    stream, regex, progress);
 ```
 
-## Example 2
-Here is a more extensive examples that illustrate searching a large uncompressed file and reading several lines around a match.
+## Example - file mode search and index
+Here is a more extensive examples that illustrate using RegexSearcher and LineIndexer to search a large uncompressed file and then read several lines around a match.
 
 ```csharp
 using Imagibee.Gigantor;
@@ -129,7 +127,7 @@ if (searcher.MatchCount != 0) {
 }
 ```
 
-Example console output
+File mode search and index console output
 ```console
  Searching ...
  ########################################
@@ -163,60 +161,46 @@ Example console output
 Refer to the tests and console apps for additional examples.
 
 ## Performance
-The first performance graph consists of running the included benchmarking apps over enwik9 and measuring the throughput at different values of `maxWorkers`.  For RegexSearcher file, stream, and gzipped stream modes are all benchmarked.  Enwik9 is a 1e9 byte file that is not included.
+It is recomended to target `net7.0` if possible because of [regular expression improvements released with .NET 7](https://devblogs.microsoft.com/dotnet/regular-expression-improvements-in-dotnet-7/).
+
+### Per Thread Performance
+The first performance graph consists of running the [benchmarking apps](https://github.com/imagibee/Gigantor/tree/main/Benchmarking) over 5GBytes of data and measuring the throughput at different values of `maxWorkers`.  For RegexSearcher several distinct modes are benchmarked including file, stream, and gzipped stream.
 
 ![Throughput Graph](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/Throughput.png)
 
-Here is the search benchmark console output for a 5 GiByte search.  On the test system, performance peaked around 16 worker threads, and the peak is roughly eight times faster (8x) than the single threaded baseline.
 
-```console
-$ dotnet SearchApp/bin/Release/net6.0/SearchApp.dll benchmark ${TMPDIR}/enwik9
-........................
-maxWorkers=1, chunkKiBytes=512, maxThread=32767
-   105160 matches found
-   searched 5000000000 bytes in 24.0289207 seconds
--> 208.0825877460239 MBytes/s
-..............
-maxWorkers=2, chunkKiBytes=512, maxThread=32767
-   105160 matches found
-   searched 5000000000 bytes in 12.692795 seconds
--> 393.92426963485974 MBytes/s
-.........
-maxWorkers=4, chunkKiBytes=512, maxThread=32767
-   105160 matches found
-   searched 5000000000 bytes in 6.8668367 seconds
--> 728.1373095707955 MBytes/s
-....
-maxWorkers=8, chunkKiBytes=512, maxThread=32767
-   105160 matches found
-   searched 5000000000 bytes in 3.7174496 seconds
--> 1345.0081475213544 MBytes/s
-....
-maxWorkers=16, chunkKiBytes=512, maxThread=32767
-   105160 matches found
-   searched 5000000000 bytes in 3.0211296 seconds
--> 1655.0100995336313 MBytes/s
-....
-maxWorkers=32, chunkKiBytes=512, maxThread=32767
-   105160 matches found
-   searched 5000000000 bytes in 3.191699 seconds
--> 1566.5637643148682 MBytes/s
-....
-maxWorkers=64, chunkKiBytes=512, maxThread=32767
-   105160 matches found
-   searched 5000000000 bytes in 3.2240221 seconds
--> 1550.8578554718963 MBytes/s
-....
-maxWorkers=128, chunkKiBytes=512, maxThread=32767
-   105160 matches found
-   searched 5000000000 bytes in 3.3693127 seconds
--> 1483.982178323787 MBytes/s
-```
-
-For the gzip stream mode, throughput caps out at 2 workers.  Another option for getting more throughput in this mode is to search multiple files in parallel.  The following data compares searching multiple copies of Enwik9 with `maxWorkers=16` in gzip stream mode.
+### Per File Performance
+For the gzip stream mode, performance is not much improved by multi-threading.  Another option for getting better performance in this mode which may be possible depending on the use case is to search multiple files in parallel.  Searching multiple files in parallel is a good optimization strategy for uncompressed use cases as well.  The following graph compares searching multiple copies of the same file in gzip stream mode.
 
 ![Gzip Throughput Graph](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/GzipThroughput.png)
 
+
+## Example - search of multiple compressed streams in parallel
+Here is example code that demonstrates searching multiple gzipped streams in parallel without decompressing them to disk.
+
+```csharp
+// Create the decompressed streams
+var stream1 = new GZipStream(
+    new FileStream("myfile1.gz", FileMode.Open),
+    CompressionMode.Decompress,
+    true);
+
+var stream2 = new GZipStream(
+    new FileStream("myfile2.gz", FileMode.Open),
+    CompressionMode.Decompress,
+    true);
+
+// Create a seperate searcher for each stream
+RegexSearcher searcher1 = new(stream1, regex, progress);
+RegexSearcher searcher2 = new(stream2, regex, progress);
+
+// Start and wait form completion
+Background.StartAndWait(
+    new List<IBackground>() { searcher1, searcher2 },
+    progress,
+    (_) => { Console.Write("."); },
+    1000);
+```
 
 The hardware used to measure performance was a Macbook Pro
 - 8-Core Intel Core i9
