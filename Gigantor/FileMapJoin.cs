@@ -60,6 +60,7 @@ namespace Imagibee {
                 this.joinMode = joinMode;
                 chunkSize = chunkKiBytes * 1024;
                 this.maxWorkers = maxWorkers; //(maxWorkers == 1) ? 1:0;
+                this.overlap = 0;
                 Overlap = overlap;
                 synchronize = new AutoResetEvent(false);
                 cancel = new ManualResetEvent(false);
@@ -113,23 +114,23 @@ namespace Imagibee {
             protected T priorResult;
 
             // Partitioning size in bytes
-            protected readonly int chunkSize;
+            protected int chunkSize;
 
             // Bytes of overlap between buffers
             protected int Overlap {
                 set {
                     overlap = value;
                     if (overlap < 0) {
-                        // default to 128th the chunk size
-                        overlap = chunkSize / 128;
+                        // default to 512 bytes
+                        overlap = 512;
                     }
-                    if (overlap > chunkSize / 2) {
+                    if (chunkSize > 0 && overlap > chunkSize / 2) {
                         // enforce that overlap cannot exceed 1/2 the chunk size
                         overlap = chunkSize / 2;
                     }
                     if (overlap % 2 != 0) {
                         // enforce that overlap must be even valued
-                        overlap = overlap + 1;
+                        overlap += 1;
                     }
                 }
                 get {
@@ -152,6 +153,7 @@ namespace Imagibee {
                 FileInfo fileInfo = new(filePath);
                 //Logger.Log($"{filePath} is {fileInfo.Length} bytes");
                 for (long pos = 0; pos < fileInfo.Length; pos += chunkSize - Overlap) {
+                    //Logger.Log($"queueing file chunk {chunkNum}, {chunkSize} bytes");
                     jobQueue.Enqueue(
                         new FileMapJoinData()
                         {
@@ -213,7 +215,6 @@ namespace Imagibee {
                         ThreadPool.QueueUserWorkItem((_) => QueueStreamJobs(Stream));
                         synchronize.WaitOne(1000);
                     }
-                    //Logger.Log($"{jobQueue.Count} chunks");
                     // Work until the queues are empty
                     while (queueDone == false ||
                            jobQueue.Count != 0 ||
