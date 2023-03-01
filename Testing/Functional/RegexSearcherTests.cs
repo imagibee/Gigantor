@@ -8,6 +8,8 @@ using Imagibee.Gigantor;
 using System.IO.Compression;
 using Microsoft.VisualStudio.TestPlatform.Utilities;
 
+#pragma warning disable CS8618
+
 namespace Testing {
     public class RegexSearchTests {
         readonly int maxMatchCount = 5000;

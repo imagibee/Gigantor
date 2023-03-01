@@ -4,6 +4,8 @@ using System.Diagnostics;
 using NUnit.Framework;
 using Imagibee.Gigantor;
 
+#pragma warning disable CS8618
+
 namespace Testing {
     public class UtilitiesTests {
         string biblePath;

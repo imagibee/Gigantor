@@ -4,11 +4,12 @@ dotnet test -c Release
 
 Benchmarks
 ----------
-dotnet Benchmarking/SearchApp/bin/Release/net6.0/SearchApp.dll benchmark ${TMPDIR}/enwik9
-dotnet Benchmarking/SearchApp/bin/Release/net6.0/SearchApp.dll benchmarkstream ${TMPDIR}/enwik9
-dotnet Benchmarking/SearchApp/bin/Release/net6.0/SearchApp.dll benchmarkstream ${TMPDIR}/enwik9.gz
-dotnet Benchmarking/LineApp/bin/Release/net6.0/LineApp.dll benchmark ${TMPDIR}/enwik9
-dotnet Benchmarking/DuplicatApp/bin/Release/net6.0/DuplicateApp.dll benchmark "${TMPDIR}/enwik9;${TMPDIR}/enwik91"
+export MYDOTNET=net7.0
+dotnet Benchmarking/SearchApp/bin/Release/${MYDOTNET}/SearchApp.dll benchmark ${TMPDIR}/enwik9
+dotnet Benchmarking/SearchApp/bin/Release/${MYDOTNET}/SearchApp.dll benchmarkstream ${TMPDIR}/enwik9
+dotnet Benchmarking/SearchApp/bin/Release/${MYDOTNET}/SearchApp.dll benchmarkstream ${TMPDIR}/enwik9.gz
+dotnet Benchmarking/LineApp/bin/Release/${MYDOTNET}/LineApp.dll benchmark ${TMPDIR}/enwik9
+dotnet Benchmarking/DuplicatApp/bin/Release/${MYDOTNET}/DuplicateApp.dll benchmark "${TMPDIR}/enwik9;${TMPDIR}/enwik91"
 
 Code Coverage
 ------------

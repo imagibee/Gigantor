@@ -94,7 +94,7 @@ namespace BenchmarkTesting {
 
 
         // Example code
-        public void Benchmark(string path, string word)
+        public void DoBenchmark(string path, string word)
         {
             // Create the dependencies we will need
             Regex regex = new(word, RegexOptions.Compiled);
@@ -203,7 +203,7 @@ namespace BenchmarkTesting {
             Stopwatch stopwatch = new();
             AutoResetEvent progress = new(false);
             Console.WriteLine("Unbuffered overhead");
-            using var fileStream = UncachedReadStream(
+            using var fileStream = Benchmark.Utilities.UnbufferedFileStream(
                 enwik9Path,
                 FileMode.Open,
                 FileAccess.Read,
@@ -231,49 +231,6 @@ namespace BenchmarkTesting {
                 stopwatch.Reset();
             }
             fileStream.Close();
-        }
-
-        // See http://saplin.blogspot.com/2018/07/non-cachedunbuffered-file-operations.html
-        internal static FileStream UncachedReadStream(
-            string path,
-            FileMode fileMode,
-            FileAccess fileAccess,
-            FileShare fileShare,
-            int bufferSize,
-            FileOptions fileOptions)
-        {
-            if (RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)) {
-                throw new NotImplementedException();
-            }
-            return new PosixUncachedFileStream(
-                path,
-                fileMode,
-                fileAccess,
-                fileShare,
-                bufferSize,
-                fileOptions);
-        }
-
-        internal class PosixUncachedFileStream : FileStream {
-            public PosixUncachedFileStream(
-                string path,
-                FileMode mode,
-                FileAccess access,
-                FileShare share,
-                int bufferSize,
-                FileOptions options
-                ) : base(
-                    path,
-                    mode,
-                    access,
-                    share,
-                    bufferSize,
-                    options)
-            {
-                Syscall.fcntl(
-                  (int)SafeFileHandle.DangerousGetHandle(),
-                  FcntlCommand.F_NOCACHE);
-            }
         }
     }
 }

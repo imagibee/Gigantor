@@ -6,6 +6,8 @@ using System.Diagnostics;
 using Imagibee.Gigantor;
 using System.IO;
 using System.IO.Compression;
+using System.Runtime.InteropServices;
+using Mono.Unix.Native;
 
 //
 // A command line app that performs regex searches over 1 or more file
@@ -30,6 +32,7 @@ class SearchApp {
         public int iterations;
         public string pattern;
         public bool useStream;
+        public bool useUnbuffered;
         public System.IO.Stream stream;
     }
 
@@ -57,10 +60,22 @@ class SearchApp {
         };
         if (args[0].Contains("benchmark")) {
             sessionType = SessionType.Benchmark;
-            sessionData.pattern = "food";
+            sessionData.pattern = @"/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#()?&//=]*)/";
             sessionData.iterations = 5;
             if (args[0].Contains("stream")) {
                 sessionData.useStream = true;
+            }
+            else if (args[0].Contains("unbuffered")) {
+                sessionData.useUnbuffered = true;
+            }
+            if (args[0].Contains("legacy")) {
+                sessionData.pattern = "food";
+            }
+            else if (args[0].Contains("sparse")) {
+                sessionData.pattern = "unicorn";
+            }
+            else if (args[0].Contains("zero")) {
+                sessionData.pattern = "kerfuf";
             }
         }
         else {
@@ -108,6 +123,7 @@ class SearchApp {
                 iterations = sessionInfo.iterations,
                 pattern = sessionInfo.pattern,
                 useStream = sessionInfo.useStream,
+                useUnbuffered = sessionInfo.useUnbuffered,
             };
             sessionDatas.Add(sessionData);
         }
@@ -164,8 +180,20 @@ class SearchApp {
         List<RegexSearcher> searchers = new();
         foreach (var path in sessionData.paths) {
             RegexSearcher searcher;
-            if (sessionData.useStream) {
-                var fs = new FileStream(path, FileMode.Open);
+            if (sessionData.useStream || sessionData.useUnbuffered) {
+                FileStream fs;
+                if (sessionData.useStream) {
+                    fs = new FileStream(path, FileMode.Open);
+                }
+                else {
+                    fs = Benchmark.Utilities.UnbufferedFileStream(
+                        path,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.Read,
+                        sessionData.chunkKiBytes,
+                        FileOptions.Asynchronous);
+                }
                 if (path.Contains(".gz")) {
                     sessionData.stream = new GZipStream(
                     fs, CompressionMode.Decompress, true);

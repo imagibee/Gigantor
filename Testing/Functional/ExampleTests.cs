@@ -9,6 +9,8 @@ using System.Net;
 using NUnit.Framework;
 using Imagibee.Gigantor;
 
+#pragma warning disable CS8618
+
 namespace Testing {
     public class ExampleTests {
         string enwik9Path;

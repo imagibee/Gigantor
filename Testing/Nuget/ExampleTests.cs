@@ -1,13 +1,9 @@
-﻿using System;
-using System.Linq;
-using System.Threading;
-using System.IO;
-using System.IO.Compression;
+﻿using NUnit.Framework;
 using System.Text.RegularExpressions;
-using System.Collections.Generic;
-using System.Net;
-using NUnit.Framework;
 using Imagibee.Gigantor;
+using System.Diagnostics;
+
+#pragma warning disable CS0436
 
 namespace NugetTesting {
 
@@ -17,7 +13,6 @@ namespace NugetTesting {
 
         [SetUp]
         public void Setup()
-#pragma warning disable CS0436
         {
             enwik9Path = Utilities.GetEnwik9();
             biblePath = Utilities.GetGutenbergBible();
