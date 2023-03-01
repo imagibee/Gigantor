@@ -73,7 +73,7 @@ namespace Imagibee {
                 AutoResetEvent progress,
                 int maxMatchCount=1000,
                 int chunkKiBytes=512,
-                int maxWorkers=16,
+                int maxWorkers=64,
                 int overlap = 512) : base(
                     filePath,
                     progress,
@@ -95,7 +95,7 @@ namespace Imagibee {
                 AutoResetEvent progress,
                 int maxMatchCount = 1000,
                 int chunkKiBytes = 512,
-                int maxWorkers = 16,
+                int maxWorkers = 64,
                 int overlap = 512) : base(
                     "",
                     progress,
@@ -170,7 +170,13 @@ namespace Imagibee {
                         chunkSize,
                         FileOptions.Asynchronous);
                     fileStream.Seek(data.StartFpos, SeekOrigin.Begin);
-                    data.Buf = new BinaryReader(fileStream).ReadBytes(chunkSize);
+                    data.Buf = new byte[chunkSize];
+                    var bytesRead = fileStream.Read(data.Buf, 0, chunkSize);
+                    if (bytesRead != chunkSize) {
+                        var buf = new byte[bytesRead];
+                        Array.Copy(data.Buf, buf, bytesRead);
+                        data.Buf = buf;
+                    }
                 }
                 var str = Utilities.UnsafeByteToString(data.Buf);
                 if (data.Buf.Length != str.Length) {
