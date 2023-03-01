@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.IO;
+using System;
 
 namespace Imagibee {
     namespace Gigantor {
@@ -72,19 +73,20 @@ namespace Imagibee {
                 AutoResetEvent progress,
                 int maxMatchCount=1000,
                 int chunkKiBytes=512,
-                int maxWorkers=0,
-                int overlap = -1) : base(
+                int maxWorkers=16,
+                int overlap = 512) : base(
                     filePath,
                     progress,
                     JoinMode.None,
                     chunkKiBytes,
-                    maxWorkers)
+                    maxWorkers: maxWorkers,
+                    overlap: overlap)
             {
                 matches = new();
                 matchQueue = new();
                 this.regex = regex;
                 this.maxMatchCount = maxMatchCount;
-                base.Overlap = overlap;
+                this.overlap = overlap;
             }
 
             public RegexSearcher(
@@ -93,19 +95,19 @@ namespace Imagibee {
                 AutoResetEvent progress,
                 int maxMatchCount = 1000,
                 int chunkKiBytes = 512,
-                int maxWorkers = 0,
-                int overlap = -1) : base(
+                int maxWorkers = 16,
+                int overlap = 512) : base(
                     "",
                     progress,
                     JoinMode.None,
                     chunkKiBytes,
-                    maxWorkers)
+                    maxWorkers: maxWorkers,
+                    overlap: overlap)
             {
                 matches = new();
                 matchQueue = new();
                 this.regex = regex;
                 this.maxMatchCount = maxMatchCount;
-                base.Overlap = overlap;
                 base.Stream = stream;
             }
 
@@ -136,7 +138,7 @@ namespace Imagibee {
                 //matches = matches.OrderBy(x => x.StartFpos).ToList();
                 matches.Sort((a, b) => a.StartFpos.CompareTo(b.StartFpos));
                 // Adjust byte count for overlap
-                Interlocked.Add(ref byteCount, Overlap);
+                Interlocked.Add(ref byteCount, overlap);
             }
 
             // Return the MatchData of current progress
@@ -212,7 +214,7 @@ namespace Imagibee {
                         Interlocked.Add(ref matchCount, 1);
                     }
                 }
-                Interlocked.Add(ref byteCount, data.Buf.Length - Overlap);
+                Interlocked.Add(ref byteCount, data.Buf.Length - overlap);
                 return result;
             }
 
