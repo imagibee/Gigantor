@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.IO;
-using System.IO.Pipes;
 
 namespace Imagibee {
     namespace Gigantor {
@@ -60,7 +59,19 @@ namespace Imagibee {
                 this.joinMode = joinMode;
                 chunkSize = chunkKiBytes * 1024;
                 this.maxWorkers = maxWorkers; //(maxWorkers == 1) ? 1:0;
-                Overlap = overlap;
+                if (overlap < 0) {
+                    // default to 512 bytes
+                    overlap = 512;
+                }
+                if (overlap > chunkSize / 2) {
+                    // enforce that overlap cannot exceed 1/2 the chunk size
+                    overlap = chunkSize / 2;
+                }
+                if (overlap % 2 != 0) {
+                    // enforce that overlap must be even valued
+                    overlap += 1;
+                }
+                this.overlap = overlap;
                 synchronize = new AutoResetEvent(false);
                 cancel = new ManualResetEvent(false);
                 resultQueue = new ConcurrentQueue<T>();
@@ -113,33 +124,13 @@ namespace Imagibee {
             protected T priorResult;
 
             // Partitioning size in bytes
-            protected readonly int chunkSize;
+            protected int chunkSize;
 
-            // Bytes of overlap between buffers
-            protected int Overlap {
-                set {
-                    overlap = value;
-                    if (overlap < 0) {
-                        // default to 128th the chunk size
-                        overlap = chunkSize / 128;
-                    }
-                    if (overlap > chunkSize / 2) {
-                        // enforce that overlap cannot exceed 1/2 the chunk size
-                        overlap = chunkSize / 2;
-                    }
-                    if (overlap % 2 != 0) {
-                        // enforce that overlap must be even valued
-                        overlap = overlap + 1;
-                    }
-                }
-                get {
-                    return overlap;
-                }
-            }
+            // Partition overlap in bytes
+            protected int overlap;
 
             // Optional streaming mode
             protected Stream? Stream { get; set; }
-
 
             //
             // PRIVATE IMPLEMENTATION
@@ -151,7 +142,8 @@ namespace Imagibee {
                 var chunkNum = 0;
                 FileInfo fileInfo = new(filePath);
                 //Logger.Log($"{filePath} is {fileInfo.Length} bytes");
-                for (long pos = 0; pos < fileInfo.Length; pos += chunkSize - Overlap) {
+                for (long pos = 0; pos < fileInfo.Length; pos += chunkSize - overlap) {
+                    //Logger.Log($"queueing file chunk {chunkNum}, {chunkSize} bytes");
                     jobQueue.Enqueue(
                         new FileMapJoinData()
                         {
@@ -171,9 +163,14 @@ namespace Imagibee {
                     var chunkNum = 0;
                     long pos = 0;
                     var bytesRead = Utilities.ReadChunk(stream, buf, 0, overlap);
+                    //var bytesRead = stream.Read(buf, 0, overlap);
+                    if (overlap == 0) {
+                        bytesRead = 1;
+                    }
                     while (bytesRead != 0) {
                         if (jobQueue.Count < maxWorkers) {
                             bytesRead = Utilities.ReadChunk(stream, buf, overlap, readSize);
+                            //bytesRead = stream.Read(buf, overlap, readSize);
                             var job = new FileMapJoinData()
                             {
                                 Id = chunkNum++,
@@ -188,6 +185,7 @@ namespace Imagibee {
                             pos += readSize;
                             Array.Copy(buf, buf.Length - overlap, buf, 0, overlap);
                             synchronize.Set();
+                            //Interlocked.Add(ref byteCount, bytesRead);
                         }
                         else {
                             synchronize.WaitOne(0);
@@ -213,7 +211,6 @@ namespace Imagibee {
                         ThreadPool.QueueUserWorkItem((_) => QueueStreamJobs(Stream));
                         synchronize.WaitOne(1000);
                     }
-                    //Logger.Log($"{jobQueue.Count} chunks");
                     // Work until the queues are empty
                     while (queueDone == false ||
                            jobQueue.Count != 0 ||
@@ -333,7 +330,6 @@ namespace Imagibee {
             readonly int maxWorkers;
             readonly ConcurrentQueue<FileMapJoinData> jobQueue;
             readonly ConcurrentQueue<T> resultQueue;
-            int overlap;
             int scheduledChunks;
             int joins;
             bool queueDone;

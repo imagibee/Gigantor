@@ -1,27 +1,44 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
+    <TargetFramework>net7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AssemblyName>BenchmarkTesting</AssemblyName>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <LangVersion>9.0</LangVersion>
+    <LangVersion>latestmajor</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <LangVersion>9.0</LangVersion>
+    <LangVersion>latestmajor</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <DebugSymbols>true</DebugSymbols>
-    <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="3.2.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="NUnit" Version="3.13.3" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.3.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.4.1" />
+    <PackageReference Include="Mono.Posix.NETStandard" Version="1.0.0" />
+  </ItemGroup>
+
   <ItemGroup>
     <Compile Include="..\..\Gigantor\Background.cs">
       <Link>Background.cs</Link>
     </Compile>
+    <Compile Include="..\..\Gigantor\DuplicateChecker.cs">
+      <Link>DuplicateChecker.cs</Link>
+    </Compile>
     <Compile Include="..\..\Gigantor\FileMapJoin.cs">
       <Link>FileMapJoin.cs</Link>
+    </Compile>
+    <Compile Include="..\..\Gigantor\LineIndexer.cs">
+      <Link>LineIndexer.cs</Link>
     </Compile>
     <Compile Include="..\..\Gigantor\Logging.cs">
       <Link>Logging.cs</Link>
@@ -38,11 +55,7 @@
     <Compile Include="..\..\Gigantor\Utilities.cs">
       <Link>Utilities.cs</Link>
     </Compile>
-    <Compile Include="..\Tests\BenchmarkUtilities.cs">
-      <Link>BenchmarkUtilities.cs</Link>
-    </Compile>
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Mono.Posix.NETStandard" Version="1.0.0" />
+  </ItemGroup>  <ItemGroup>
+    <None Remove="Mono.Posix.NETStandard" />
   </ItemGroup>
 </Project>

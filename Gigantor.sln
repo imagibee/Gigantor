@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Gigantor", "Gigantor\Gigant
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Nuget", "Testing\Nuget\Nuget.csproj", "{08563A37-E636-408C-8499-DBF9353F1D60}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Benchmarks", "Benchmarking\Tests\Benchmarks.csproj", "{EB296B88-62C1-4469-8B8B-427DD6535212}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -47,6 +49,10 @@ Global
 		{08563A37-E636-408C-8499-DBF9353F1D60}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{08563A37-E636-408C-8499-DBF9353F1D60}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{08563A37-E636-408C-8499-DBF9353F1D60}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EB296B88-62C1-4469-8B8B-427DD6535212}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB296B88-62C1-4469-8B8B-427DD6535212}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EB296B88-62C1-4469-8B8B-427DD6535212}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EB296B88-62C1-4469-8B8B-427DD6535212}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
