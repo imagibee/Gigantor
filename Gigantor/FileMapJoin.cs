@@ -49,7 +49,8 @@ namespace Imagibee {
                 JoinMode joinMode,
                 int chunkKiBytes,
                 int maxWorkers = 0,
-                int overlap = 0)
+                int overlap = 0,
+                BufferMode bufferMode = BufferMode.Unbuffered)
             {
                 if (chunkKiBytes < 1) {
                     chunkKiBytes = 1;
@@ -72,6 +73,7 @@ namespace Imagibee {
                     overlap += 1;
                 }
                 this.overlap = overlap;
+                this.bufferMode = bufferMode;
                 synchronize = new AutoResetEvent(false);
                 cancel = new ManualResetEvent(false);
                 resultQueue = new ConcurrentQueue<T>();
@@ -131,6 +133,9 @@ namespace Imagibee {
 
             // Optional streaming mode
             protected Stream? Stream { get; set; }
+
+            // Optional flags
+            protected BufferMode bufferMode;
 
             //
             // PRIVATE IMPLEMENTATION

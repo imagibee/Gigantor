@@ -203,7 +203,7 @@ namespace BenchmarkTesting {
             Stopwatch stopwatch = new();
             AutoResetEvent progress = new(false);
             Console.WriteLine("Unbuffered overhead");
-            using var fileStream = Benchmark.Utilities.UnbufferedFileStream(
+            using var fileStream = Utilities.UnbufferedFileStream(
                 enwik9Path,
                 FileMode.Open,
                 FileAccess.Read,

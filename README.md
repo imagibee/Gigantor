@@ -1,93 +1,174 @@
 # Gigantor
-Gigantor provides classes that support regular expression searches of gigantic files
+Gigantor provides fast regular expression search and line indexing of gigantic files that won't fit into RAM.
 
-The purpose of Gigantor is robust, easy, ready-made searching of gigantic files that avoids common pitfalls including unresponsiveness, excessive memory usage, and processing time that are often encountered with this type of application.
 
-In order to accomplish this goal, Gigantor provides `RegexSearcher` and `LineIndexer` classes that work together to search and read a file.  Both these classes use a similar approach.  They partition the file into chunks in the background, launch threads to work on each partition, update progress statistics, and finally join and sort the results.
-
-Since many file processing applications fit into this parallel chunk processing paradigm, Gigantor also provides `FileMapJoin<T>` as a reusable base class for creating new file map/join classes.  This base class is customizable through its `Start`, `Map`, `Join`, `Finish` methods as well as its `chunkSize`, `maxWorkers`, and `joinMode` constructor parameters.
+Search uses System.Text.RegularExpressions.Regex as the regex library and works with either uncompressed files or  streams for compressed input.  While line indexing only works with uncompressed files as input.
 
 ## Contents
-- `RegexSearcher` - regex searching in the background
-- `LineIndexer` - line counting in background, maps lines to fpos and fpos to lines
-- `DuplicateChecker` - file duplicate detection in the background
-- `FileMapJoin<T>` - base class for implementing custom file-based map/join operations
-- `IBackground` - common interface for contolling a background job
-- `Background` - functions for managing collections of IBackground
+- `RegexSearcher` - parallel searching in the background using [System.Text.RegularExpression.Regex](https://learn.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.regex?view=net-7.0)
+- `LineIndexer` - parallel line counting in background, maps lines to fpos and fpos to lines
+- `Background` - functions for managing multiple `RegexSearcher` or `LineIndexer` instances
 
-## File vs Stream Mode
-RegexSearcher supports file and stream modes.  For file mode the user specifies the path to a file on disk as the input.  For stream mode the user specifies an open `Stream` as the input.  File mode is generally more performant and it is recomended to use file mode in situations where the file to be searched is already stored on disk.  The main use case for stream mode is searching a compressed file without decompressing it to disk, but it is considerably slower.
-
-## Example - stream mode search
-Here is an example that illustrates constructing RegexSearcher to search a gzipped file without decompressing it to disk.
+## Search Performance
+Search performance is benchmarked by using the pattern below to search for all URLs in 32 GB of data [taken from Wikipedia](https://archive.org/details/enwik9).  
 
 ```csharp
-// Open a compressed file
-using var fs = new FileStream(
-    "myfile.gz", FileMode.Open);
-
-// Create a decompressed stream
-var stream = new GZipStream(
-    fs, CompressionMode.Decompress, true);
-
-// Create the searcher passing it the decompressed stream
-RegexSearcher searcher = new(
-    stream, regex, progress);
+var pattern = @"/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#()?&//=]*)/"; 
 ```
 
-## Example - file mode search and index
-Here is a more extensive examples that illustrate using RegexSearcher and LineIndexer to search a large uncompressed file and then read several lines around a match.
+### Uncompressed Search
+The graph below shows uncompressed search throughput per thread.  Performance starts at 389 MBytes/s for a single thread and climbs up to a maximum of 1906 MBytes/s as more and more workers are utilized which equates to a peak improvement of about 5x. 
+
+![UncompressedSearch](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/UncompressedSearch.png)
+
+Here is an example that illustrates using RegexSearcher to search an uncompressed file.
 
 ```csharp
-using Imagibee.Gigantor;
+// Create a regular expression
+System.Text.RegularExpressions.Regex regex = new(pattern, RegexOptions.Compiled);
 
+// Create the searcher passing it the decompressed stream
+Imagibee.Gigantor.RegexSearcher searcher = new(path, regex, progress);
+
+// Do the search
+Imagibee.Gigantor.Background.StartAndWait(
+    searcher,
+    progress,
+    (_) => { Console.Write("."); },
+    1000);
+```
+
+### Compressed Search
+The graph below shows compressed search throughput per file.  For this benchmark multiple copies of the 32 GB data file are gzip compressed to about 10 GB each.  These copies are searched in parallel without decompressing them to disk.  Performance starts at 138 MBytes/s for a single file and climbs up to a maximum of 902 MBytes/s as more and more files are searched which equates to a peak improvement of about 6x.  Note, searching multiple files in parallel can also benefit uncompressed use cases, but using more threads does little to improve the compressed use case.
+
+![CompressedSearch](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/CompressedSearch.png)
+
+Here is an example that illustrates using RegexSearcher to search a gzipped file without decompressing it to disk.
+
+```csharp
+// Open a compressed file with buffering disabled
+using var fs = new Imagibee.Gigantor.Utilities.FileStream(
+    "myfile.gz",
+    FileMode.Open,
+    FileAccess.Read,
+    FileShare.Read,
+    512 * 1024,
+    FileOptions.Asynchronous,
+    Imagibee.Gigantor.BufferMode.Unbuffered);
+
+// Create a decompressed stream
+var stream = new System.IO.Compression.GZipStream(fs, CompressionMode.Decompress, true);
+
+// Create a regular expression
+System.Text.RegularExpressions.Regex regex = new(pattern, RegexOptions.Compiled);
+
+// Create the searcher passing it the decompressed stream
+Imagibee.Gigantor.RegexSearcher searcher = new(stream, regex, progress);
+
+// Do the search
+Imagibee.Gigantor.Background.StartAndWait(
+    searcher,
+    progress,
+    (_) => { Console.Write("."); },
+    1000);
+```
+
+
+
+### Uncompressed Indexing
+The graph below shows uncompressed line indexing throughput per thread.  Performance starts at 334 MBytes/s for a single thread and climbs up to a maximum of 3151 MBytes/s as more and more workers are used which equates to a peak improvement of about 10x. 
+
+![UncompressedLine](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/UncompressedLine.png)
+
+
+
+### Notes
+1. It is recomended to target `net7.0` if possible because of [regular expression improvements released with .NET 7](https://devblogs.microsoft.com/dotnet/regular-expression-improvements-in-dotnet-7/).
+1. It is recomended to [disable file buffering](http://saplin.blogspot.com/2018/07/non-cachedunbuffered-file-operations.html) when using gigantic files  
+1. See [NOTES](https://github.com/imagibee/Gigantor/blob/main/NOTES) and [benchmarking apps](https://github.com/imagibee/Gigantor/tree/main/Benchmarking) to run the benchmarks
+
+
+## More Examples
+Below is an example that demonstrates searching multiple gzipped streams in parallel without decompressing them to disk.
+
+```csharp
+// Open compressed files with buffering disabled
+using var fs1 = new Imagibee.Gigantor.Utilities.FileStream(
+    "myfile1.gz",
+    FileMode.Open,
+    FileAccess.Read,
+    FileShare.Read,
+    512 * 1024,
+    FileOptions.Asynchronous,
+    Imagibee.Gigantor.BufferMode.Unbuffered);
+
+using var fs2 = new Imagibee.Gigantor.Utilities.FileStream(
+    "myfile2.gz",
+    FileMode.Open,
+    FileAccess.Read,
+    FileShare.Read,
+    512 * 1024,
+    FileOptions.Asynchronous,
+    Imagibee.Gigantor.BufferMode.Unbuffered);
+
+// Create the decompressed streams
+var stream1 = new System.IO.Compression.GZipStream(fs1, CompressionMode.Decompress, true);
+var stream2 = new System.IO.Compression.GZipStream(fs2, CompressionMode.Decompress, true);
+
+// Create a seperate searcher for each stream
+Imagibee.Gigantor.RegexSearcher searcher1 = new(stream1, regex, progress);
+Imagibee.Gigantor.RegexSearcher searcher2 = new(stream2, regex, progress);
+
+// Start and wait form completion
+Imagibee.Gigantor.Background.StartAndWait(
+    new List<Imagibee.Gigantor.IBackground>() { searcher1, searcher2 },
+    progress,
+    (_) => { Console.Write("."); },
+    1000);
+```
+
+
+Below is a more extensive examples that illustrate using RegexSearcher and LineIndexer togehter to search a uncompressed file and then read several lines around a match.
+
+```csharp
 // Get enwik9 (this takes a moment)
-var path = Utilities.GetEnwik9();
+var path = "myfile.txt";
 
 // The regular expression for the search
 const string pattern = @"comfort\s*food";
-Regex regex = new(
-    pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+System.Text.RegularExpressions.Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
 // A shared wait event for progress notifications
 AutoResetEvent progress = new(false);
 
 // Create the search and indexing workers
-LineIndexer indexer = new(path, progress);
-RegexSearcher searcher = new(path, regex, progress);
+Imagibee.Gigantor.LineIndexer indexer = new(path, progress);
+Imagibee.Gigantor.RegexSearcher searcher = new(path, regex, progress);
 
 // Create a IBackground collection for convenient managment
-var processes = new List<IBackground>()
+var processes = new List<Imagibee.Gigantor.IBackground>()
 {
     indexer,
     searcher
 };
 
-// Create a progress bar to illustrate progress updates
-Utilities.ByteProgress progressBar = new(
-    40, processes.Count * Utilities.FileByteCount(path));
-
 // Start search and indexing in parallel and wait for completion
 Console.WriteLine($"Searching ...");
-Background.StartAndWait(
+Imagibee.Gigantor.Background.StartAndWait(
     processes,
     progress,
-    (_) =>
-    {
-        progressBar.Update(
-            processes.Select((p) => p.ByteCount).Sum());
-    },
+    (_) => { Console.Write("."); },
     1000);
 Console.Write('\n');
 
 // All done, check for errors
-var error = Background.AnyError(processes);
+var error = Imagibee.Gigantor.Background.AnyError(processes);
 if (error.Length != 0) {
     throw new Exception(error);
 }
 
 // Check for cancellation
-if (Background.AnyCancelled(processes)) {
+if (Imagibee.Gigantor.Background.AnyCancelled(processes)) {
     throw new Exception("search cancelled");
 }
 
@@ -158,49 +239,6 @@ File mode search and index console output
  [2115666](185914402)  ==Cajun and Creole cuisine==
 ```
 
-Refer to the tests and console apps for additional examples.
-
-## Performance
-It is recomended to target `net7.0` if possible because of [regular expression improvements released with .NET 7](https://devblogs.microsoft.com/dotnet/regular-expression-improvements-in-dotnet-7/).
-
-### Per Thread Performance
-The first performance graph consists of running the [benchmarking apps](https://github.com/imagibee/Gigantor/tree/main/Benchmarking) over 5GBytes of data and measuring the throughput at different values of `maxWorkers`.  For RegexSearcher several distinct modes are benchmarked including file, stream, and gzipped stream.
-
-![Throughput Graph](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/Throughput.png)
-
-
-### Per File Performance
-For the gzip stream mode, performance is not much improved by multi-threading.  Another option for getting better performance in this mode which may be possible depending on the use case is to search multiple files in parallel.  Searching multiple files in parallel is a good optimization strategy for uncompressed use cases as well.  The following graph compares searching multiple copies of the same file in gzip stream mode.
-
-![Gzip Throughput Graph](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/GzipThroughput.png)
-
-
-## Example - search of multiple compressed streams in parallel
-Here is example code that demonstrates searching multiple gzipped streams in parallel without decompressing them to disk.
-
-```csharp
-// Create the decompressed streams
-var stream1 = new GZipStream(
-    new FileStream("myfile1.gz", FileMode.Open),
-    CompressionMode.Decompress,
-    true);
-
-var stream2 = new GZipStream(
-    new FileStream("myfile2.gz", FileMode.Open),
-    CompressionMode.Decompress,
-    true);
-
-// Create a seperate searcher for each stream
-RegexSearcher searcher1 = new(stream1, regex, progress);
-RegexSearcher searcher2 = new(stream2, regex, progress);
-
-// Start and wait form completion
-Background.StartAndWait(
-    new List<IBackground>() { searcher1, searcher2 },
-    progress,
-    (_) => { Console.Write("."); },
-    1000);
-```
 
 The hardware used to measure performance was a Macbook Pro
 - 8-Core Intel Core i9

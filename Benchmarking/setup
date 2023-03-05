@@ -1,0 +1,40 @@
+export STARTDIR=$PWD
+export MINGB=150
+cd $TMPDIR
+if [ ! -f "enwik9.zip" ]; then
+  wget https://archive.org/download/enwik9/enwik9.zip
+fi
+
+if [ ! -f "enwik9" ]; then
+  unzip enwik9.zip
+fi
+
+if [ ! -f "enwik9.gz" ]; then
+  gzip -c enwik9 > enwik9.gz
+fi
+
+GBAVAIL=$(df -k -g ${TMPDIR} | awk '/===/{exit} NR>1{print $4}')
+
+if [[ ${GBAVAIL} -gt ${MINGB} ]]; then
+  if [ ! -f "enwik9x32" ]; then
+    echo "Creating enwik9x32 ..."
+    for i in {1..32}
+    do
+      cat enwik9  >> enwik9x32
+    done
+  fi
+  if [ ! -f "enwik9x32.gz" ]; then
+    echo "Creating enwik9x32.gz ..."
+    for i in {1..32}
+    do
+      cat enwik9.gz >> enwik9x32.gz
+    done
+    for i in {1..15}
+    do
+      cp enwik9x32.gz enwik9x32-${i}.gz
+    done
+  fi
+else
+  echo "ERROR: ${GBAVAIL} GB available, but ${MINGB} required"
+fi
+

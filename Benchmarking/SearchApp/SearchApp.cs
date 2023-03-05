@@ -61,7 +61,7 @@ class SearchApp {
         if (args[0].Contains("benchmark")) {
             sessionType = SessionType.Benchmark;
             sessionData.pattern = @"/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#()?&//=]*)/";
-            sessionData.iterations = 5;
+            sessionData.iterations = 1;
             if (args[0].Contains("stream")) {
                 sessionData.useStream = true;
             }
@@ -76,6 +76,9 @@ class SearchApp {
             }
             else if (args[0].Contains("zero")) {
                 sessionData.pattern = "kerfuf";
+            }
+            if (args[0].Contains("64")) {
+                sessionData.maxWorkers = 64;
             }
         }
         else {
@@ -110,7 +113,13 @@ class SearchApp {
     static ICollection<SessionData> CreateBenchmarkSession(SessionData sessionInfo)
     {
         List<SessionData> sessionDatas = new();
-        var maxWorkerPermutations = new List<int>() { 1, 2, 4, 8, 16, 32, 64, 128 };
+        List<int> maxWorkerPermutations;
+        if (sessionInfo.maxWorkers == 0) {
+            maxWorkerPermutations = new List<int>() { 1, 2, 4, 8, 16, 32, 64, 128 };
+        }
+        else {
+            maxWorkerPermutations = new List<int>() { sessionInfo.maxWorkers };
+        }
         if (sessionInfo.paths.Count > 1) {
             maxWorkerPermutations = new List<int>() { 16 };
         }
@@ -186,7 +195,7 @@ class SearchApp {
                     fs = new FileStream(path, FileMode.Open);
                 }
                 else {
-                    fs = Benchmark.Utilities.UnbufferedFileStream(
+                    fs = Utilities.UnbufferedFileStream(
                         path,
                         FileMode.Open,
                         FileAccess.Read,
@@ -195,6 +204,7 @@ class SearchApp {
                         FileOptions.Asynchronous);
                 }
                 if (path.Contains(".gz")) {
+                    sessionData.maxWorkers = 2;
                     sessionData.stream = new GZipStream(
                     fs, CompressionMode.Decompress, true);
                 }
@@ -253,7 +263,7 @@ class SearchApp {
     {
         long totalBytes = resultData.byteCount;
         ThreadPool.GetMaxThreads(out int maxThreads, out int _);
-        Console.WriteLine($"maxWorkers={sessionData.maxWorkers}, chunkKiBytes={sessionData.chunkKiBytes}, maxThread={maxThreads}");
+        Console.WriteLine($"files={sessionData.paths.Count}, maxWorkers={sessionData.maxWorkers}, chunkKiBytes={sessionData.chunkKiBytes}");
         Console.WriteLine($"   {resultData.matchCount} matches found");
         Console.WriteLine(value: $"   searched {totalBytes} bytes in {resultData.elapsedTime} seconds");
         Console.WriteLine(value: $"-> {totalBytes / resultData.elapsedTime / 1e6} MBytes/s");
