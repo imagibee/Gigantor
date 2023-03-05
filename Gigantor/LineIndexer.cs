@@ -43,12 +43,14 @@ namespace Imagibee {
                 string filePath,
                 AutoResetEvent progress,
                 int chunkKiBytes=512,
-                int maxWorkers=0) : base(
+                int maxWorkers=0,
+                BufferMode bufferMode = BufferMode.Unbuffered) : base(
                     filePath,
                     progress,
                     JoinMode.Sequential,
-                    chunkKiBytes,
-                    maxWorkers)
+                    chunkKiBytes: chunkKiBytes,
+                    maxWorkers: maxWorkers,
+                    bufferMode: bufferMode)
             {
                 chunkQueue = new();
                 chunks = new();
@@ -86,6 +88,7 @@ namespace Imagibee {
                     if (linesToConsume == 0) {
                         return chunk.Value.StartFpos;
                     }
+
                     using var fileStream = new FileStream(
                         Path,
                         FileMode.Open,
@@ -94,9 +97,9 @@ namespace Imagibee {
                         chunkSize,
                         FileOptions.Asynchronous);
                     fileStream.Seek(chunk.Value.StartFpos, SeekOrigin.Begin);
-                    using var streamReader = new BinaryReader(fileStream);
-                    var buf = streamReader.ReadBytes(chunkSize);
-                    for (var i = 0; i < buf.Length; i++) {
+                    var buf = new byte[chunkSize];
+                    var bytesRead = fileStream.Read(buf, 0, chunkSize);
+                    for (var i = 0; i < bytesRead; i++) {
                         if (buf[i] == '\n') {
                             linesToConsume--;
                         }
@@ -129,9 +132,9 @@ namespace Imagibee {
                         chunkSize,
                         FileOptions.Asynchronous);
                     fileStream.Seek(chunk.StartFpos, SeekOrigin.Begin);
-                    using var streamReader = new BinaryReader(fileStream);
-                    var buf = streamReader.ReadBytes(chunkSize);
-                    for (var i = 0; i < buf.Length; i++) {
+                    var buf = new byte[chunkSize];
+                    var bytesRead = fileStream.Read(buf, 0, chunkSize);
+                    for (var i = 0; i < bytesRead; i++) {
                         if (i >= distance) {
                             break;
                         }
@@ -230,18 +233,19 @@ namespace Imagibee {
                     FinalChunk = false,
                         
                 };
-                using var fileStream = new FileStream(
+                using var fileStream = Utilities.FileStream(
                     Path,
                     FileMode.Open,
                     FileAccess.Read,
                     FileShare.Read,
                     chunkSize,
-                    FileOptions.Asynchronous);
+                    FileOptions.Asynchronous,
+                    bufferMode);
                 fileStream.Seek(data.StartFpos, SeekOrigin.Begin);
-                using var streamReader = new BinaryReader(fileStream);
-                var buf = streamReader.ReadBytes(chunkSize);
-                result.ByteCount = buf.Length;
-                for (var i = 0; i < buf.Length; i++) {
+                var buf = new byte[chunkSize];
+                var bytesRead = fileStream.Read(buf, 0, chunkSize);
+                result.ByteCount = bytesRead;
+                for (var i = 0; i < bytesRead; i++) {
                     if (buf[i] == '\n') {
                         result.LineCount++;
                         result.EolEnding = true;

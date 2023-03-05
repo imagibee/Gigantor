@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.IO;
 using System;
+using System.IO.Pipes;
 
 namespace Imagibee {
     namespace Gigantor {
@@ -74,13 +75,15 @@ namespace Imagibee {
                 int maxMatchCount=1000,
                 int chunkKiBytes=512,
                 int maxWorkers=64,
-                int overlap = 512) : base(
+                int overlap = 512,
+                BufferMode bufferMode = BufferMode.Unbuffered) : base(
                     filePath,
                     progress,
                     JoinMode.None,
                     chunkKiBytes,
                     maxWorkers: maxWorkers,
-                    overlap: overlap)
+                    overlap: overlap,
+                    bufferMode: bufferMode)
             {
                 matches = new();
                 matchQueue = new();
@@ -162,13 +165,14 @@ namespace Imagibee {
                 MapJoinData result = new();
                 //Logger.Log($"mapping chunk {data.Id} at {data.StartFpos}");
                 if (data.Buf == null) {
-                    using var fileStream = new FileStream(
+                    using var fileStream = Utilities.FileStream(
                         Path,
                         FileMode.Open,
                         FileAccess.Read,
                         FileShare.Read,
                         chunkSize,
-                        FileOptions.Asynchronous);
+                        FileOptions.Asynchronous,
+                        bufferMode);
                     fileStream.Seek(data.StartFpos, SeekOrigin.Begin);
                     data.Buf = new byte[chunkSize];
                     var bytesRead = fileStream.Read(data.Buf, 0, chunkSize);

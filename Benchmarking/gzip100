@@ -1,0 +1,9 @@
+#!/bin/bash
+#gzip $TMPDIR/enwik9x100
+cp $TMPDIR/enwik9x100.gz $TMPDIR/enwik9x100-1.gz
+cp $TMPDIR/enwik9x100.gz $TMPDIR/enwik9x100-2.gz
+cp $TMPDIR/enwik9x100.gz $TMPDIR/enwik9x100-3.gz
+cp $TMPDIR/enwik9x100.gz $TMPDIR/enwik9x100-4.gz
+cp $TMPDIR/enwik9x100.gz $TMPDIR/enwik9x100-5.gz
+cp $TMPDIR/enwik9x100.gz $TMPDIR/enwik9x100-6.gz
+cp $TMPDIR/enwik9x100.gz $TMPDIR/enwik9x100-7.gz
