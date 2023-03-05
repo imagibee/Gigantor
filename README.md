@@ -47,7 +47,7 @@ Here is an example that illustrates using RegexSearcher to search a gzipped file
 
 ```csharp
 // Open a compressed file with buffering disabled
-using var fs = new Imagibee.Gigantor.Utilities.FileStream(
+using var fs = Imagibee.Gigantor.Utilities.FileStream(
     "myfile.gz",
     FileMode.Open,
     FileAccess.Read,
@@ -93,7 +93,7 @@ Below is an example that demonstrates searching multiple gzipped streams in para
 
 ```csharp
 // Open compressed files with buffering disabled
-using var fs1 = new Imagibee.Gigantor.Utilities.FileStream(
+using var fs1 = Imagibee.Gigantor.Utilities.FileStream(
     "myfile1.gz",
     FileMode.Open,
     FileAccess.Read,
@@ -102,7 +102,7 @@ using var fs1 = new Imagibee.Gigantor.Utilities.FileStream(
     FileOptions.Asynchronous,
     Imagibee.Gigantor.BufferMode.Unbuffered);
 
-using var fs2 = new Imagibee.Gigantor.Utilities.FileStream(
+using var fs2 = Imagibee.Gigantor.Utilities.FileStream(
     "myfile2.gz",
     FileMode.Open,
     FileAccess.Read,
@@ -128,7 +128,7 @@ Imagibee.Gigantor.Background.StartAndWait(
 ```
 
 
-Below is a more extensive examples that illustrate using RegexSearcher and LineIndexer togehter to search a uncompressed file and then read several lines around a match.
+Below is a more extensive examples that illustrate using RegexSearcher and LineIndexer together to search a uncompressed file and then read several lines around a match.
 
 ```csharp
 // Get enwik9 (this takes a moment)
