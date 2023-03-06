@@ -94,6 +94,28 @@ namespace Testing {
         }
 
         [Test]
+        public void MultipleRegexTest()
+        {
+            AutoResetEvent progress = new(false);
+            const string pattern = @"son\s*of\s*man";
+            Regex regex1 = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            Regex regex2 = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            RegexSearcher searcher = new(
+                biblePath, new List<Regex>() { regex1, regex2 }, progress, maxMatchCount, chunkKiBytes, maxWorkers, pattern.Length);
+            Background.StartAndWait(
+                searcher,
+                progress,
+                (_) => { },
+                1000);
+            Console.WriteLine(searcher.Error);
+            Assert.AreEqual(true, searcher.Error == "");
+            Assert.AreEqual(420, searcher.MatchCount);
+            Assert.AreEqual(210, searcher.GetMatchData().Count);
+            Assert.AreEqual(210, searcher.GetMatchData(1).Count);
+            Assert.AreEqual(4457889, searcher.ByteCount);
+        }
+
+        [Test]
         public void ChunkSizeTest()
         {
             AutoResetEvent progress = new(false);
@@ -227,6 +249,35 @@ namespace Testing {
                 Logger.Log($"{matchData.Value} named '{matchData.Name}' " +
                     $"at {matchData.StartFpos}]");
             }
+        }
+
+        [Test]
+        public void MultipleRegexStreamTest()
+        {
+            AutoResetEvent progress = new(false);
+            const string pattern = @"comfort\s*food";
+            Regex regex1 = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            Regex regex2 = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            using var fileStream = new System.IO.FileStream(
+                enwik9,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                chunkKiBytes,
+                FileOptions.Asynchronous);
+            RegexSearcher searcher = new(
+                fileStream, new List<Regex>() { regex1, regex2 }, progress, maxMatchCount, chunkKiBytes: 512, maxWorkers: 16, overlap: pattern.Length);
+            Background.StartAndWait(
+                searcher,
+                progress,
+                (_) => { },
+                1000);
+            Console.WriteLine(searcher.Error);
+            Assert.AreEqual(true, searcher.Error == "");
+            Assert.AreEqual(22, searcher.MatchCount);
+            Assert.AreEqual(11, searcher.GetMatchData().Count);
+            Assert.AreEqual(11, searcher.GetMatchData(1).Count);
+            Assert.AreEqual(1000000000, searcher.ByteCount);
         }
 
         [Test]
