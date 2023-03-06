@@ -73,7 +73,7 @@ namespace Testing {
             Assert.AreEqual(-1, indexer.PositionFromLine(0));
             Assert.AreEqual(0, indexer.PositionFromLine(1));
             Assert.AreEqual(13147026, indexer.LineCount);
-            using var fileStream = new FileStream(enwik9Path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var fileStream = new System.IO.FileStream(enwik9Path, FileMode.Open, FileAccess.Read, FileShare.Read);
             var streamReader = new Imagibee.Gigantor.StreamReader(fileStream);
             List<Tuple<int, string>> tests = new()
             {
@@ -100,7 +100,7 @@ namespace Testing {
             Background.StartAndWait(indexer, progress, (_) => { });
             Assert.AreEqual(true, indexer.Error == "");
             Assert.AreEqual(false, indexer.Cancelled);
-            using var fileStream = new FileStream(enwik9Path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var fileStream = new System.IO.FileStream(enwik9Path, FileMode.Open, FileAccess.Read, FileShare.Read);
             var streamReader = new Imagibee.Gigantor.StreamReader(fileStream);
             foreach (var line in new List<int>() { 1, 1515, 1516, 2989, 2990, 2991, 13147025, 13147026 }) {
                 var pos = indexer.PositionFromLine(line);

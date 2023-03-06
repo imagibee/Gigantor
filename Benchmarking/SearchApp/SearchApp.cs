@@ -190,19 +190,10 @@ class SearchApp {
         foreach (var path in sessionData.paths) {
             RegexSearcher searcher;
             if (sessionData.useStream || sessionData.useUnbuffered) {
-                FileStream fs;
-                if (sessionData.useStream) {
-                    fs = new FileStream(path, FileMode.Open);
-                }
-                else {
-                    fs = Utilities.UnbufferedFileStream(
-                        path,
-                        FileMode.Open,
-                        FileAccess.Read,
-                        FileShare.Read,
-                        sessionData.chunkKiBytes,
-                        FileOptions.Asynchronous);
-                }
+                System.IO.FileStream fs = Imagibee.Gigantor.FileStream.Create(
+                    path,
+                    bufferSize: sessionData.chunkKiBytes,
+                    bufferMode: sessionData.useUnbuffered ? BufferMode.Unbuffered:BufferMode.Buffered);
                 if (path.Contains(".gz")) {
                     sessionData.maxWorkers = 2;
                     sessionData.stream = new GZipStream(

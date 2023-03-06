@@ -64,13 +64,6 @@ namespace Imagibee {
             Reduce,
         }
 
-        // Define the file buffering mode
-        public enum BufferMode {
-            Buffered,
-            Unbuffered
-        };
-
-
         // Required MapJoin job properties
         public interface IMapJoinData {
             public int Id { get; set; }

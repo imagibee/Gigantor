@@ -146,8 +146,8 @@ namespace Imagibee {
                 var gzPath = $"{enwik9Path}.gz";
                 if (!File.Exists(gzPath)) {
                     Console.WriteLine($"gzipping enwik9 to {gzPath}...");
-                    using FileStream originalFileStream = File.Open(enwik9Path, FileMode.Open);
-                    using FileStream compressedFileStream = File.Create(gzPath);
+                    using System.IO.FileStream originalFileStream = File.Open(enwik9Path, FileMode.Open);
+                    using System.IO.FileStream compressedFileStream = File.Create(gzPath);
                     using var compressor = new GZipStream(compressedFileStream, CompressionMode.Compress);
                     originalFileStream.CopyTo(compressor);
                 }
@@ -182,7 +182,7 @@ namespace Imagibee {
             {
                 var path = Path.Combine(Path.GetTempPath(), "Gigantor-simple");
                 if (!File.Exists(path)) {
-                    using var fileStream = new FileStream(path, FileMode.Create);
+                    using var fileStream = new System.IO.FileStream(path, FileMode.Create);
                     var writer = new StreamWriter(fileStream);
                     foreach (var line in new List<string>() { "hello", "world", "", "", "foo", "bar" }) {
                         writer.WriteLine(line);
@@ -196,7 +196,7 @@ namespace Imagibee {
             {
                 var path = Path.Combine(Path.GetTempPath(), "Gigantor-simple2");
                 if (!File.Exists(path)) {
-                    using var fileStream = new FileStream(path, FileMode.Create);
+                    using var fileStream = new System.IO.FileStream(path, FileMode.Create);
                     var writer = new StreamWriter(fileStream);
                     foreach (var line in new List<string>() { "hello", "world", "", "", "foo", "bat"}) {
                         writer.WriteLine(line);
@@ -210,7 +210,7 @@ namespace Imagibee {
             {
                 using (HttpClient httpClient = new()) {
                     using (var stream = await httpClient.GetStreamAsync(url)) {
-                        using (var fileStream = new FileStream(destinationPath, FileMode.CreateNew)) {
+                        using (var fileStream = new System.IO.FileStream(destinationPath, FileMode.CreateNew)) {
                             await stream.CopyToAsync(fileStream);
                         }
                     }
@@ -227,82 +227,6 @@ namespace Imagibee {
                 }
                 while (count < chunkSize && bytesRead > 0);
                 return count;
-            }
-
-            public static FileStream FileStream(
-                string path,
-                FileMode fileMode,
-                FileAccess fileAccess,
-                FileShare fileShare,
-                int bufferSize,
-                FileOptions fileOptions,
-                BufferMode bufferMode)
-            {
-                if (bufferMode == BufferMode.Unbuffered) {
-                    return UnbufferedFileStream(
-                        path,
-                        FileMode.Open,
-                        FileAccess.Read,
-                        FileShare.Read,
-                        bufferSize,
-                        FileOptions.Asynchronous);
-                }
-                return  new FileStream(
-                    path,
-                    FileMode.Open,
-                    FileAccess.Read,
-                    FileShare.Read,
-                    bufferSize,
-                    FileOptions.Asynchronous);
-            }
-
-            // See http://saplin.blogspot.com/2018/07/non-cachedunbuffered-file-operations.html
-            public static FileStream UnbufferedFileStream(
-                string path,
-                FileMode fileMode,
-                FileAccess fileAccess,
-                FileShare fileShare,
-                int bufferSize,
-                FileOptions fileOptions)
-            {
-                if (RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)) {
-                    return new FileStream(
-                        path,
-                        FileMode.Open,
-                        FileAccess.Read,
-                        FileShare.ReadWrite,
-                        bufferSize,
-                        (FileOptions)0x20000000);
-                }
-                return new PosixUncachedFileStream(
-                    path,
-                    fileMode,
-                    fileAccess,
-                    fileShare,
-                    bufferSize,
-                    fileOptions);
-            }
-
-            public class PosixUncachedFileStream : FileStream {
-                public PosixUncachedFileStream(
-                    string path,
-                    FileMode mode,
-                    FileAccess access,
-                    FileShare share,
-                    int bufferSize,
-                    FileOptions options
-                    ) : base(
-                        path,
-                        mode,
-                        access,
-                        share,
-                        bufferSize,
-                        options)
-                {
-                    Syscall.fcntl(
-                      (int)SafeFileHandle.DangerousGetHandle(),
-                      FcntlCommand.F_NOCACHE);
-                }
             }
         }
     }
