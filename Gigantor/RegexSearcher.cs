@@ -5,6 +5,7 @@ using System.Threading;
 using System.IO;
 using System;
 using System.IO.Pipes;
+using System.Text.RegularExpressions;
 
 namespace Imagibee {
     namespace Gigantor {
@@ -57,7 +58,7 @@ namespace Imagibee {
                 public IReadOnlyList<GroupData> Groups;
             }
 
-            // Create a new instance to search a file
+            // Create a new instance to search a file with single regex
             //
             // filePath - the path to the file to search
             // regex - the regular expression to match against the file
@@ -70,8 +71,8 @@ namespace Imagibee {
             // then all matches will be found, when set smaller there is a chance that a
             // match on a partition boundary will not be found, very large values
             // negatively impact performance, the optimal value is the exact size of the
-            // maximum matched value (which may not be known), defaults to 1/128th of
-            // chunk size, may not exceed half the chunk size
+            // maximum match size (which may not be known), defaults to 512 bytes, may
+            // not exceed half the chunk size
             // bufferMode - choose whether or not files are buffered, for gigantic files
             // unbuffered tends to be faster
             public RegexSearcher(
@@ -82,26 +83,22 @@ namespace Imagibee {
                 int chunkKiBytes=512,
                 int maxWorkers=64,
                 int overlap = 512,
-                BufferMode bufferMode = BufferMode.Unbuffered) : base(
+                BufferMode bufferMode = BufferMode.Unbuffered) : this(
                     filePath,
+                    new List<System.Text.RegularExpressions.Regex>() { regex },
                     progress,
-                    JoinMode.None,
+                    maxMatchCount,
                     chunkKiBytes,
-                    maxWorkers: maxWorkers,
-                    overlap: overlap,
-                    bufferMode: bufferMode)
+                    maxWorkers,
+                    overlap,
+                    bufferMode)
             {
-                matches = new();
-                matchQueue = new();
-                this.regex = regex;
-                this.maxMatchCount = maxMatchCount;
-                this.overlap = overlap;
             }
 
-            // Create a new instance to search a stream
+            // Create a new instance to search a file with multiple regex
             //
-            // stream - the stream to search
-            // regex - the regular expression to match against the file
+            // filePath - the path to the file to search
+            // regexs - the list of regular expression to match against the file
             // progress - signaled each time MatchCount is updated
             // maxMatchCount - places a limit on the number of matches, defaults to 1000
             // chunkKiBytes - the chunk size in KiBytes that each worker works on
@@ -111,11 +108,89 @@ namespace Imagibee {
             // then all matches will be found, when set smaller there is a chance that a
             // match on a partition boundary will not be found, very large values
             // negatively impact performance, the optimal value is the exact size of the
-            // maximum matched value (which may not be known), defaults to 1/128th of
-            // chunk size, may not exceed half the chunk size
+            // maximum match size (which may not be known), defaults to 512 bytes, may
+            // not exceed half the chunk size
+            // bufferMode - choose whether or not files are buffered, for gigantic files
+            // unbuffered tends to be faster
+            public RegexSearcher(
+                string filePath,
+                List<System.Text.RegularExpressions.Regex> regexs,
+                AutoResetEvent progress,
+                int maxMatchCount = 1000,
+                int chunkKiBytes = 512,
+                int maxWorkers = 64,
+                int overlap = 512,
+                BufferMode bufferMode = BufferMode.Unbuffered) : base(
+                    filePath,
+                    progress,
+                    JoinMode.None,
+                    chunkKiBytes,
+                    maxWorkers: maxWorkers,
+                    overlap: overlap,
+                    bufferMode: bufferMode)
+            {
+                matchess = new();
+                matchQueues = new();
+                this.regexs = regexs;
+                for (var i = 0; i < regexs.Count; i++) {
+                    matchQueues.Add(new ConcurrentQueue<MatchData>());
+                    matchess.Add(new List<MatchData>());
+                }
+                this.maxMatchCount = maxMatchCount;
+                this.overlap = overlap;
+            }
+
+            // Create a new instance to search a stream with single regex
+            //
+            // stream - the stream to search
+            // regex - the regular expression to match against the stream
+            // progress - signaled each time MatchCount is updated
+            // maxMatchCount - places a limit on the number of matches, defaults to 1000
+            // chunkKiBytes - the chunk size in KiBytes that each worker works on
+            // maxWorkers - optional limit to the maximum number of simultaneous workers
+            // overlap - size in bytes of partition overlap, used for finding matches that
+            // span two partitions, when set greater than or equal to the maximum size
+            // then all matches will be found, when set smaller there is a chance that a
+            // match on a partition boundary will not be found, very large values
+            // negatively impact performance, the optimal value is the exact size of the
+            // maximum match size (which may not be known), defaults to 512 bytes, may
+            // not exceed half the chunk size
             public RegexSearcher(
                 Stream stream,
                 System.Text.RegularExpressions.Regex regex,
+                AutoResetEvent progress,
+                int maxMatchCount = 1000,
+                int chunkKiBytes = 512,
+                int maxWorkers = 64,
+                int overlap = 512) : this(
+                    stream,
+                    new List<System.Text.RegularExpressions.Regex>() { regex },
+                    progress,
+                    maxMatchCount,
+                    chunkKiBytes,
+                    maxWorkers,
+                    overlap)
+            {
+            }
+
+            // Create a new instance to search a stream with multiple regex
+            //
+            // stream - the stream to search
+            // regexs - the list of regular expressions to match against the stream
+            // progress - signaled each time MatchCount is updated
+            // maxMatchCount - places a limit on the number of matches, defaults to 1000
+            // chunkKiBytes - the chunk size in KiBytes that each worker works on
+            // maxWorkers - optional limit to the maximum number of simultaneous workers
+            // overlap - size in bytes of partition overlap, used for finding matches that
+            // span two partitions, when set greater than or equal to the maximum size
+            // then all matches will be found, when set smaller there is a chance that a
+            // match on a partition boundary will not be found, very large values
+            // negatively impact performance, the optimal value is the exact size of the
+            // maximum match size (which may not be known), defaults to 512 bytes, may
+            // not exceed half the chunk size
+            public RegexSearcher(
+                Stream stream,
+                List<System.Text.RegularExpressions.Regex> regexs,
                 AutoResetEvent progress,
                 int maxMatchCount = 1000,
                 int chunkKiBytes = 512,
@@ -128,10 +203,15 @@ namespace Imagibee {
                     maxWorkers: maxWorkers,
                     overlap: overlap)
             {
-                matches = new();
-                matchQueue = new();
-                this.regex = regex;
+                matchess = new();
+                matchQueues = new();
+                this.regexs = regexs;
+                for (var i = 0; i < regexs.Count; i++) {
+                    matchQueues.Add(new ConcurrentQueue<MatchData>());
+                    matchess.Add(new List<MatchData>());
+                }
                 this.maxMatchCount = maxMatchCount;
+                this.overlap = overlap;
                 base.Stream = stream;
             }
 
@@ -139,8 +219,12 @@ namespace Imagibee {
             public override void Start()
             {
                 if (!Running) {
-                    matches.Clear();
-                    matchQueue.Clear();
+                    foreach (var matches in matchess) {
+                        matches.Clear();
+                    }
+                    foreach (var matchQueue in matchQueues) {
+                        matchQueue.Clear();
+                    }
                     matchCount = 0;
                     base.Start();
                 }
@@ -149,30 +233,37 @@ namespace Imagibee {
             // Finished, sort match data
             protected override void Finish()
             {
-                HashSet<long> matchPositions = new();
-                while (matchQueue.TryDequeue(out MatchData result)) {
-                    // Ignore duplicates
-                    if (!matchPositions.Contains(result.StartFpos)) {
-                        matches.Add(result);
-                        matchPositions.Add(result.StartFpos);
+                var dedupedMatchCount = 0;
+                for (var i = 0; i < regexs.Count; i++) {
+                    HashSet<long> matchPositions = new();
+                    var matches = matchess[i];
+                    var matchQueue = matchQueues[i];
+                    while (matchQueue.TryDequeue(out MatchData result)) {
+                        // Ignore duplicates
+                        if (!matchPositions.Contains(result.StartFpos)) {
+                            matches.Add(result);
+                            matchPositions.Add(result.StartFpos);
+                        }
                     }
+                    //matches = matches.OrderBy(x => x.StartFpos).ToList();
+                    matches.Sort((a, b) => a.StartFpos.CompareTo(b.StartFpos));
+                    dedupedMatchCount += matches.Count;
                 }
                 // Adjust matchCount after dedup
-                matchCount = matches.Count;
-                //matches = matches.OrderBy(x => x.StartFpos).ToList();
-                matches.Sort((a, b) => a.StartFpos.CompareTo(b.StartFpos));
+                matchCount = dedupedMatchCount;
                 // Adjust byte count for overlap
                 Interlocked.Add(ref byteCount, overlap);
             }
 
             // Return the MatchData of the completed search
-            public IReadOnlyList<MatchData> GetMatchData()
+            // regexIndex - refers to the index of the regex when multiple regex are searched
+            public IReadOnlyList<MatchData> GetMatchData(int regexIndex = 0)
             {
                 if (Running) {
                     return new List<MatchData>().AsReadOnly();
                 }
                 else {
-                    return matches.AsReadOnly();
+                    return matchess[regexIndex].AsReadOnly();
                 }
             }
 
@@ -198,45 +289,44 @@ namespace Imagibee {
                     }
                 }
                 var str = Utilities.UnsafeByteToString(data.Buf);
-                if (data.Buf.Length != str.Length) {
-                    throw new System.Exception($"{data.Id} {data.Buf.Length} != {str.Length}");
-                }
-                var partitionMatches = regex.Matches(str);
-                if (partitionMatches.Count > 0) {
-                    var newMatches = 0;
-                    foreach (System.Text.RegularExpressions.Match match in partitionMatches) {
-                        if (match != null && matchCount < maxMatchCount) {
-                            var groups = new List<GroupData>();
-                            foreach (System.Text.RegularExpressions.Group group in match.Groups) {
-                                List<CaptureData> cd = new();
-                                foreach (System.Text.RegularExpressions.Capture capture in group.Captures) {
-                                    cd.Add(
-                                        new CaptureData()
+                for (var i = 0; i < regexs.Count; i++) {
+                    var partitionMatches = regexs[i].Matches(str);
+                    if (partitionMatches.Count > 0) {
+                        var newMatches = 0;
+                        foreach (System.Text.RegularExpressions.Match match in partitionMatches) {
+                            if (match != null && matchCount < maxMatchCount) {
+                                var groups = new List<GroupData>();
+                                foreach (System.Text.RegularExpressions.Group group in match.Groups) {
+                                    List<CaptureData> cd = new();
+                                    foreach (System.Text.RegularExpressions.Capture capture in group.Captures) {
+                                        cd.Add(
+                                            new CaptureData()
+                                            {
+                                                StartFpos = capture.Index + data.StartFpos,
+                                                Value = capture.Value,
+                                            });
+                                    }
+                                    groups.Add(
+                                        new GroupData()
                                         {
-                                            StartFpos = capture.Index + data.StartFpos,
-                                            Value = capture.Value,
+                                            StartFpos = data.StartFpos + group.Index,
+                                            Name = group.Name,
+                                            Value = group.Value,
+                                            Captures = cd.AsReadOnly(),
                                         });
                                 }
-                                groups.Add(
-                                    new GroupData()
+                                matchQueues[i].Enqueue(
+                                    new MatchData()
                                     {
-                                        StartFpos = data.StartFpos + group.Index,
-                                        Name = group.Name,
-                                        Value = group.Value,
-                                        Captures = cd.AsReadOnly(),
+                                        StartFpos = data.StartFpos + match.Index,
+                                        Name = match.Name,
+                                        Value = match.Value,
+                                        Groups = groups.AsReadOnly(),
                                     });
+                                newMatches++;
                             }
-                            matchQueue.Enqueue(
-                                new MatchData()
-                                {
-                                    StartFpos = data.StartFpos + match.Index,
-                                    Name = match.Name,
-                                    Value = match.Value,
-                                    Groups = groups.AsReadOnly(),
-                                });
-                            newMatches++;
+                            Interlocked.Add(ref matchCount, 1);
                         }
-                        Interlocked.Add(ref matchCount, 1);
                     }
                 }
                 Interlocked.Add(ref byteCount, data.Buf.Length - overlap);
@@ -244,9 +334,9 @@ namespace Imagibee {
             }
 
             // private data
-            readonly ConcurrentQueue<MatchData> matchQueue;
-            readonly List<MatchData> matches;
-            readonly System.Text.RegularExpressions.Regex regex;
+            readonly List<ConcurrentQueue<MatchData>> matchQueues;
+            readonly List<List<MatchData>> matchess;
+            readonly List<System.Text.RegularExpressions.Regex> regexs;
             readonly int maxMatchCount;
             long matchCount;
         }

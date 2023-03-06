@@ -26,17 +26,18 @@ namespace Testing {
         [Test]
         public void MixedExampleTest()
         {
-            // The regular expression for the search
-            const string pattern = @"comfort\s*food";
-            Regex regex = new(
-                pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            // The regular expressions for the search
+            List<Regex> regexs = new() {
+                new(@"comfort\s*food", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+                new(@"strong\s*coffee", RegexOptions.IgnoreCase | RegexOptions.Compiled)
+            };
 
             // A shared wait event to facilitate progress notifications
             AutoResetEvent progress = new(false);
 
             // Create the search and indexing workers
             LineIndexer indexer = new(enwik9Path, progress);
-            RegexSearcher searcher = new(enwik9Path, regex, progress);
+            RegexSearcher searcher = new(enwik9Path, regexs, progress);
 
             // Create a IBackground collection for convenient managment
             var processes = new List<IBackground>()
@@ -45,20 +46,12 @@ namespace Testing {
                 searcher
             };
 
-            // Create a progress bar to illustrate progress updates
-            Utilities.ByteProgress progressBar = new(
-                40, processes.Count * Utilities.FileByteCount(enwik9Path));
-
             // Start search and indexing in parallel and wait for completion
-            Console.WriteLine($"Searching ...");
+            Console.WriteLine($"Working ...");
             Background.StartAndWait(
                 processes,
                 progress,
-                (_) =>
-                {
-                    progressBar.Update(
-                        processes.Select((p) => p.ByteCount).Sum());
-                },
+                (_) => { Console.Write('.'); },
                 1000);
             Console.Write('\n');
 
@@ -73,41 +66,42 @@ namespace Testing {
                 throw new Exception("search cancelled");
             }
 
-            // Display search results
-            if (searcher.MatchCount != 0) {
-                Console.WriteLine($"Found {searcher.MatchCount} matches ...");
-                var matchDatas = searcher.GetMatchData();
-                for (var i = 0; i < matchDatas.Count; i++) {
-                    var matchData = matchDatas[i];
-                    Console.WriteLine(
-                        $"[{i}]({matchData.Value}) ({matchData.Name}) " +
-                        $"line {indexer.LineFromPosition(matchData.StartFpos)} " +
-                        $"fpos {matchData.StartFpos}");
-                }
+            // Display results
+            for (var j = 0; j < regexs.Count; j++) {
+                Console.WriteLine($"Found {searcher.GetMatchData(j).Count} matches for regex {j} ...");
+                if (searcher.GetMatchData(j).Count != 0) {
+                    var matchDatas = searcher.GetMatchData(j);
+                    for (var i = 0; i < matchDatas.Count; i++) {
+                        var matchData = matchDatas[i];
+                        Console.WriteLine(
+                            $"[{i}]({matchData.Value}) ({matchData.Name}) " +
+                            $"line {indexer.LineFromPosition(matchData.StartFpos)} " +
+                            $"fpos {matchData.StartFpos}");
+                    }
 
-                // Get the line of the 1st match
-                var matchLine = indexer.LineFromPosition(
-                    searcher.GetMatchData()[0].StartFpos);
+                    // Get the line of the 1st match
+                    var matchLine = indexer.LineFromPosition(
+                        searcher.GetMatchData(j)[0].StartFpos);
 
-                // Open the searched file for reading
-                using System.IO.FileStream fileStream = new(enwik9Path, FileMode.Open);
-                Imagibee.Gigantor.StreamReader gigantorReader = new(fileStream);
+                    // Open the searched file for reading
+                    using System.IO.FileStream fileStream = new(enwik9Path, FileMode.Open);
+                    Imagibee.Gigantor.StreamReader gigantorReader = new(fileStream);
 
-                // Seek to the first line we want to read
-                var contextLines = 6;
-                fileStream.Seek(indexer.PositionFromLine(
-                    matchLine - contextLines), SeekOrigin.Begin);
+                    // Seek to the first line we want to read
+                    var contextLines = 3;
+                    fileStream.Seek(indexer.PositionFromLine(
+                        matchLine - contextLines), SeekOrigin.Begin);
 
-                // Read and display a few lines around the match
-                for (var line = matchLine - contextLines;
-                    line <= matchLine + contextLines;
-                    line++) {
-                    Console.WriteLine(
-                        $"[{line}]({indexer.PositionFromLine(line)})  " +
-                        gigantorReader.ReadLine());
+                    // Read and display a few lines around the match
+                    for (var line = matchLine - contextLines;
+                        line <= matchLine + contextLines;
+                        line++) {
+                        Console.WriteLine(
+                            $"[{line}]({indexer.PositionFromLine(line)})  " +
+                            gigantorReader.ReadLine());
+                    }
                 }
             }
-            //Assert.AreEqual(true, false);
         }
 
         [Test]
