@@ -75,7 +75,7 @@ namespace NugetTesting {
                     searcher.GetMatchData()[0].StartFpos);
 
                 // Open the searched file for reading
-                using FileStream fileStream = new(enwik9Path, FileMode.Open);
+                using var fileStream = Imagibee.Gigantor.FileStream.Create(enwik9Path);
                 Imagibee.Gigantor.StreamReader gigantorReader = new(fileStream);
 
                 // Seek to the first line we want to read
