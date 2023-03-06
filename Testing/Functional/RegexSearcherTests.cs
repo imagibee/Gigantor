@@ -204,7 +204,7 @@ namespace Testing {
             AutoResetEvent progress = new(false);
             const string pattern = @"comfort\s*food";
             Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
-            using var fileStream = new FileStream(
+            using var fileStream = new System.IO.FileStream(
                 enwik9,
                 FileMode.Open,
                 FileAccess.Read,
@@ -238,7 +238,7 @@ namespace Testing {
                 pattern,
                 RegexOptions.IgnoreCase |
                 RegexOptions.Compiled);
-            using var fs = new FileStream(
+            using var fs = new System.IO.FileStream(
                 enwik9Gz, FileMode.Open);
             var stream = new GZipStream(
                 fs, CompressionMode.Decompress, true);

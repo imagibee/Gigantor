@@ -41,6 +41,9 @@
     <Compile Include="..\Tests\BenchmarkUtilities.cs">
       <Link>BenchmarkUtilities.cs</Link>
     </Compile>
+    <Compile Include="..\..\Gigantor\FileStream.cs">
+      <Link>FileStream.cs</Link>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Mono.Posix.NETStandard" Version="1.0.0" />

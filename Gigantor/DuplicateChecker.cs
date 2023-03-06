@@ -85,7 +85,7 @@ namespace Imagibee {
             protected override MapJoinData Map(FileMapJoinData data)
             {
                 MapJoinData result = new(){};
-                using var fileStream1 = new FileStream(
+                using var fileStream1 = new System.IO.FileStream(
                     Path,
                     FileMode.Open,
                     FileAccess.Read,
@@ -95,7 +95,7 @@ namespace Imagibee {
                 fileStream1.Seek(data.StartFpos, SeekOrigin.Begin);
                 var streamReader1 = new BinaryReader(fileStream1, System.Text.Encoding.UTF8, true);
                 var buf1 = streamReader1.ReadBytes(chunkSize);
-                using var fileStream2 = new FileStream(
+                using var fileStream2 = new System.IO.FileStream(
                     path2,
                     FileMode.Open,
                     FileAccess.Read,

@@ -9,21 +9,25 @@ using System.IO.Pipes;
 namespace Imagibee {
     namespace Gigantor {
         //
-        // Supports regex searching for very large files
+        // Fast regex searching of gigantic files
         //
-        // To achieve this goal the search process runs in the background,
-        // seperates the file into chunks, and counts the lines in each
-        // chunk.  These chunks are ultimately joined into a continuous
-        // result.
+        // The search process runs in the background, seperating the file into
+        // chunks, and searching the chunks in parallel.  The search results
+        // of each chunk are ultimately joined into a continuous result which
+        // is accessible through the GetMatchData method after the search
+        // completes.
         //
-        // Users should begin the process by calling Start with the path
-        // of the file to search and a Regex instance.  All public methods
-        // and properties are well behaved at any time.  Although, while
-        // Running is true only partial results are available.
+        // Users should instantiate an instance with the file or stream to
+        // search and a Regex instance to perform the search.  Use the helper
+        // functions from the Background class to control the process including
+        // start, wait, cancel, and error detection.
         //
         // After the process is finished, the results are stored until Start
         // is called again.  Although, calling Start while Running is true
         // will have no effect.
+        //
+        // Exceptions during the background processing are caught and
+        // stored in Error.
         //
         // A balance between memory footprint and performance can be achieved
         // by varying maxMatchCount, chunkKiBytes and maxWorkers parameters.
@@ -53,7 +57,7 @@ namespace Imagibee {
                 public IReadOnlyList<GroupData> Groups;
             }
 
-            // Create a new instance
+            // Create a new instance to search a file
             //
             // filePath - the path to the file to search
             // regex - the regular expression to match against the file
@@ -68,6 +72,8 @@ namespace Imagibee {
             // negatively impact performance, the optimal value is the exact size of the
             // maximum matched value (which may not be known), defaults to 1/128th of
             // chunk size, may not exceed half the chunk size
+            // bufferMode - choose whether or not files are buffered, for gigantic files
+            // unbuffered tends to be faster
             public RegexSearcher(
                 string filePath,
                 System.Text.RegularExpressions.Regex regex,
@@ -92,6 +98,21 @@ namespace Imagibee {
                 this.overlap = overlap;
             }
 
+            // Create a new instance to search a stream
+            //
+            // stream - the stream to search
+            // regex - the regular expression to match against the file
+            // progress - signaled each time MatchCount is updated
+            // maxMatchCount - places a limit on the number of matches, defaults to 1000
+            // chunkKiBytes - the chunk size in KiBytes that each worker works on
+            // maxWorkers - optional limit to the maximum number of simultaneous workers
+            // overlap - size in bytes of partition overlap, used for finding matches that
+            // span two partitions, when set greater than or equal to the maximum size
+            // then all matches will be found, when set smaller there is a chance that a
+            // match on a partition boundary will not be found, very large values
+            // negatively impact performance, the optimal value is the exact size of the
+            // maximum matched value (which may not be known), defaults to 1/128th of
+            // chunk size, may not exceed half the chunk size
             public RegexSearcher(
                 Stream stream,
                 System.Text.RegularExpressions.Regex regex,
@@ -144,7 +165,7 @@ namespace Imagibee {
                 Interlocked.Add(ref byteCount, overlap);
             }
 
-            // Return the MatchData of current progress
+            // Return the MatchData of the completed search
             public IReadOnlyList<MatchData> GetMatchData()
             {
                 if (Running) {
@@ -165,14 +186,8 @@ namespace Imagibee {
                 MapJoinData result = new();
                 //Logger.Log($"mapping chunk {data.Id} at {data.StartFpos}");
                 if (data.Buf == null) {
-                    using var fileStream = Utilities.FileStream(
-                        Path,
-                        FileMode.Open,
-                        FileAccess.Read,
-                        FileShare.Read,
-                        chunkSize,
-                        FileOptions.Asynchronous,
-                        bufferMode);
+                    using var fileStream = FileStream.Create(
+                        Path, bufferSize: chunkSize, bufferMode: bufferMode);
                     fileStream.Seek(data.StartFpos, SeekOrigin.Begin);
                     data.Buf = new byte[chunkSize];
                     var bytesRead = fileStream.Read(data.Buf, 0, chunkSize);

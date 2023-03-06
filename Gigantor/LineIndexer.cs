@@ -8,23 +8,25 @@ using System.IO;
 namespace Imagibee {
     namespace Gigantor {
         //
-        // Supports line counting and fast indexing for very large files
+        // Fast line counting and indexing of gigantic files
         //
         // The file is processed in the background to get a total LineCount 
-        // and to create an index.  The index is cached and used by subsequent
-        // calls to optimize random access to the file by either line or
-        // position.
+        // and to create an index.  The index is used to form a fast, memory-
+        // efficient mapping from line number to fpos or fpos to line number.
+        // This mapping is used by subsequent calls to PositionFromLine and
+        // LineFromPosition to optimize random access to the file by either
+        // line or position.
         //
-        // Users should begin the process by calling Start.  All public
-        // methods and properties are well-behaved while the background
-        // process is running.
+        // Users should create an instance with the file to index. Use the
+        // helper functions from the Background class to control the process
+        // including start, wait, cancel, and error detection.
         //
         // After the process is finished, the results are kept until Start
         // is called again.  However, calls to Start while Running is true
         // are ignored.
         //
         // Exceptions during the background processing are caught and
-        // stored in Error.  Exceptions during Start are not handled.
+        // stored in Error.
         //
         // A balance between memory footprint and performance can be achieved
         // by varying chunkKiBytes and maxWorkers parameters.
@@ -39,6 +41,8 @@ namespace Imagibee {
             // progress - signaled each time LineCount is updated
             // chunkKiBytes - the chunk size in KiBytes that each worker works on
             // maxWorkers - optional limit to the maximum number of simultaneous workers
+            // bufferMode - choose whether or not files are buffered, for gigantic files
+            // unbuffered tends to be faster
             public LineIndexer(
                 string filePath,
                 AutoResetEvent progress,
@@ -89,7 +93,7 @@ namespace Imagibee {
                         return chunk.Value.StartFpos;
                     }
 
-                    using var fileStream = new FileStream(
+                    using var fileStream = new System.IO.FileStream(
                         Path,
                         FileMode.Open,
                         FileAccess.Read,
@@ -124,7 +128,7 @@ namespace Imagibee {
                     var chunk = chunks[chunkIndex];
                     var distance = fpos - chunk.StartFpos;
                     line = chunk.StartLine;
-                    using var fileStream = new FileStream(
+                    using var fileStream = new System.IO.FileStream(
                         Path,
                         FileMode.Open,
                         FileAccess.Read,
@@ -233,14 +237,8 @@ namespace Imagibee {
                     FinalChunk = false,
                         
                 };
-                using var fileStream = Utilities.FileStream(
-                    Path,
-                    FileMode.Open,
-                    FileAccess.Read,
-                    FileShare.Read,
-                    chunkSize,
-                    FileOptions.Asynchronous,
-                    bufferMode);
+                using var fileStream = FileStream.Create(
+                    Path, bufferSize: chunkSize, bufferMode: bufferMode);
                 fileStream.Seek(data.StartFpos, SeekOrigin.Begin);
                 var buf = new byte[chunkSize];
                 var bytesRead = fileStream.Read(buf, 0, chunkSize);

@@ -35,7 +35,7 @@ namespace BenchmarkTesting {
         }
 
         public OverheadTester(
-            FileStream stream,
+            System.IO.FileStream stream,
             AutoResetEvent progress,
             int chunkSize,
             int maxWorkers) :
@@ -60,7 +60,7 @@ namespace BenchmarkTesting {
             //Console.WriteLine($"chunk {data.Id} at {data.StartFpos}");
             var bufferSize = 500 * 1000;
             if (data.Buf == null) {
-                using var fileStream = new FileStream(
+                using var fileStream = new System.IO.FileStream(
                     Path,
                     FileMode.Open,
                     FileAccess.Read,
@@ -165,7 +165,7 @@ namespace BenchmarkTesting {
             Stopwatch stopwatch = new();
             AutoResetEvent progress = new(false);
             Console.WriteLine("Stream overhead");
-            using var fileStream = new FileStream(
+            using var fileStream = new System.IO.FileStream(
                 enwik9Path,
                 FileMode.Open,
                 FileAccess.Read,
@@ -203,13 +203,8 @@ namespace BenchmarkTesting {
             Stopwatch stopwatch = new();
             AutoResetEvent progress = new(false);
             Console.WriteLine("Unbuffered overhead");
-            using var fileStream = Utilities.UnbufferedFileStream(
-                enwik9Path,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.Read,
-                bufferSize,
-                FileOptions.Asynchronous);
+            using var fileStream = Imagibee.Gigantor.FileStream.Create(
+                enwik9Path, bufferSize: bufferSize);
             foreach (var numWorkers in new List<int>() { 1, 2, 4, 8, 16, 32, 64, 128 }) {
                 fileStream.Seek(0, SeekOrigin.Begin);
                 OverheadTester tester = new(

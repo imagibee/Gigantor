@@ -55,6 +55,9 @@
     <Compile Include="..\..\Gigantor\Utilities.cs">
       <Link>Utilities.cs</Link>
     </Compile>
+    <Compile Include="..\..\Gigantor\FileStream.cs">
+      <Link>FileStream.cs</Link>
+    </Compile>
   </ItemGroup>  <ItemGroup>
     <None Remove="Mono.Posix.NETStandard" />
   </ItemGroup>
