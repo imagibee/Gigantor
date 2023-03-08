@@ -1,13 +1,16 @@
 # Gigantor
-Gigantor provides fast regular expression search and line indexing of gigantic files.
+Boosts regular expression performance with multi-threading, and adds support for using gigantic files and streams
 
 It solves the following problems:
 * file exceeds the size of memory
 * CPUs are under-utilized
 * main thread is unresponsive
-* search of compressed files
+* searching streams
+* searching compressed data
 
-The approach is to partition the data into chunks which are processed in parallel using a [System.Threading.ThreadPool](https://learn.microsoft.com/en-us/dotnet/api/system.threading.threadpool?view=net-7.0) of background threads.  The input data can either be uncompressed files, or streams.  Streams are intended to support use cases that have additional processing needs by allowing the user to provide a class derived from [System.IO.Stream](https://learn.microsoft.com/en-us/dotnet/api/system.io.stream?view=net-7.0) as the input.  One notable use case for streams is searching compressed data.
+The approach is to partition the data into chunks which are processed in parallel using a [System.Threading.ThreadPool](https://learn.microsoft.com/en-us/dotnet/api/system.threading.threadpool?view=net-7.0) of background threads.  Since the threads are in the background they do not cause the main thread to become unresponsive.  Since the chunks are reasonably sized it does not matter if the whole file can fit into memory.
+
+The input data can either be uncompressed files, or streams.  Streams are intended to support use cases that have additional processing needs by allowing the user to provide a class derived from [System.IO.Stream](https://learn.microsoft.com/en-us/dotnet/api/system.io.stream?view=net-7.0) as the input.  One notable use case for streams is searching compressed data.
 
 Search depends on [System.Text.RegularExpressions.Regex](https://learn.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.regex?view=net-7.0) as the underlying regular expression library.  While line indexing uses its own implementation.
 
@@ -17,20 +20,20 @@ Search depends on [System.Text.RegularExpressions.Regex](https://learn.microsoft
 - `Background` - functions for managing multiple `RegexSearcher` or `LineIndexer` instances
 
 ## Performance
-Performance is benchmarked by processing a 32 GB prepared text file.  Each benchmark is timed, and throughput is computed by dividing the number of bytes processed by the time.
+One of the primary goals of Gigantor is performance boost.  Performance is benchmarked by processing a 32 GB prepared text file.  Each benchmark is timed, and throughput is computed by dividing the number of bytes processed by the time.
 
-For the search benchmarks the following pattern is used to search for all URLs in the file.
+For the search benchmarks the following pattern is used to find all URLs in the file.
 
 ```csharp
 var pattern = @"/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#()?&//=]*)/"; 
 ```
 
-### Uncompressed Search
-The following graph demonstrates that unbuffered IO is about 35% faster for the uncompressed search benchmark.  It also shows about a 5x gain due to parallelization.  Unbuffered IO can be used via the `bufferMode` parameter, or using the approach taken by `Imagibee.Gigantor.FileStream.Create` when opening the file. 
+### Buffered vs Unbuffered Searches
+The following benchmark compares searching the uncompressed 32 GB test file with different file buffering modes and different amounts of CPU utilization.  Unbuffered mode is about 35% faster for this benchmark.  Gigantor defaults to using unbuffered mode.  Buffer modes are OS dependent but I have only tested on mac.  If you run into problems you can turn buffering back on by using the `bufferMode` parameter.  This benchmark shows about a 5x performance boost due to parallelization.
 
-![UncompressedSearch](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/UncompressedSearch.png)
+![Image](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/Buffered-vs-Unbuffered-Search.png)
 
-### Example 1 - using RegexSearcher to search an uncompressed file
+### Example 1 - searching an uncompressed file
 
 ```csharp
 // Create a regular expression
@@ -47,12 +50,41 @@ Imagibee.Gigantor.Background.StartAndWait(
     1000);
 ```
 
-### Compressed Search
-Using multiple threads to search a single compressed file does not yield performance gains since decompression dominates the processing time.  However, if multiple files are searched in parallel there is some gain.  The following graph shows compressed search throughput for varying numbers of files.  For this benchmark multiple copies of the 32 GB data file are gzip compressed to about 10 GB each.  These copies are searched in parallel without decompressing them to disk.  Searching multiple compressed files in parallel is about 6x faster than searching them one at a time.  The throughput is measured in terms of the *uncompressed* bytes of data that are searched.  Searching multiple files in parallel can also benefit uncompressed use cases.
+### Multiple Searches in a Single Pass
+Another way to gain performance is to search multiple Regex in a single pass because once the partition has been loaded into memory it is more efficient to search it multiple times.  If your use case has multiple regular expressions this strategy can provide a big boost.  The following graph compares the performance of doing two searches in a single pass versus doing a single search.   
 
-![CompressedSearch](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/CompressedSearch.png)
+![Image](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/Single-vs-Double-Search)
 
-### Example 2 - using RegexSearcher to search multiple compressed files
+### Example 2 - multiple searches in a single pass
+
+```csharp
+// Create the searcher with multiple regular expressions
+Imagibee.Gigantor.RegexSearcher searcher = new(
+    path,
+    new List<System.Text.RegularExpressions.Regex>()
+    {
+        new(pattern1, RegexOptions.Compiled),
+        new(pattern2, RegexOptions.Compiled)
+    },
+    progress);
+
+// Do the search
+Imagibee.Gigantor.Background.StartAndWait(
+    searcher,
+    progress,
+    (_) => { Console.Write("."); },
+    1000);
+```
+
+
+### Searching Multiple Files
+Another way to gain performacne is to search multiple files in parallel.  An easy way to do that is to use one RegexSearcher for each file and run them in parallel.  This technique is particularly effective for getting higher CPU utilization while searching compressed files.
+
+The following graph shows compressed search throughput for varying numbers of files.  For this benchmark multiple copies of the 32 GB data file are gzip compressed to about 10 GB each.  These copies are searched in parallel without decompressing them to disk.  Searching multiple compressed files in parallel like this is about 6x faster than searching them one at a time.  The throughput is measured in terms of the *uncompressed* bytes of data that are searched.
+
+![Image](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/Compressed-Search.png)
+
+### Example 3 - searching multiple compressed files
 
 ```csharp
 // Open compressed files with buffering disabled
@@ -77,12 +109,12 @@ Imagibee.Gigantor.Background.StartAndWait(
 
 
 
-### Uncompressed Indexing
-The following graph shows about a 10x gain for uncompressed line indexing due to parallelization using unbuffered IO.
+### Line Indexing
+The following benchmark shows about a 10x boost for line indexing an uncompressed file using unbuffered IO.  If your use case needs line indexing and search then combining them is another way to gain performance.  A simple way to do this is create both a RegexSearcher and a LineIndexer and run them simultaneously.
 
-![UncompressedLine](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/UncompressedLine.png)
+![Image](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/LineIndexing.png)
 
-### Example 3 - using RegexSearcher and LineIndexer together to search a uncompressed file and then read several lines around a match
+### Example 4 - using search and line indexing simultaneously to search a uncompressed file and then read several lines around a match
 
 ```csharp
 var path = "enwik9";
@@ -165,7 +197,7 @@ for (var j = 0; j < regexs.Count; j++) {
 }
 ```
 
-### Example 3 console output
+### Example 4 console output
 ```console
 Found 11 matches for regex 0 ...
 [0](Comfort food) (0) line 2115660 fpos 185913740
@@ -197,6 +229,14 @@ Found 2 matches for regex 1 ...
 [9158483](729217451)  === [[Ja Rule]] ===
 [9158484](729217471)  *&quot;Mesmerize&quot; (featuring [[Ashanti (singer)|Ashanti]])
 ```
+
+### Summary
+Gigantor provides several strategies for boosting performance.  Depending on your use case some of these strategies may work better than others.  Generally speaking, use as many of these strategies as your use case allows to maximize performance gains.
+
+* Unbuffered IO
+* Parallel partition processing
+* Parallel regular expression processing
+* Parallel file processing
 
 ### Notes
 1. Target net7.0 if possible because of [regular expression improvements released with .NET 7](https://devblogs.microsoft.com/dotnet/regular-expression-improvements-in-dotnet-7/).
