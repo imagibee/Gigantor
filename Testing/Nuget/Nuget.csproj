@@ -27,7 +27,7 @@
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Imagibee.Gigantor" Version="0.7.1" />
+    <PackageReference Include="Imagibee.Gigantor" Version="0.8.1" />
   </ItemGroup>
 
   <ItemGroup>
