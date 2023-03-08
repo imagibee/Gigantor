@@ -53,7 +53,7 @@ Imagibee.Gigantor.Background.StartAndWait(
 ### Multiple Searches in a Single Pass
 Another way to gain performance is to search multiple Regex in a single pass because once the partition has been loaded into memory it is more efficient to search it multiple times.  If your use case has multiple regular expressions this strategy can provide a big boost.  The following graph compares the performance of doing two searches in a single pass versus doing a single search.   
 
-![Image](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/Single-vs-Double-Search)
+![Image](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/Single-vs-Double-Search.png)
 
 ### Example 2 - multiple searches in a single pass
 
