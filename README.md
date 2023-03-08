@@ -1,5 +1,5 @@
 # Gigantor
-Boosts regular expression performance with multi-threading, and adds support for using gigantic files and streams
+Boosts regular expression performance, and adds support for using gigantic files and streams
 
 It solves the following problems:
 * file exceeds the size of memory
@@ -29,7 +29,7 @@ var pattern = @"/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b(
 ```
 
 ### Buffered vs Unbuffered Searches
-The following benchmark compares searching the uncompressed 32 GB test file with different file buffering modes and different amounts of CPU utilization.  Unbuffered mode is about 35% faster for this benchmark.  Gigantor defaults to using unbuffered mode.  Buffer modes are OS dependent but I have only tested on mac.  If you run into problems you can turn buffering back on by using the `bufferMode` parameter.  This benchmark shows about a 5x performance boost due to parallelization.
+The following benchmark compares searching the uncompressed 32 GB test file with different file buffering modes and different amounts of CPU utilization.  Unbuffered mode is about 35% faster for this benchmark.  Gigantor defaults to using unbuffered mode.  Buffer modes are OS dependent but I have only tested on mac.  If you run into problems you can turn buffering back on by using the `bufferMode` parameter.  The peak unbuffered throughput is about 9x faster than the single-threaded buffered throughput.
 
 ![Image](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/Buffered-vs-Unbuffered-Search.png)
 
@@ -110,9 +110,11 @@ Imagibee.Gigantor.Background.StartAndWait(
 
 
 ### Line Indexing
-The following benchmark shows about a 10x boost for line indexing an uncompressed file using unbuffered IO.  If your use case needs line indexing and search then combining them is another way to gain performance.  A simple way to do this is create both a RegexSearcher and a LineIndexer and run them simultaneously.
+The following benchmark is for line indexing an uncompressed file using unbuffered IO.  It shows about 10x improvement from parallelizing the processing across the chunks.
 
 ![Image](https://raw.githubusercontent.com/imagibee/Gigantor/main/Images/LineIndexing.png)
+
+If your use case needs both line indexing and search then combining them is another way to gain performance.  A simple way to do this is create both a RegexSearcher and a LineIndexer and run them simultaneously.
 
 ### Example 4 - using search and line indexing simultaneously to search a uncompressed file and then read several lines around a match
 
@@ -231,12 +233,12 @@ Found 2 matches for regex 1 ...
 ```
 
 ### Summary
-Gigantor provides several strategies for boosting performance.  Depending on your use case some of these strategies may work better than others.  Generally speaking, use as many of these strategies as your use case allows to maximize performance gains.
+Gigantor provides several strategies for boosting performance.  Depending on your use case some of these strategies may work better than others.  Generally speaking, use as many of them as your use case allows to maximize performance gains.
 
-* Unbuffered IO
-* Parallel partition processing
-* Parallel regular expression processing
-* Parallel file processing
+* Use unbuffered IO
+* Process the partitions in parallel
+* Process multiple regular expressions in a single pass
+* Process multiple files or streams simultaneously 
 
 ### Notes
 1. Target net7.0 if possible because of [regular expression improvements released with .NET 7](https://devblogs.microsoft.com/dotnet/regular-expression-improvements-in-dotnet-7/).
