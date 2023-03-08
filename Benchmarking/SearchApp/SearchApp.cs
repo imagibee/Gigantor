@@ -33,6 +33,7 @@ class SearchApp {
         public string pattern;
         public bool useStream;
         public bool useUnbuffered;
+        public bool patternx2;
         public System.IO.Stream stream;
     }
 
@@ -79,6 +80,9 @@ class SearchApp {
             }
             if (args[0].Contains("64")) {
                 sessionData.maxWorkers = 64;
+            }
+            if (args[0].Contains("patternx2")) {
+                sessionData.patternx2 = true;
             }
         }
         else {
@@ -133,6 +137,7 @@ class SearchApp {
                 pattern = sessionInfo.pattern,
                 useStream = sessionInfo.useStream,
                 useUnbuffered = sessionInfo.useUnbuffered,
+                patternx2 = sessionInfo.patternx2,
             };
             sessionDatas.Add(sessionData);
         }
@@ -187,6 +192,13 @@ class SearchApp {
     static ICollection<RegexSearcher> StartSearching(AutoResetEvent progress, SessionData sessionData)
     {
         List<RegexSearcher> searchers = new();
+        List<Regex> regex = new List<Regex>()
+        {
+            new Regex(sessionData.pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled)
+        };
+        if (sessionData.patternx2) {
+            regex.Add(new Regex(sessionData.pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled));
+        }
         foreach (var path in sessionData.paths) {
             RegexSearcher searcher;
             if (sessionData.useStream || sessionData.useUnbuffered) {
@@ -204,7 +216,7 @@ class SearchApp {
                 }
                 searcher = new RegexSearcher(
                     sessionData.stream,
-                    new Regex(sessionData.pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled),
+                    regex,
                     progress,
                     maxMatchCount: 50000,
                     chunkKiBytes: sessionData.chunkKiBytes,
@@ -214,7 +226,7 @@ class SearchApp {
             else {
                 searcher = new RegexSearcher(
                     path,
-                    new Regex(sessionData.pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled),
+                    regex,
                     progress,
                     maxMatchCount: 50000,
                     chunkKiBytes: sessionData.chunkKiBytes,

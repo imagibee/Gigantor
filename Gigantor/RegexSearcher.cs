@@ -274,7 +274,6 @@ namespace Imagibee {
 
             protected override MapJoinData Map(FileMapJoinData data)
             {
-                MapJoinData result = new();
                 //Logger.Log($"mapping chunk {data.Id} at {data.StartFpos}");
                 if (data.Buf == null) {
                     using var fileStream = FileStream.Create(
@@ -290,47 +289,52 @@ namespace Imagibee {
                 }
                 var str = Utilities.UnsafeByteToString(data.Buf);
                 for (var i = 0; i < regexs.Count; i++) {
-                    var partitionMatches = regexs[i].Matches(str);
-                    if (partitionMatches.Count > 0) {
-                        var newMatches = 0;
-                        foreach (System.Text.RegularExpressions.Match match in partitionMatches) {
-                            if (match != null && matchCount < maxMatchCount) {
-                                var groups = new List<GroupData>();
-                                foreach (System.Text.RegularExpressions.Group group in match.Groups) {
-                                    List<CaptureData> cd = new();
-                                    foreach (System.Text.RegularExpressions.Capture capture in group.Captures) {
-                                        cd.Add(
-                                            new CaptureData()
-                                            {
-                                                StartFpos = capture.Index + data.StartFpos,
-                                                Value = capture.Value,
-                                            });
-                                    }
-                                    groups.Add(
-                                        new GroupData()
-                                        {
-                                            StartFpos = data.StartFpos + group.Index,
-                                            Name = group.Name,
-                                            Value = group.Value,
-                                            Captures = cd.AsReadOnly(),
-                                        });
-                                }
-                                matchQueues[i].Enqueue(
-                                    new MatchData()
-                                    {
-                                        StartFpos = data.StartFpos + match.Index,
-                                        Name = match.Name,
-                                        Value = match.Value,
-                                        Groups = groups.AsReadOnly(),
-                                    });
-                                newMatches++;
-                            }
-                            Interlocked.Add(ref matchCount, 1);
-                        }
-                    }
+                    DoMatch(data, str, i);
                 }
                 Interlocked.Add(ref byteCount, data.Buf.Length - overlap);
-                return result;
+                return new MapJoinData();
+            }
+
+            void DoMatch(FileMapJoinData data, string partition, int regexIndex)
+            {
+                var partitionMatches = regexs[regexIndex].Matches(partition);
+                if (partitionMatches.Count > 0) {
+                    var newMatches = 0;
+                    foreach (System.Text.RegularExpressions.Match match in partitionMatches) {
+                        if (match != null && matchCount < maxMatchCount) {
+                            var groups = new List<GroupData>();
+                            foreach (System.Text.RegularExpressions.Group group in match.Groups) {
+                                List<CaptureData> cd = new();
+                                foreach (System.Text.RegularExpressions.Capture capture in group.Captures) {
+                                    cd.Add(
+                                        new CaptureData()
+                                        {
+                                            StartFpos = capture.Index + data.StartFpos,
+                                            Value = capture.Value,
+                                        });
+                                }
+                                groups.Add(
+                                    new GroupData()
+                                    {
+                                        StartFpos = data.StartFpos + group.Index,
+                                        Name = group.Name,
+                                        Value = group.Value,
+                                        Captures = cd.AsReadOnly(),
+                                    });
+                            }
+                            matchQueues[regexIndex].Enqueue(
+                                new MatchData()
+                                {
+                                    StartFpos = data.StartFpos + match.Index,
+                                    Name = match.Name,
+                                    Value = match.Value,
+                                    Groups = groups.AsReadOnly(),
+                                });
+                            newMatches++;
+                        }
+                        Interlocked.Add(ref matchCount, 1);
+                    }
+                }
             }
 
             // private data
