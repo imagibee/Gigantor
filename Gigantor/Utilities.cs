@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Mono.Unix.Native;
 using System.Runtime.InteropServices;
 using System.IO.Pipes;
+using System.Text;
 
 namespace Imagibee {
     namespace Gigantor {
@@ -227,6 +228,37 @@ namespace Imagibee {
                 }
                 while (count < chunkSize && bytesRead > 0);
                 return count;
+            }
+
+            // https://stackoverflow.com/questions/3825390/effective-way-to-find-any-files-encoding
+            internal static bool TryGetEncoding(byte[] bom, ref Encoding encoding)
+            {
+                if (bom[0] == 0x2b && bom[1] == 0x2f && bom[2] == 0x76) {
+#pragma warning disable SYSLIB0001
+                    encoding = Encoding.UTF7;
+                    return true;
+                }
+                if (bom[0] == 0xef && bom[1] == 0xbb && bom[2] == 0xbf) {
+                    encoding = Encoding.UTF8;
+                    return true;
+                }
+                if (bom[0] == 0xff && bom[1] == 0xfe && bom[2] == 0 && bom[3] == 0) {
+                    encoding = Encoding.UTF32;
+                    return true;
+                }
+                if (bom[0] == 0xff && bom[1] == 0xfe) {
+                    encoding = Encoding.Unicode;
+                    return true;
+                }
+                if (bom[0] == 0xfe && bom[1] == 0xff) {
+                    encoding = Encoding.BigEndianUnicode;
+                    return true;
+                }
+                if (bom[0] == 0 && bom[1] == 0 && bom[2] == 0xfe && bom[3] == 0xff) {
+                    encoding = new UTF32Encoding(true, true);
+                    return true;
+                }
+                return false;
             }
         }
     }
