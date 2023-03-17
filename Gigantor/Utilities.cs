@@ -141,47 +141,51 @@ namespace Imagibee {
                 return str;
             }
 
+            internal static string GetBenchmarkPath()
+            {
+                var path = Environment.GetEnvironmentVariable("GIGANTOR_BENCHMARK_PATH");
+                if (path == null) {
+                    path = Path.Combine(Path.GetTempPath(), "gigantor");
+                }
+                return path;
+            }
+
+            internal static void ThrowBenchmarkSetupException()
+            {
+                throw new ApplicationException("must run Benchmark/setup first");
+            }
+
             internal static string GetEnwik9Gz()
             {
                 var enwik9Path = GetEnwik9();
                 var gzPath = $"{enwik9Path}.gz";
                 if (!File.Exists(gzPath)) {
-                    Console.WriteLine($"gzipping enwik9 to {gzPath}...");
-                    using System.IO.FileStream originalFileStream = File.Open(enwik9Path, FileMode.Open);
-                    using System.IO.FileStream compressedFileStream = File.Create(gzPath);
-                    using var compressor = new GZipStream(compressedFileStream, CompressionMode.Compress);
-                    originalFileStream.CopyTo(compressor);
+                    ThrowBenchmarkSetupException();
                 }
                 return gzPath;
             }
 
             internal static string GetEnwik9()
             {
-                var zipPath = Path.Combine(Path.GetTempPath(), "enwik9.zip");
-                var enwik9Path = Path.Combine(Path.GetTempPath(), "enwik9");
+                var enwik9Path = Path.Combine(GetBenchmarkPath(), "enwik9");
                 if (!File.Exists(enwik9Path)) {
-                    if (!File.Exists(zipPath)) {
-                        Console.WriteLine($"downloading enwik9 to {zipPath}...");
-                        Wget("https://archive.org/download/enwik9/enwik9.zip", zipPath).Wait();
-                    }
-                    ZipFile.ExtractToDirectory(zipPath, Path.GetTempPath());
+                    ThrowBenchmarkSetupException();
                 }
                 return enwik9Path;
             }
 
             internal static string GetGutenbergBible()
             {
-                var path = Path.Combine(Path.GetTempPath(), "Gigantor-bible");
+                var path = Path.Combine(GetBenchmarkPath(), "10.txt.utf-8");
                 if (!File.Exists(path)) {
-                    Console.WriteLine($"downloading Gutenburg bible to {path}...");
-                    Wget("https://www.gutenberg.org/ebooks/10.txt.utf-8", path).Wait();
+                    ThrowBenchmarkSetupException();
                 }
                 return path;
             }
 
             internal static string GetSimpleFile()
             {
-                var path = Path.Combine(Path.GetTempPath(), "Gigantor-simple");
+                var path = Path.Combine(GetBenchmarkPath(), "simple");
                 if (!File.Exists(path)) {
                     using var fileStream = new System.IO.FileStream(path, FileMode.Create);
                     var writer = new StreamWriter(fileStream);
@@ -195,7 +199,7 @@ namespace Imagibee {
 
             internal static string GetSimpleFile2()
             {
-                var path = Path.Combine(Path.GetTempPath(), "Gigantor-simple2");
+                var path = Path.Combine(GetBenchmarkPath(), "simple2");
                 if (!File.Exists(path)) {
                     using var fileStream = new System.IO.FileStream(path, FileMode.Create);
                     var writer = new StreamWriter(fileStream);
@@ -205,17 +209,6 @@ namespace Imagibee {
                     writer.Close();
                 }
                 return path;
-            }
-
-            internal static async Task Wget(string url, string destinationPath)
-            {
-                using (HttpClient httpClient = new()) {
-                    using (var stream = await httpClient.GetStreamAsync(url)) {
-                        using (var fileStream = new System.IO.FileStream(destinationPath, FileMode.CreateNew)) {
-                            await stream.CopyToAsync(fileStream);
-                        }
-                    }
-                }
             }
 
             internal static int ReadChunk(Stream stream, byte[] buf, int offset, int chunkSize)

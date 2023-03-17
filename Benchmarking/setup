@@ -1,6 +1,8 @@
 export STARTDIR=$PWD
 export MINGB=150
-cd $TMPDIR
+export GIGANTOR_DIR=${TMPDIR}/gigantor
+mkdir $GIGANTOR_DIR
+cd $GIGANTOR_DIR
 if [ ! -f "enwik9.zip" ]; then
   wget https://archive.org/download/enwik9/enwik9.zip
 fi
@@ -13,7 +15,11 @@ if [ ! -f "enwik9.gz" ]; then
   gzip -c enwik9 > enwik9.gz
 fi
 
-GBAVAIL=$(df -k -g ${TMPDIR} | awk '/===/{exit} NR>1{print $4}')
+if [ ! -f "10.txt.utf-8" ]; then
+  wget https://www.gutenberg.org/ebooks/10.txt.utf-8
+fi
+
+GBAVAIL=$(df -k -g ${GIGANTOR_DIR} | awk '/===/{exit} NR>1{print $4}')
 
 if [[ ${GBAVAIL} -gt ${MINGB} ]]; then
   if [ ! -f "enwik9x32" ]; then
@@ -39,3 +45,4 @@ else
 fi
 
 cd $STARTDIR
+
