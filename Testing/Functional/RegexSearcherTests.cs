@@ -6,7 +6,6 @@ using System.Text.RegularExpressions;
 using NUnit.Framework;
 using Imagibee.Gigantor;
 using System.IO.Compression;
-using Microsoft.VisualStudio.TestPlatform.Utilities;
 
 #pragma warning disable CS8618
 
