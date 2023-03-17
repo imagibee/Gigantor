@@ -6,6 +6,7 @@ using System.IO.Compression;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.Net;
+using System.Diagnostics;
 using NUnit.Framework;
 using Imagibee.Gigantor;
 
@@ -132,6 +133,51 @@ namespace Testing {
             Assert.AreEqual("", Background.AnyError(processes));
             Assert.AreEqual(true, Background.AnyCancelled(processes));
         }
+
+        //// https://stackoverflow.com/questions/60707118/fast-search-in-a-large-text-file
+        //public List<string> Search(string path, string searchKey)
+        //{
+        //    // Create regex to search for the searchKey
+        //    System.Text.RegularExpressions.Regex regex = new(searchKey);
+        //    List<string> results = new List<string>();
+
+        //    // Create Gigantor stuff
+        //    System.Threading.AutoResetEvent progress = new(false);
+        //    Imagibee.Gigantor.RegexSearcher searcher = new(path, regex, progress, maxMatchCount: 10000);
+
+        //    // Start the search and wait for completion
+        //    Imagibee.Gigantor.Background.StartAndWait(
+        //        searcher,
+        //        progress,
+        //        (_) => { },
+        //        1000);
+
+        //    // Check for errors
+        //    if (searcher.Error.Length != 0) {
+        //        throw new Exception(searcher.Error);
+        //    }
+
+        //    // Open the searched file for reading
+        //    using System.IO.FileStream fileStream = new(path, FileMode.Open);
+        //    Imagibee.Gigantor.StreamReader reader = new(fileStream);
+
+        //    // Capture the line of each match
+        //    foreach (var match in searcher.GetMatchData()) {
+        //        fileStream.Seek(match.StartFpos, SeekOrigin.Begin);
+        //        results.Add(reader.ReadLine());
+        //    }
+        //    return results;
+        //}
+
+        //[Test]
+        //public void SearchTest()
+        //{
+        //    var path = Path.Combine(Path.GetTempPath(), "enwik9x32");
+        //    Stopwatch stopwatch = new();
+        //    stopwatch.Start();
+        //    var results = Search(path, "unicorn");
+        //    stopwatch.Stop();
+        //    Console.WriteLine($"found {results.Count} results in {stopwatch.Elapsed.TotalSeconds} seconds");
+        //}
     }
 }
-
