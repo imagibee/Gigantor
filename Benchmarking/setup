@@ -38,3 +38,4 @@ else
   echo "ERROR: ${GBAVAIL} GB available, but ${MINGB} required"
 fi
 
+cd $STARTDIR
