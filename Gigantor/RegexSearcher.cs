@@ -300,12 +300,15 @@ namespace Imagibee {
                 var partitionMatches = regexs[regexIndex].Matches(partition);
                 if (partitionMatches.Count > 0) {
                     var newMatches = 0;
-                    foreach (System.Text.RegularExpressions.Match match in partitionMatches) {
+                    for (int i = 0; i < partitionMatches.Count; i++) {
+                        Match match = partitionMatches[i];
                         if (match != null && matchCount < maxMatchCount) {
                             var groups = new List<GroupData>();
-                            foreach (System.Text.RegularExpressions.Group group in match.Groups) {
+                            for (var j=0; j<match.Groups.Count; j++)  {
+                                var group = match.Groups[j];
                                 List<CaptureData> cd = new();
-                                foreach (System.Text.RegularExpressions.Capture capture in group.Captures) {
+                                for (var k=0; k<group.Captures.Count; k++) {
+                                    var capture = group.Captures[k];
                                     cd.Add(
                                         new CaptureData()
                                         {
