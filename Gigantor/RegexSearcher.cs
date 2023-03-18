@@ -274,24 +274,12 @@ namespace Imagibee {
 
             protected override MapJoinData Map(FileMapJoinData data)
             {
-                //Logger.Log($"mapping chunk {data.Id} at {data.StartFpos}");
-                if (data.Buf == null) {
-                    using var fileStream = FileStream.Create(
-                        Path, bufferSize: chunkSize, bufferMode: bufferMode);
-                    fileStream.Seek(data.StartFpos, SeekOrigin.Begin);
-                    data.Buf = new byte[chunkSize];
-                    var bytesRead = fileStream.Read(data.Buf, 0, chunkSize);
-                    if (bytesRead != chunkSize) {
-                        var buf = new byte[bytesRead];
-                        Array.Copy(data.Buf, buf, bytesRead);
-                        data.Buf = buf;
-                    }
-                }
                 var str = Utilities.UnsafeByteToString(data.Buf);
                 for (var i = 0; i < regexs.Count; i++) {
                     DoMatch(data, str, i);
                 }
-                Interlocked.Add(ref byteCount, data.Buf.Length - overlap);
+                var bufLen = data.Buf == null ? 0:data.Buf.Length;
+                Interlocked.Add(ref byteCount, bufLen - overlap);
                 return new MapJoinData();
             }
 

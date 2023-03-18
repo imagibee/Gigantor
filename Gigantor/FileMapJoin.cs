@@ -163,18 +163,20 @@ namespace Imagibee {
             void QueueStreamJobs(Stream stream)
             {
                 try {
-                    var buf = new byte[chunkSize];
+                    if (buffer == null || buffer.Length != chunkSize) {
+                        buffer = new byte[chunkSize];
+                    }
                     var readSize = chunkSize - overlap;
                     var chunkNum = 0;
                     long pos = 0;
-                    var bytesRead = Utilities.ReadChunk(stream, buf, 0, overlap);
+                    var bytesRead = Utilities.ReadChunk(stream, buffer, 0, overlap);
                     //var bytesRead = stream.Read(buf, 0, overlap);
                     if (overlap == 0) {
                         bytesRead = 1;
                     }
                     while (bytesRead != 0) {
                         if (jobQueue.Count < maxWorkers) {
-                            bytesRead = Utilities.ReadChunk(stream, buf, overlap, readSize);
+                            bytesRead = Utilities.ReadChunk(stream, buffer, overlap, readSize);
                             //bytesRead = stream.Read(buf, overlap, readSize);
                             var job = new FileMapJoinData()
                             {
@@ -182,13 +184,13 @@ namespace Imagibee {
                                 StartFpos = pos,
                                 Buf = new byte[bytesRead + overlap],
                             };
-                            Array.Copy(buf, job.Buf, job.Buf.Length);
+                            Array.Copy(buffer, job.Buf, job.Buf.Length);
                             jobQueue.Enqueue(job);
                             if (bytesRead < readSize || cancel.WaitOne(0)) {
                                 break;
                             }
                             pos += readSize;
-                            Array.Copy(buf, buf.Length - overlap, buf, 0, overlap);
+                            Array.Copy(buffer, buffer.Length - overlap, buffer, 0, overlap);
                             synchronize.Set();
                             //Interlocked.Add(ref byteCount, bytesRead);
                         }
@@ -318,6 +320,23 @@ namespace Imagibee {
             void MapJob(FileMapJoinData data)
             {
                 try {
+                    if (buffer == null || buffer.Length != chunkSize) {
+                        buffer = new byte[chunkSize];
+                    }
+                    if (data.Buf == null) {
+                        using var fileStream = FileStream.Create(
+                            Path, bufferSize: chunkSize, bufferMode: bufferMode);
+                        fileStream.Seek(data.StartFpos, SeekOrigin.Begin);
+                        data.Buf = buffer;
+                        var bytesRead = fileStream.Read(data.Buf, 0, chunkSize);
+                        // If this is the final read the buffer may be smaller than the chunk
+                        // and needs to be resized
+                        if (bytesRead != chunkSize) {
+                            var buf = new byte[bytesRead];
+                            Array.Copy(data.Buf, buf, bytesRead);
+                            data.Buf = buf;
+                        }
+                    }
                     resultQueue.Enqueue(Map(data));
                 }
                 catch (Exception e) {
@@ -338,6 +357,7 @@ namespace Imagibee {
             int scheduledChunks;
             int joins;
             bool queueDone;
+            [ThreadStatic] static byte[]? buffer;
         }
 
         // FileMapJoin job data
