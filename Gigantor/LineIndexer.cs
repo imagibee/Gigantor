@@ -46,8 +46,8 @@ namespace Imagibee {
             public LineIndexer(
                 string filePath,
                 AutoResetEvent progress,
-                int chunkKiBytes=512,
-                int maxWorkers=0,
+                int chunkKiBytes = 1024,
+                int maxWorkers = 0,
                 BufferMode bufferMode = BufferMode.Unbuffered) : base(
                     filePath,
                     progress,

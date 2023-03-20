@@ -46,7 +46,7 @@ namespace Imagibee {
                 string path1,
                 string path2,
                 AutoResetEvent progress,
-                int chunkKiBytes = 512,
+                int chunkKiBytes = 1024,
                 int maxWorkers = 0) : base(
                     path1,
                     progress,

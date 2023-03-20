@@ -66,23 +66,18 @@ namespace Imagibee {
             // maxMatchCount - places a limit on the number of matches, defaults to 1000
             // chunkKiBytes - the chunk size in KiBytes that each worker works on
             // maxWorkers - optional limit to the maximum number of simultaneous workers
-            // overlap - size in bytes of partition overlap, used for finding matches that
-            // span two partitions, when set greater than or equal to the maximum size
-            // then all matches will be found, when set smaller there is a chance that a
-            // match on a partition boundary will not be found, very large values
-            // negatively impact performance, the optimal value is the exact size of the
-            // maximum match size (which may not be known), defaults to 512 bytes, may
-            // not exceed half the chunk size
+            // overlapKiBytes - size in KiBytes of partition overlap, used for finding matches
+            // that span two partitions, may not exceed half the chunk size
             // bufferMode - choose whether or not files are buffered, for gigantic files
             // unbuffered tends to be faster
             public RegexSearcher(
                 string filePath,
                 System.Text.RegularExpressions.Regex regex,
                 AutoResetEvent progress,
-                int maxMatchCount=1000,
-                int chunkKiBytes=512,
-                int maxWorkers=64,
-                int overlap = 512,
+                int maxMatchCount = 10000,
+                int chunkKiBytes = 1024,
+                int maxWorkers = 1000,
+                int overlapKiBytes = 1,
                 BufferMode bufferMode = BufferMode.Unbuffered) : this(
                     filePath,
                     new List<System.Text.RegularExpressions.Regex>() { regex },
@@ -90,7 +85,7 @@ namespace Imagibee {
                     maxMatchCount,
                     chunkKiBytes,
                     maxWorkers,
-                    overlap,
+                    overlapKiBytes,
                     bufferMode)
             {
             }
@@ -103,30 +98,25 @@ namespace Imagibee {
             // maxMatchCount - places a limit on the number of matches, defaults to 1000
             // chunkKiBytes - the chunk size in KiBytes that each worker works on
             // maxWorkers - optional limit to the maximum number of simultaneous workers
-            // overlap - size in bytes of partition overlap, used for finding matches that
-            // span two partitions, when set greater than or equal to the maximum size
-            // then all matches will be found, when set smaller there is a chance that a
-            // match on a partition boundary will not be found, very large values
-            // negatively impact performance, the optimal value is the exact size of the
-            // maximum match size (which may not be known), defaults to 512 bytes, may
-            // not exceed half the chunk size
+            // overlapKiBytes - size in KiBytes of partition overlap, used for finding matches
+            // that span two partitions, may not exceed half the chunk size
             // bufferMode - choose whether or not files are buffered, for gigantic files
             // unbuffered tends to be faster
             public RegexSearcher(
                 string filePath,
                 List<System.Text.RegularExpressions.Regex> regexs,
                 AutoResetEvent progress,
-                int maxMatchCount = 1000,
-                int chunkKiBytes = 512,
-                int maxWorkers = 64,
-                int overlap = 512,
+                int maxMatchCount = 10000,
+                int chunkKiBytes = 1024,
+                int maxWorkers = 1000,
+                int overlapKiBytes = 1,
                 BufferMode bufferMode = BufferMode.Unbuffered) : base(
                     filePath,
                     progress,
                     JoinMode.None,
                     chunkKiBytes,
                     maxWorkers: maxWorkers,
-                    overlap: overlap,
+                    overlapKiBytes: overlapKiBytes,
                     bufferMode: bufferMode)
             {
                 matchess = new();
@@ -137,7 +127,6 @@ namespace Imagibee {
                     matchess.Add(new List<MatchData>());
                 }
                 this.maxMatchCount = maxMatchCount;
-                this.overlap = overlap;
             }
 
             // Create a new instance to search a stream with single regex
@@ -148,28 +137,23 @@ namespace Imagibee {
             // maxMatchCount - places a limit on the number of matches, defaults to 1000
             // chunkKiBytes - the chunk size in KiBytes that each worker works on
             // maxWorkers - optional limit to the maximum number of simultaneous workers
-            // overlap - size in bytes of partition overlap, used for finding matches that
-            // span two partitions, when set greater than or equal to the maximum size
-            // then all matches will be found, when set smaller there is a chance that a
-            // match on a partition boundary will not be found, very large values
-            // negatively impact performance, the optimal value is the exact size of the
-            // maximum match size (which may not be known), defaults to 512 bytes, may
-            // not exceed half the chunk size
+            // overlapKiBytes - size in KiBytes of partition overlap, used for finding matches
+            // that span two partitions, may not exceed half the chunk size
             public RegexSearcher(
                 Stream stream,
                 System.Text.RegularExpressions.Regex regex,
                 AutoResetEvent progress,
-                int maxMatchCount = 1000,
-                int chunkKiBytes = 512,
-                int maxWorkers = 64,
-                int overlap = 512) : this(
+                int maxMatchCount = 10000,
+                int chunkKiBytes = 1024,
+                int maxWorkers = 1000,
+                int overlapKiBytes = 1) : this(
                     stream,
                     new List<System.Text.RegularExpressions.Regex>() { regex },
                     progress,
                     maxMatchCount,
                     chunkKiBytes,
                     maxWorkers,
-                    overlap)
+                    overlapKiBytes)
             {
             }
 
@@ -181,27 +165,22 @@ namespace Imagibee {
             // maxMatchCount - places a limit on the number of matches, defaults to 1000
             // chunkKiBytes - the chunk size in KiBytes that each worker works on
             // maxWorkers - optional limit to the maximum number of simultaneous workers
-            // overlap - size in bytes of partition overlap, used for finding matches that
-            // span two partitions, when set greater than or equal to the maximum size
-            // then all matches will be found, when set smaller there is a chance that a
-            // match on a partition boundary will not be found, very large values
-            // negatively impact performance, the optimal value is the exact size of the
-            // maximum match size (which may not be known), defaults to 512 bytes, may
-            // not exceed half the chunk size
+            // overlapKiBytes - size in KiBytes of partition overlap, used for finding matches
+            // that span two partitions, may not exceed half the chunk size
             public RegexSearcher(
                 Stream stream,
                 List<System.Text.RegularExpressions.Regex> regexs,
                 AutoResetEvent progress,
-                int maxMatchCount = 1000,
-                int chunkKiBytes = 512,
-                int maxWorkers = 64,
-                int overlap = 512) : base(
+                int maxMatchCount = 10000,
+                int chunkKiBytes = 1024,
+                int maxWorkers = 1000,
+                int overlapKiBytes = 1) : base(
                     "",
                     progress,
                     JoinMode.None,
                     chunkKiBytes,
                     maxWorkers: maxWorkers,
-                    overlap: overlap)
+                    overlapKiBytes: overlapKiBytes)
             {
                 matchess = new();
                 matchQueues = new();
@@ -211,7 +190,6 @@ namespace Imagibee {
                     matchess.Add(new List<MatchData>());
                 }
                 this.maxMatchCount = maxMatchCount;
-                this.overlap = overlap;
                 base.Stream = stream;
             }
 
