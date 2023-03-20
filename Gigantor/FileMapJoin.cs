@@ -26,14 +26,14 @@ namespace Imagibee {
         // are not handled.
         //
         public abstract class FileMapJoin<T> : MapJoin<FileMapJoinData, T>, IBackground where T : struct, IMapJoinData {
+            // IBackground methods
+            public bool Running { get; private set; }
+            public bool Cancelled { get; private set; }
+            public string Error { get; private set; } = "";
+            public long ByteCount { get { return Interlocked.Read(ref byteCount); } }
+
             // Path of the last successfully started indexing operation
             public string Path { get; private set; } = "";
-
-            public bool Running { get; private set; }
-
-            public bool Cancelled { get; private set; }
-
-            public string Error { get; private set; } = "";
 
             // Create a new instance
             //
@@ -42,37 +42,34 @@ namespace Imagibee {
             // joinMode - defines the map/join mode
             // chunkKiBytes - the chunk size in KiBytes that each worker works on
             // maxWorkers - optional limit to the maximum number of simultaneous workers
-            // overlap - size in bytes of partition overlap, defaults to 0
+            // overlapKiBytes - size in KiBytes of partition overlap, defaults to 0
             public FileMapJoin(
                 string filePath,
                 AutoResetEvent progress,
                 JoinMode joinMode,
                 int chunkKiBytes,
                 int maxWorkers = 0,
-                int overlap = 0,
+                int overlapKiBytes = 0,
                 BufferMode bufferMode = BufferMode.Unbuffered)
             {
-                if (chunkKiBytes < 1) {
-                    chunkKiBytes = 1;
-                }
                 Path = filePath;
                 this.progress = progress;
                 this.joinMode = joinMode;
+                if (chunkKiBytes < 2) {
+                    // don't allow chunk size less than 2 KiBytes
+                    chunkKiBytes = 2;
+                }
+                if (overlapKiBytes < 0) {
+                    // don't allow negative overlap
+                    overlapKiBytes = 0;
+                }
+                if (overlapKiBytes > chunkKiBytes / 2) {
+                    // overlap cannot exceed 1/2 the chunk size
+                    overlapKiBytes = chunkKiBytes / 2;
+                }
                 chunkSize = chunkKiBytes * 1024;
-                this.maxWorkers = maxWorkers; //(maxWorkers == 1) ? 1:0;
-                if (overlap < 0) {
-                    // default to 512 bytes
-                    overlap = 512;
-                }
-                if (overlap > chunkSize / 2) {
-                    // enforce that overlap cannot exceed 1/2 the chunk size
-                    overlap = chunkSize / 2;
-                }
-                if (overlap % 2 != 0) {
-                    // enforce that overlap must be even valued
-                    overlap += 1;
-                }
-                this.overlap = overlap;
+                overlap = overlapKiBytes * 1024;
+                this.maxWorkers = maxWorkers;
                 this.bufferMode = bufferMode;
                 synchronize = new AutoResetEvent(false);
                 cancel = new ManualResetEvent(false);
@@ -109,8 +106,6 @@ namespace Imagibee {
             // PROTECTED INTERFACE
             //
 
-            // The quantity of bytes that have been completed
-            public long ByteCount { get { return Interlocked.Read(ref byteCount); } }
             protected long byteCount;
 
             // Normally false, this canel event can by set by the user calling Cancel,
@@ -136,6 +131,7 @@ namespace Imagibee {
 
             // Optional flags
             protected BufferMode bufferMode;
+
 
             //
             // PRIVATE IMPLEMENTATION
@@ -163,41 +159,40 @@ namespace Imagibee {
             void QueueStreamJobs(Stream stream)
             {
                 try {
-                    if (buffer == null || buffer.Length != chunkSize) {
-                        buffer = new byte[chunkSize];
+                    if (ovBuf == null || ovBuf.Length != chunkSize) {
+                        ovBuf = new byte[overlap];
                     }
                     var readSize = chunkSize - overlap;
                     var chunkNum = 0;
                     long pos = 0;
-                    var bytesRead = Utilities.ReadChunk(stream, buffer, 0, overlap);
-                    //var bytesRead = stream.Read(buf, 0, overlap);
-                    if (overlap == 0) {
-                        bytesRead = 1;
-                    }
-                    while (bytesRead != 0) {
+                    var bytesRead = Utilities.ReadChunk(stream, ovBuf, 0, overlap);
+                    do {
                         if (jobQueue.Count < maxWorkers) {
-                            bytesRead = Utilities.ReadChunk(stream, buffer, overlap, readSize);
-                            //bytesRead = stream.Read(buf, overlap, readSize);
+                            var buf = new byte[chunkSize];
+                            bytesRead = Utilities.ReadChunk(stream, buf, overlap, readSize);
+                            Array.Copy(ovBuf, 0, buf, 0, overlap);
+                            if (chunkSize != bytesRead + overlap) {
+                                Array.Resize(ref buf, bytesRead + overlap);
+                            }
                             var job = new FileMapJoinData()
                             {
                                 Id = chunkNum++,
                                 StartFpos = pos,
-                                Buf = new byte[bytesRead + overlap],
+                                Buf = buf,
                             };
-                            Array.Copy(buffer, job.Buf, job.Buf.Length);
                             jobQueue.Enqueue(job);
                             if (bytesRead < readSize || cancel.WaitOne(0)) {
                                 break;
                             }
                             pos += readSize;
-                            Array.Copy(buffer, buffer.Length - overlap, buffer, 0, overlap);
+                            Array.Copy(buf, buf.Length - overlap, ovBuf, 0, overlap);
                             synchronize.Set();
-                            //Interlocked.Add(ref byteCount, bytesRead);
                         }
                         else {
                             synchronize.WaitOne(0);
                         }
                     }
+                    while (bytesRead != 0);
                 }
                 catch (Exception e) {
                     // In the background catch all exceptions, record the text
@@ -320,14 +315,14 @@ namespace Imagibee {
             void MapJob(FileMapJoinData data)
             {
                 try {
-                    if (buffer == null || buffer.Length != chunkSize) {
-                        buffer = new byte[chunkSize];
+                    if (ovBuf == null || ovBuf.Length != chunkSize) {
+                        ovBuf = new byte[chunkSize];
                     }
                     if (data.Buf == null) {
                         using var fileStream = FileStream.Create(
                             Path, bufferSize: chunkSize, bufferMode: bufferMode);
                         fileStream.Seek(data.StartFpos, SeekOrigin.Begin);
-                        data.Buf = buffer;
+                        data.Buf = ovBuf;
                         var bytesRead = fileStream.Read(data.Buf, 0, chunkSize);
                         // If this is the final read the buffer may be smaller than the chunk
                         // and needs to be resized
@@ -357,7 +352,7 @@ namespace Imagibee {
             int scheduledChunks;
             int joins;
             bool queueDone;
-            [ThreadStatic] static byte[]? buffer;
+            [ThreadStatic] static byte[]? ovBuf;
         }
 
         // FileMapJoin job data
