@@ -1,6 +1,6 @@
 export STARTDIR=$PWD
 export MINGB=150
-export GIGANTOR_DIR=${TMPDIR}/gigantor
+export GIGANTOR_DIR=${TMPDIR}gigantor
 mkdir $GIGANTOR_DIR
 cd $GIGANTOR_DIR
 if [ ! -f "enwik9.zip" ]; then

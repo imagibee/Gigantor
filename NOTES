@@ -1,37 +1,21 @@
-Test/Benchmarking Setup
------------------------
-# Clear mac disk space by thinning 100 GB of time machine snapshots
-sudo tmutil thinlocalsnapshots / 107374182400 4
-# Prepare the benchmarking files
-Benchmarking/setup
-
-Testing
--------
-dotnet test -c Release
-
-Benchmarks
-----------
-export MYDOTNET=net7.0
-Benchmarking/run-unbuffered
-dotnet Benchmarking/SearchApp/bin/Release/${MYDOTNET}/SearchApp.dll benchmark ${TMPDIR}/enwik9x32
-dotnet Benchmarking/SearchApp/bin/Release/${MYDOTNET}/SearchApp.dll benchmark-stream ${TMPDIR}/enwik9x32.gz ${TMPDIR}/enwik9x32-1.gz ${TMPDIR}/enwik9x32-2.gz ${TMPDIR}/enwik9x32-3.gz ${TMPDIR}/enwik9x32-4.gz ${TMPDIR}/enwik9x32-5.gz ${TMPDIR}/enwik9x32-6.gz ${TMPDIR}/enwik9x32-7.gz
-
-dotnet Benchmarking/SearchApp/bin/Release/${MYDOTNET}/SearchApp.dll benchmarkstream ${TMPDIR}/enwik9.gz
-dotnet Benchmarking/SearchApp/bin/Release/${MYDOTNET}/SearchApp.dll benchmark ${TMPDIR}/enwik9
-dotnet Benchmarking/SearchApp/bin/Release/${MYDOTNET}/SearchApp.dll benchmarkstream ${TMPDIR}/enwik9
-dotnet Benchmarking/SearchApp/bin/Release/${MYDOTNET}/SearchApp.dll benchmarkstream ${TMPDIR}/enwik9.gz
-dotnet Benchmarking/LineApp/bin/Release/${MYDOTNET}/LineApp.dll benchmark ${TMPDIR}/enwik9
-dotnet Benchmarking/DuplicatApp/bin/Release/${MYDOTNET}/DuplicateApp.dll benchmark "${TMPDIR}/enwik9;${TMPDIR}/enwik91"
-
-Code Coverage
-------------
-cd Testing/Functional
-dotnet coverage collect dotnet test -f xml
-reportgenerator "-reports:output.xml" "-targetdir:TestResults"
-open TestResults/index.html
-
-Nuget
+Setup
 -----
+# 1) Clear mac disk space by thinning 100 GB of time machine snapshots
+#    $ sudo tmutil thinlocalsnapshots / 107374182400 4
+# 2) Prepare the benchmarking files
+#    $ Benchmarking/setup
+# 3) Quit all user apps
+# 4) Disable Time Machine
+# 5) Disable Power Saving Mode
+
+Scripts
+-------
+Scripts/test
+Scripts/benchmark
+Scripts/coverage
+
+Nuget Package
+-------------
 export MYVER=
 dotnet pack Gigantor -c Release
 nuget add Gigantor/bin/Release/Imagibee.Gigantor.${MYVER}.nupkg -source ~/nuget
