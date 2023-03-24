@@ -229,6 +229,8 @@ namespace BenchmarkTesting {
             List<Tuple<int, int>> cases = new()
             {
                 new Tuple<int, int>(128  * 1024 * 1024, 1),
+                new Tuple<int, int>(32768 * 1024, 1000),
+                new Tuple<int, int>(16384 * 1024, 1000),
                 new Tuple<int, int>(8192 * 1024, 1000),
                 new Tuple<int, int>(4096 * 1024, 1000),
                 new Tuple<int, int>(2048 * 1024, 1000),
