@@ -20,7 +20,7 @@ namespace Imagibee {
         // A balance between memory footprint and performance can be achieved
         // by varying chunkKiBytes and maxWorkers parameters.
         //
-        public class DuplicateChecker : FileMapJoin<MapJoinData> {
+        public class DuplicateChecker : Partitioner<PartitionData> {
             // True if the files are identical, otherwise false
             public bool Identical {
                 get {
@@ -77,14 +77,14 @@ namespace Imagibee {
                 }
             }
 
-            protected override MapJoinData Join(MapJoinData a, MapJoinData b)
+            protected override PartitionData Join(PartitionData a, PartitionData b)
             {
                 return a;
             }
 
-            protected override MapJoinData Map(FileMapJoinData data)
+            protected override PartitionData Map(PartitionerData data)
             {
-                MapJoinData result = new(){};
+                PartitionData result = new(){};
                 using var fileStream1 = new System.IO.FileStream(
                     Path,
                     FileMode.Open,

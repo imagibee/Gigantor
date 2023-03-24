@@ -14,9 +14,9 @@ using Mono.Unix.Native;
 
 
 namespace BenchmarkTesting {
-    internal class ReadThroughputTester : FileMapJoin<MapJoinData>
+    internal class ReadThroughputTester : Partitioner<PartitionData>
     {
-        MapJoinData result = new();
+        PartitionData result = new();
         [ThreadStatic] static byte[]? buffer;
 
         // Constructs a file based overhead tester
@@ -53,12 +53,12 @@ namespace BenchmarkTesting {
             Stream = stream;
         }
 
-        protected override MapJoinData Join(MapJoinData a, MapJoinData b)
+        protected override PartitionData Join(PartitionData a, PartitionData b)
         {
             return a;
         }
 
-        protected override MapJoinData Map(FileMapJoinData data)
+        protected override PartitionData Map(PartitionerData data)
         {
             // File based, read and throw away results
             if (data.Buf == null) {
@@ -77,7 +77,7 @@ namespace BenchmarkTesting {
                 }
                 while (bytesRead == chunkSize && pos < chunkSize);
             }
-            // Stream based, reading has already been done in FileMapJoin<T> base class
+            // Stream based, reading has already been done in Partition<T> base class
             else {
                 Interlocked.Add(ref byteCount, data.Buf.Length);
             }

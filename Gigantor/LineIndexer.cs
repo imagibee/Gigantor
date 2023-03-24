@@ -31,7 +31,7 @@ namespace Imagibee {
         // A balance between memory footprint and performance can be achieved
         // by varying chunkKiBytes and maxWorkers parameters.
         //
-        public class LineIndexer : FileMapJoin<LineIndexerData> {
+        public class LineIndexer : Partitioner<LineIndexerData> {
             // The number of lines that have been indexed so far
             public long LineCount { get { return Interlocked.Read(ref lineCount); } }
 
@@ -223,7 +223,7 @@ namespace Imagibee {
                 return currentChunk;
             }
 
-            protected override LineIndexerData Map(FileMapJoinData data)
+            protected override LineIndexerData Map(PartitionerData data)
             {
                 //Logger.Log($"mapping chunk {data.Id} from {Path} at {data.StartFpos}");
                 var result = new LineIndexerData()
@@ -275,8 +275,8 @@ namespace Imagibee {
             long lineCount;
         }
 
-        // FileMapJoin job data used internally but it must be declared public
-        public struct LineIndexerData : IMapJoinData {
+        // Partition job data used internally but it must be declared public
+        public struct LineIndexerData : IPartitionData {
             public int Id { get; set; }
             public int Cycle { get; set; }
             public long StartFpos;

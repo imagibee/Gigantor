@@ -6,11 +6,11 @@ using NUnit.Framework;
 using Imagibee.Gigantor;
 
 namespace Testing {
-    public class FileMapJoinTests {
+    public class PartitionerTests {
         string biblePath = "";
 
         // Test class for throwing exceptions in the code path
-        public class MapJoinErrorThrower : Partitioner<PartitionData> {
+        public class PartitionerErrorThrower : Partitioner<PartitionData> {
 
             private static readonly Random rand = new Random();
             [ThreadStatic] private static Random? tRand;
@@ -28,7 +28,7 @@ namespace Testing {
                 return tRand.Next(a, b);
             }
 
-            public MapJoinErrorThrower(
+            public PartitionerErrorThrower(
                 bool throwInMap,
                 int startId,
                 string path,
@@ -78,7 +78,7 @@ namespace Testing {
             const int iterations = 2;
             AutoResetEvent progress = new(false);
             for (var i = 0; i < iterations; i++) {
-                MapJoinErrorThrower thrower = new(
+                PartitionerErrorThrower thrower = new(
                     true,
                     1,
                     biblePath,
@@ -102,7 +102,7 @@ namespace Testing {
             const int iterations = 2;
             AutoResetEvent progress = new(false);
             for (var i = 0; i < iterations; i++) {
-                MapJoinErrorThrower thrower = new(
+                PartitionerErrorThrower thrower = new(
                     false,
                     2,
                     biblePath,

@@ -1,10 +1,7 @@
-using System.Linq;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.IO;
-using System;
-using System.IO.Pipes;
 
 namespace Imagibee {
     namespace Gigantor {
@@ -32,7 +29,7 @@ namespace Imagibee {
         // A balance between memory footprint and performance can be achieved
         // by varying maxMatchCount, chunkKiBytes and maxWorkers parameters.
         //
-        public class RegexSearcher : FileMapJoin<MapJoinData> {
+        public class RegexSearcher : Partitioner<PartitionData> {
             // The number of matches found so far
             public long MatchCount { get { return Interlocked.Read(ref matchCount); } }
 
@@ -246,12 +243,12 @@ namespace Imagibee {
                 }
             }
 
-            protected override MapJoinData Join(MapJoinData a, MapJoinData b)
+            protected override PartitionData Join(PartitionData a, PartitionData b)
             {
                 return a;
             }
 
-            protected override MapJoinData Map(FileMapJoinData data)
+            protected override PartitionData Map(PartitionerData data)
             {
                 var str = Utilities.UnsafeByteToString(data.Buf);
                 for (var i = 0; i < regexs.Count; i++) {
@@ -259,10 +256,10 @@ namespace Imagibee {
                 }
                 var bufLen = data.Buf == null ? 0:data.Buf.Length;
                 Interlocked.Add(ref byteCount, bufLen - overlap);
-                return new MapJoinData();
+                return new PartitionData();
             }
 
-            void DoMatch(FileMapJoinData data, string partition, int regexIndex)
+            void DoMatch(PartitionerData data, string partition, int regexIndex)
             {
                 var partitionMatches = regexs[regexIndex].Matches(partition);
                 if (partitionMatches.Count > 0) {

@@ -22,10 +22,10 @@ namespace Imagibee {
         //
         // Exceptions during the background processing are caught
         // and stored in Error.  If Error is not empty or Cancelled
-        // is true results are undefined.  Exceptions during Start
-        // are not handled.
+        // is true results are undefined.
         //
-        public abstract class FileMapJoin<T> : MapJoin<FileMapJoinData, T>, IBackground where T : struct, IMapJoinData {
+        public abstract class Partitioner<T> : Partition<PartitionerData, T>, IBackground where T : struct, IPartitionData
+        {
             // IBackground methods
             public bool Running { get; private set; }
             public bool Cancelled { get; private set; }
@@ -43,7 +43,7 @@ namespace Imagibee {
             // chunkKiBytes - the chunk size in KiBytes that each worker works on
             // maxWorkers - optional limit to the maximum number of simultaneous workers
             // overlapKiBytes - size in KiBytes of partition overlap, defaults to 0
-            public FileMapJoin(
+            public Partitioner(
                 string filePath,
                 AutoResetEvent progress,
                 JoinMode joinMode,
@@ -74,7 +74,7 @@ namespace Imagibee {
                 synchronize = new AutoResetEvent(false);
                 cancel = new ManualResetEvent(false);
                 resultQueue = new ConcurrentQueue<T>();
-                jobQueue = new ConcurrentQueue<FileMapJoinData>();
+                jobQueue = new ConcurrentQueue<PartitionerData>();
                 priorResult = new();
             }
 
@@ -146,7 +146,7 @@ namespace Imagibee {
                 for (long pos = 0; pos < fileInfo.Length; pos += chunkSize - overlap) {
                     //Logger.Log($"queueing file chunk {chunkNum}, {chunkSize} bytes");
                     jobQueue.Enqueue(
-                        new FileMapJoinData()
+                        new PartitionerData()
                         {
                             Id = chunkNum++,
                             StartFpos = pos,
@@ -174,7 +174,7 @@ namespace Imagibee {
                             if (chunkSize != bytesRead + overlap) {
                                 Array.Resize(ref buf, bytesRead + overlap);
                             }
-                            var job = new FileMapJoinData()
+                            var job = new PartitionerData()
                             {
                                 Id = chunkNum++,
                                 StartFpos = pos,
@@ -241,7 +241,7 @@ namespace Imagibee {
             void ScheduleChunks()
             {
                 while (scheduledChunks < maxWorkers || maxWorkers < 1) {
-                    if (jobQueue.TryDequeue(out FileMapJoinData job)) {
+                    if (jobQueue.TryDequeue(out PartitionerData job)) {
                         Interlocked.Add(ref scheduledChunks, 1);
                         ThreadPool.QueueUserWorkItem((_) => MapJob(job));
                         //Logger.Log($"scheduled chunk {job.Id}, currently {scheduledChunks} scheduled chunks");
@@ -312,7 +312,7 @@ namespace Imagibee {
                 progress.Set();
             }
 
-            void MapJob(FileMapJoinData data)
+            void MapJob(PartitionerData data)
             {
                 try {
                     if (ovBuf == null || ovBuf.Length != chunkSize) {
@@ -347,7 +347,7 @@ namespace Imagibee {
             readonly AutoResetEvent synchronize;
             readonly AutoResetEvent progress;
             readonly int maxWorkers;
-            readonly ConcurrentQueue<FileMapJoinData> jobQueue;
+            readonly ConcurrentQueue<PartitionerData> jobQueue;
             readonly ConcurrentQueue<T> resultQueue;
             int scheduledChunks;
             int joins;
@@ -355,8 +355,8 @@ namespace Imagibee {
             [ThreadStatic] static byte[]? ovBuf;
         }
 
-        // FileMapJoin job data
-        public struct FileMapJoinData : IMapJoinData {
+        // Partition job data
+        public struct PartitionerData : IPartitionData {
             public int Id { get; set; }
             public int Cycle { get; set; }
             public long StartFpos { get; set; }
