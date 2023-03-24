@@ -15,11 +15,11 @@ namespace NugetTesting {
         public void Setup()
         {
             enwik9Path = Path.Combine(
-                Path.Combine(
-                    Path.GetTempPath(), "gigantor"), "enwik9");
+                Path.Combine(Path.GetTempPath(), "gigantor"),
+                "enwik9");
             biblePath = Path.Combine(
-                Path.Combine(
-                    Path.GetTempPath(), "gigantor"), "10.txt.utf-8");
+                Path.Combine(Path.GetTempPath(), "gigantor"),
+                "10.txt.utf-8");
         }
 
         [Test]
@@ -81,7 +81,8 @@ namespace NugetTesting {
                     searcher.GetMatchData()[0].StartFpos);
 
                 // Open the searched file for reading
-                using var fileStream = Imagibee.Gigantor.FileStream.Create(enwik9Path);
+                using var fileStream = Imagibee.Gigantor.FileStream.Create(
+                    enwik9Path, 4096 * 1024);
                 Imagibee.Gigantor.StreamReader gigantorReader = new(fileStream);
 
                 // Seek to the first line we want to read
