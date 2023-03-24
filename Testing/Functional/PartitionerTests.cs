@@ -10,7 +10,7 @@ namespace Testing {
         string biblePath = "";
 
         // Test class for throwing exceptions in the code path
-        public class MapJoinErrorThrower : FileMapJoin<MapJoinData> {
+        public class MapJoinErrorThrower : Partitioner<PartitionData> {
 
             private static readonly Random rand = new Random();
             [ThreadStatic] private static Random? tRand;
@@ -42,17 +42,17 @@ namespace Testing {
                 this.startId = startId;
             }
 
-            protected override MapJoinData Map(FileMapJoinData data)
+            protected override PartitionData Map(PartitionerData data)
             {
                 //Logger.Log($"{data.Id}");
                 Thread.Sleep(Next(1, 5));
                 if (throwInMap && data.Id > startId) {
                     throw new Exception($"map error {data.Id}");
                 }
-                return new MapJoinData() { Id = data.Id };
+                return new PartitionData() { Id = data.Id };
             }
 
-            protected override MapJoinData Join(MapJoinData a, MapJoinData b)
+            protected override PartitionData Join(PartitionData a, PartitionData b)
             {
                 Thread.Sleep(Next(1,5));
                 if (!throwInMap && a.Id > startId) {
