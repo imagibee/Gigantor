@@ -2,6 +2,7 @@
 using System.Text.RegularExpressions;
 using Imagibee.Gigantor;
 using System.Diagnostics;
+using System;
 
 #pragma warning disable CS0436
 
@@ -99,6 +100,28 @@ namespace NugetTesting {
                         gigantorReader.ReadLine());
                 }
             }
+        }
+
+        // Don't run, just compile
+        public void IndexerExample()
+        {
+            AutoResetEvent progress = new(false);
+
+            // Create the indexer
+            LineIndexer indexer = new("myfile", progress);
+
+            // Do the indexing
+            Imagibee.Gigantor.Background.StartAndWait(
+            indexer,
+                progress,
+                (_) => { Console.Write("."); },
+                1000);
+
+            // Use indexer to print the middle line
+            using System.IO.FileStream fs = new("myfile", FileMode.Open);
+            Imagibee.Gigantor.StreamReader reader = new(fs);
+            fs.Seek(indexer.PositionFromLine(indexer.LineCount / 2), SeekOrigin.Begin);
+            Console.WriteLine(reader.ReadLine());
         }
 
         [Test]
