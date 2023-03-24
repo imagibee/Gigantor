@@ -12,41 +12,44 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Mono.Unix.Native;
 
-#pragma warning disable CS8618
 
 namespace BenchmarkTesting {
-    internal class OverheadTester : FileMapJoin<MapJoinData>
+    internal class ReadThroughputTester : FileMapJoin<MapJoinData>
     {
         MapJoinData result = new();
+        [ThreadStatic] static byte[]? buffer;
 
-        public OverheadTester(
+        // Constructs a file based overhead tester
+        public ReadThroughputTester(
             string path,
             AutoResetEvent progress,
-            int chunkSize,
-            int maxWorkers) :
+            int chunkKiBytes,
+            int maxWorkers,
+            BufferMode bufferMode = BufferMode.Unbuffered) :
             base(
                 path,
                 progress,
                 JoinMode.Sequential,
-                chunkKiBytes: chunkSize,
-                maxWorkers: maxWorkers)
+                chunkKiBytes: chunkKiBytes,
+                maxWorkers: maxWorkers,
+                overlapKiBytes: 0,
+                bufferMode: bufferMode)
         {
-            this.chunkSize = chunkSize;
         }
 
-        public OverheadTester(
+        // Constructs a stream based overhead tester
+        public ReadThroughputTester(
             System.IO.FileStream stream,
             AutoResetEvent progress,
-            int chunkSize,
+            int chunkKiBytes,
             int maxWorkers) :
             base(
                 "",
                 progress,
                 JoinMode.Sequential,
-                chunkKiBytes: chunkSize,
+                chunkKiBytes: chunkKiBytes,
                 maxWorkers: maxWorkers)
         {
-            this.chunkSize = chunkSize;
             Stream = stream;
         }
 
@@ -57,175 +60,550 @@ namespace BenchmarkTesting {
 
         protected override MapJoinData Map(FileMapJoinData data)
         {
-            //Console.WriteLine($"chunk {data.Id} at {data.StartFpos}");
-            var bufferSize = 500 * 1000;
+            // File based, read and throw away results
             if (data.Buf == null) {
-                using var fileStream = new System.IO.FileStream(
-                    Path,
-                    FileMode.Open,
-                    FileAccess.Read,
-                    FileShare.Read,
-                    chunkSize,
-                    FileOptions.Asynchronous);
+                using var fileStream = Imagibee.Gigantor.FileStream.Create(
+                    Path, chunkKiBytes: chunkSize / 1024, bufferMode: bufferMode);
                 fileStream.Seek(data.StartFpos, SeekOrigin.Begin);
                 long pos = 0;
                 var bytesRead = 0;
-                byte[] buffer = new byte[bufferSize];
+                if (buffer == null) {
+                    buffer = new byte[chunkSize];
+                }
                 do {
-                    bytesRead = fileStream.Read(buffer, 0, bufferSize);
+                    bytesRead = fileStream.Read(buffer, 0, chunkSize);
                     Interlocked.Add(ref byteCount, bytesRead);
                     pos += bytesRead;
                 }
-                while (bytesRead == bufferSize && pos < chunkSize);
+                while (bytesRead == chunkSize && pos < chunkSize);
             }
-            Interlocked.Add(ref byteCount, bufferSize);
+            // Stream based, reading has already been done in FileMapJoin<T> base class
+            else {
+                Interlocked.Add(ref byteCount, data.Buf.Length);
+            }
             return result;
+        }
+
+        internal static void ReadAndThrowAway(System.IO.FileStream stream, byte[] buf)
+        {
+            var bytesRead = 0;
+            do {
+                bytesRead = stream.Read(buf, 0, buf.Length);
+            }
+            while (bytesRead == buf.Length);
+        }
+    }
+
+    // disposes of 1 or more IDisposable
+    class Disposables : IDisposable {
+        List<IDisposable> disposables = new();
+        public void Add(IDisposable d)
+        {
+            disposables.Add(d);
+        }
+
+        public void Dispose()
+        {
+            for (var i = disposables.Count - 1; i >= 0; i--) {
+                disposables[i].Dispose();
+            }
         }
     }
 
     public class BenchmarkTests {
-        string enwik9Path;
+        const string pattern = @"/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#()?&//=]*)/";
+        string testPath = "";
+        Regex regex = new(pattern, RegexOptions.Compiled);
 
         [SetUp]
         public void Setup()
         {
-            enwik9Path = Utilities.GetEnwik9();
+            testPath = $"{Utilities.GetEnwik9()}x32";
+        }
+
+        public void BaselineReadThroughputTest(BufferMode bufferMode)
+        {
+            var chunkKiBytes = 128 * 1024;
+            Console.WriteLine($"{TestContext.CurrentContext.Test.Name} " +
+                $"{Utilities.FileByteCount(testPath) / 1e6} MByte " +
+                $"file with {chunkKiBytes} KiByte buffer size");
+            var totalBytes = Utilities.FileByteCount(testPath);
+            Stopwatch stopwatch = new();
+            AutoResetEvent progress = new(false);
+            using var fileStream = Imagibee.Gigantor.FileStream.Create(
+                testPath, chunkKiBytes: chunkKiBytes, bufferMode: bufferMode);
+            var buf = new byte[chunkKiBytes * 1024];
+            fileStream.Seek(0, SeekOrigin.Begin);
+            stopwatch.Start();
+            ReadThroughputTester.ReadAndThrowAway(fileStream, buf);
+            stopwatch.Stop();
+            Console.WriteLine(
+                $"main thread: " +
+                $"{totalBytes / stopwatch.Elapsed.TotalSeconds / 1e6} MBps");
+            stopwatch.Reset();
+            fileStream.Close();
+        }
+
+        public void FileReadThroughputTest(BufferMode bufferMode)
+        {
+            Stopwatch stopwatch = new();
+            AutoResetEvent progress = new(false);
+            List<Tuple<int, int>> cases = new()
+            {
+                new Tuple<int, int>(128 * 1024, 1),
+                new Tuple<int, int>(2048, 1000),
+                new Tuple<int, int>(1024, 1000),
+                new Tuple<int, int>(512, 1000),
+                new Tuple<int, int>(256, 1000),
+                new Tuple<int, int>(128, 1000),
+                new Tuple<int, int>(64, 1000),
+            };
+            foreach (var c in cases) {
+                ReadThroughputTester tester = new(
+                    testPath,
+                    progress,
+                    chunkKiBytes: c.Item1,
+                    maxWorkers: c.Item2,
+                    bufferMode: bufferMode);
+                stopwatch.Start();
+                Background.StartAndWait(
+                    tester,
+                    progress,
+                    (_) => { },
+                    1000);
+                stopwatch.Stop();
+                Console.WriteLine($"{TestContext.CurrentContext.Test.Name} " +
+                    $"{tester.ByteCount / 1e6} MByte " +
+                    $"file with {c.Item1} KiByte buffer size");
+                Console.WriteLine(
+                    $"{c.Item2} threads: " +
+                    $"{tester.ByteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps");
+                stopwatch.Reset();
+            }
         }
 
 
-        // Example code
-        public void DoBenchmark(string path, string word)
+        public void StreamReadThroughputTest(BufferMode bufferMode)
         {
-            // Create the dependencies we will need
-            Regex regex = new(word, RegexOptions.Compiled);
-            AutoResetEvent progress = new(false);
             Stopwatch stopwatch = new();
-
-            // Benchmark results with differing number of threads
-            foreach (var numWorkers in new List<int>() { 1, 128 }) {
-                Console.WriteLine($"Starting search with {numWorkers} thread(s)");
+            AutoResetEvent progress = new(false);
+            List<Tuple<int, int>> cases = new()
+            {
+                new Tuple<int, int>(128 * 1024, 1),
+                new Tuple<int, int>(32768, 1000),
+                new Tuple<int, int>(16384, 1000),
+                new Tuple<int, int>(8192, 1000),
+                new Tuple<int, int>(4096, 1000),
+            };
+            foreach (var c in cases) {
+                using var fileStream = Imagibee.Gigantor.FileStream.Create(
+                    testPath, chunkKiBytes: c.Item1, bufferMode: bufferMode);
+                fileStream.Seek(0, SeekOrigin.Begin);
+                ReadThroughputTester tester = new(
+                    fileStream,
+                    progress,
+                    chunkKiBytes: c.Item1,
+                    maxWorkers: c.Item2);
                 stopwatch.Start();
+                Background.StartAndWait(
+                    tester,
+                    progress,
+                    (_) => { },
+                    1000);
+                stopwatch.Stop();
+                Console.WriteLine($"{TestContext.CurrentContext.Test.Name} " +
+                    $"{tester.ByteCount / 1e6} MByte " +
+                    $"file with {c.Item1} KiByte buffer size");
+                Console.WriteLine(
+                    $"{c.Item2} threads: " +
+                    $"{tester.ByteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps");
+                stopwatch.Reset();
+                fileStream.Close();
+            }
+        }
 
-                // Create the searcher
+        public void LineIndexingTest(BufferMode bufferMode)
+        {
+            Stopwatch stopwatch = new();
+            AutoResetEvent progress = new(false);
+            List<Tuple<int, int>> cases = new()
+            {
+                new Tuple<int, int>(131072, 1),
+                new Tuple<int, int>(8192, 1000),
+                new Tuple<int, int>(4096, 1000),
+                new Tuple<int, int>(2048, 1000),
+                new Tuple<int, int>(1024, 1000),
+                new Tuple<int, int>(512, 1000),
+                new Tuple<int, int>(256, 1000),
+                new Tuple<int, int>(128, 1000),
+                new Tuple<int, int>(64, 1000),
+            };
+            foreach (var c in cases) {
+                LineIndexer indexer = new(
+                    testPath,
+                    progress,
+                    chunkKiBytes: c.Item1,
+                    maxWorkers: c.Item2,
+                    bufferMode: bufferMode);
+                stopwatch.Start();
+                Background.StartAndWait(
+                    indexer,
+                    progress,
+                    (_) => { },
+                    1000);
+                stopwatch.Stop();
+                Console.WriteLine($"{TestContext.CurrentContext.Test.Name} " +
+                    $"{indexer.ByteCount / 1e6} MByte " +
+                    $"file with {c.Item1} KiByte buffer size");
+                Console.WriteLine(
+                    $"{c.Item2} threads: " +
+                    $"{indexer.ByteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps " +
+                    $"with {indexer.LineCount} lines");
+                stopwatch.Reset();
+            }
+        }
+
+        public void FileURLSearchTest(BufferMode bufferMode)
+        {
+            Stopwatch stopwatch = new();
+            AutoResetEvent progress = new(false);
+            List<Tuple<int, int>> cases = new()
+            {
+                new Tuple<int, int>(131072, 1),
+                new Tuple<int, int>(4096, 1000),
+                new Tuple<int, int>(2048, 1000),
+                new Tuple<int, int>(1024, 1000),
+                new Tuple<int, int>(512, 1000),
+                new Tuple<int, int>(256, 1000),
+                new Tuple<int, int>(128, 1000),
+                new Tuple<int, int>(64, 1000),
+            };
+            foreach (var c in cases) {
                 RegexSearcher searcher = new(
-                    path,
+                    testPath,
                     regex,
                     progress,
-                    maxMatchCount: 1000,
-                    maxWorkers: numWorkers);
-
-                // Start and wait for completion
-                Background.StartAndWait(
-                    new List<IBackground>() { searcher },
-                    progress,
-                    (_) => { Console.Write("."); },
-                    1000);
-                Console.Write('\n');
-
-                // Display results
-                var runTime = stopwatch.Elapsed.TotalSeconds;
-                Console.WriteLine($"Completed in {runTime} seconds");
-                stopwatch.Reset();
-            }
-        }
-
-        [Test]
-        public void FileOverheadTest()
-        {
-            var totalBytes = Utilities.FileByteCount(enwik9Path);
-            Stopwatch stopwatch = new();
-            AutoResetEvent progress = new(false);
-            Console.WriteLine("File overhead");
-            foreach (var numWorkers in new List<int>() { 1, 2, 4, 8, 16, 32, 64, 128 }) {
-                OverheadTester tester = new(
-                    enwik9Path,
-                    progress,
-                    (int)(totalBytes / numWorkers),
-                    numWorkers);
+                    chunkKiBytes: c.Item1,
+                    maxWorkers: c.Item2,
+                    maxMatchCount: 100000,
+                    bufferMode: bufferMode);
                 stopwatch.Start();
                 Background.StartAndWait(
-                    tester,
+                    searcher,
                     progress,
                     (_) => { },
                     1000);
                 stopwatch.Stop();
+                Console.WriteLine($"{TestContext.CurrentContext.Test.Name} " +
+                    $"{searcher.ByteCount / 1e6} MByte " +
+                    $"file with {c.Item1} KiByte buffer size");
                 Console.WriteLine(
-                    $"{numWorkers} threads " +
-                    $"{tester.ByteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps, " +
-                    $"{tester.ByteCount / 1e6} MBytes, {stopwatch.Elapsed.TotalSeconds} seconds ({numWorkers} threads)");
+                    $"{c.Item2} threads: " +
+                    $"{searcher.ByteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps " +
+                    $"with {searcher.MatchCount} matches");
                 stopwatch.Reset();
             }
         }
 
-        [Test]
-        public void StreamOverheadTest()
+        public void StreamURLSearchTest(BufferMode bufferMode)
         {
-            var bufferSize = 500 * 1000;
-            var totalBytes = Utilities.FileByteCount(enwik9Path);
             Stopwatch stopwatch = new();
             AutoResetEvent progress = new(false);
-            Console.WriteLine("Stream overhead");
-            using var fileStream = new System.IO.FileStream(
-                enwik9Path,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.Read,
-                bufferSize,
-                FileOptions.Asynchronous);
-            foreach (var numWorkers in new List<int>() { 1, 2, 4, 8, 16, 32, 64, 128 }) {
+            List<Tuple<int, int>> cases = new()
+            {
+                new Tuple<int, int>(131072, 1),
+                new Tuple<int, int>(4096, 1000),
+                new Tuple<int, int>(2048, 1000),
+                new Tuple<int, int>(1024, 1000),
+                new Tuple<int, int>(512, 1000),
+                new Tuple<int, int>(256, 1000),
+                new Tuple<int, int>(128, 1000),
+                new Tuple<int, int>(64, 1000),
+            };
+            foreach (var c in cases) {
+                using var fileStream = Imagibee.Gigantor.FileStream.Create(
+                    testPath, chunkKiBytes: c.Item1, bufferMode: bufferMode);
                 fileStream.Seek(0, SeekOrigin.Begin);
-                OverheadTester tester = new(
+                RegexSearcher searcher = new(
                     fileStream,
+                    regex,
                     progress,
-                    bufferSize,
-                    numWorkers);
+                    chunkKiBytes: c.Item1,
+                    maxWorkers: c.Item2,
+                    maxMatchCount: 100000);
                 stopwatch.Start();
                 Background.StartAndWait(
-                    tester,
+                    searcher,
                     progress,
                     (_) => { },
                     1000);
                 stopwatch.Stop();
+                Console.WriteLine($"{TestContext.CurrentContext.Test.Name} " +
+                    $"{searcher.ByteCount / 1e6} MByte " +
+                    $"file with {c.Item1} KiByte buffer size");
                 Console.WriteLine(
-                    $"{numWorkers} threads " +
-                    $"{tester.ByteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps, " +
-                    $"{tester.ByteCount / 1e6} MBytes, {stopwatch.Elapsed.TotalSeconds} seconds ({numWorkers} threads)");
+                    $"{c.Item2} threads: " +
+                    $"{searcher.ByteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps " +
+                    $"with {searcher.MatchCount} matches");
                 stopwatch.Reset();
+                fileStream.Close();
             }
-            fileStream.Close();
         }
 
-        [Test]
-        public void UnbufferedOverheadTest()
+        public void CompressedStreamURLSearchTest(BufferMode bufferMode)
         {
-            var bufferSize = 500 * 1000;
-            var totalBytes = Utilities.FileByteCount(enwik9Path);
             Stopwatch stopwatch = new();
             AutoResetEvent progress = new(false);
-            Console.WriteLine("Unbuffered overhead");
-            using var fileStream = Imagibee.Gigantor.FileStream.Create(
-                enwik9Path, bufferSize: bufferSize);
-            foreach (var numWorkers in new List<int>() { 1, 2, 4, 8, 16, 32, 64, 128 }) {
+            List<Tuple<int, int>> cases = new()
+            {
+                new Tuple<int, int>(131072, 1),
+                new Tuple<int, int>(32768, 1000),
+                new Tuple<int, int>(16384, 1000),
+                new Tuple<int, int>(8192, 1000),
+                new Tuple<int, int>(4096, 1000),
+            };
+            foreach (var c in cases) {
+                using var fileStream = Imagibee.Gigantor.FileStream.Create(
+                    $"{testPath}.gz", chunkKiBytes: c.Item1, bufferMode: bufferMode);
                 fileStream.Seek(0, SeekOrigin.Begin);
-                OverheadTester tester = new(
-                    fileStream,
+                using var gzStream = new GZipStream(
+                    fileStream, CompressionMode.Decompress, true);
+                RegexSearcher searcher = new(
+                    gzStream,
+                    regex,
                     progress,
-                    bufferSize,
-                    numWorkers);
+                    chunkKiBytes: c.Item1,
+                    maxWorkers: c.Item2,
+                    maxMatchCount: 100000);
                 stopwatch.Start();
                 Background.StartAndWait(
-                    tester,
+                    searcher,
                     progress,
                     (_) => { },
                     1000);
                 stopwatch.Stop();
+                Console.WriteLine($"{TestContext.CurrentContext.Test.Name} " +
+                    $"{searcher.ByteCount / 1e6} MByte " +
+                    $"file with {c.Item1} KiByte buffer size");
                 Console.WriteLine(
-                    $"{numWorkers} threads " +
-                    $"{tester.ByteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps, " +
-                    $"{tester.ByteCount / 1e6} MBytes, {stopwatch.Elapsed.TotalSeconds} seconds ({numWorkers} threads)");
+                    $"{c.Item2} threads: " +
+                    $"{searcher.ByteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps " +
+                    $"with {searcher.MatchCount} matches");
+                stopwatch.Reset();
+                gzStream.Close();
+                fileStream.Close();
+            }
+        }
+
+        public void FileMultipleURLSearchTest(BufferMode bufferMode)
+        {
+            var chunkKiBytes = 256;
+            var maxWorkers = 1000;
+            var maxRegexes = 10;
+            Stopwatch stopwatch = new();
+            AutoResetEvent progress = new(false);
+            for (var numRegexes=2; numRegexes<=maxRegexes; numRegexes++) {
+                List<Regex> regexs = new List<Regex>();
+                for (var i = 0; i < numRegexes; i++) {
+                    regexs.Add(new(pattern, RegexOptions.Compiled));
+                }
+                RegexSearcher searcher = new(
+                    testPath,
+                    regexs,
+                    progress,
+                    chunkKiBytes: chunkKiBytes,
+                    maxWorkers: maxWorkers,
+                    maxMatchCount: 1000000,
+                    bufferMode: bufferMode);
+                stopwatch.Start();
+                Background.StartAndWait(
+                    searcher,
+                    progress,
+                    (_) => { },
+                    1000);
+                stopwatch.Stop();
+                var byteCount = searcher.ByteCount * numRegexes;
+                Console.WriteLine($"{numRegexes} x {TestContext.CurrentContext.Test.Name} " +
+                    $"{byteCount / 1e6} MByte " +
+                    $"data with {chunkKiBytes} KiByte buffer size");
+                Console.WriteLine(
+                    $"{maxWorkers} threads: " +
+                    $"{byteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps " +
+                    $"with {searcher.MatchCount} matches");
                 stopwatch.Reset();
             }
-            fileStream.Close();
+        }
+
+        public void MultipleCompressedStreamURLSearchTest(BufferMode bufferMode)
+        {
+            var chunkKiBytes = 8192;
+            var maxWorkers = 1000;
+            var maxFiles = 5;
+            Stopwatch stopwatch = new();
+            AutoResetEvent progress = new(false);
+            List<System.IO.FileStream> files = new();
+            List<GZipStream> gZips = new();
+            Disposables disposables = new();
+            for (var i=0; i<maxFiles; i++) {
+                var path = $"{testPath}-{i}.gz";
+                if (i==0) {
+                    path = $"{testPath}.gz";
+                }
+                var f = Imagibee.Gigantor.FileStream.Create(
+                    path, chunkKiBytes: chunkKiBytes, bufferMode: bufferMode);
+                var g = new GZipStream(f, CompressionMode.Decompress, true);
+                files.Add(f);
+                gZips.Add(g);
+                disposables.Add(f);
+                disposables.Add(g);
+            }
+            using (disposables) {
+                for (var numFiles = 2; numFiles <= maxFiles; numFiles++) {
+                    List<RegexSearcher> searchers = new();
+                    List<IBackground> processes = new();
+                    for (var j = 0; j < numFiles; j++) {
+                        files[j].Seek(0, SeekOrigin.Begin);
+                        RegexSearcher s = new(
+                            gZips[j],
+                            new Regex(pattern, RegexOptions.Compiled),
+                            progress,
+                            chunkKiBytes: chunkKiBytes,
+                            maxWorkers: maxWorkers,
+                            maxMatchCount: 100000);
+                        searchers.Add(s);
+                        processes.Add(s);
+                    }
+                    stopwatch.Start();
+                    Background.StartAndWait(
+                        processes,
+                        progress,
+                        (_) => { },
+                        1000);
+                    stopwatch.Stop();
+                    long byteCount = 0;
+                    long matchCount = 0;
+                    foreach (var s in searchers) {
+                        byteCount += s.ByteCount;
+                        matchCount += s.MatchCount;
+                    }
+                    Console.WriteLine($"{numFiles} x {TestContext.CurrentContext.Test.Name} " +
+                        $"{byteCount / 1e6} MByte " +
+                        $"data with {chunkKiBytes} KiByte buffer size");
+                    Console.WriteLine(
+                        $"{maxWorkers} threads: " +
+                        $"{byteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps " +
+                        $"with {matchCount} matches");
+                    stopwatch.Reset();
+                }
+            }
+        }
+
+        [Test, Order(1)]
+        public void BufferedBaselineReadThroughputTest()
+        {
+            BaselineReadThroughputTest(BufferMode.Buffered);
+        }
+
+        [Test, Order(2)]
+        public void UnbufferedBaselineReadThroughputTest()
+        {
+            BaselineReadThroughputTest(BufferMode.Unbuffered);
+        }
+
+        [Test, Order(3)]
+        public void BufferedFileReadThroughputTest()
+        {
+            FileReadThroughputTest(BufferMode.Buffered);
+        }
+
+        [Test, Order(4)]
+        public void UnbufferedFileReadThroughputTest()
+        {
+            FileReadThroughputTest(BufferMode.Unbuffered);
+        }
+
+        [Test, Order(5)]
+        public void BufferedStreamReadThroughputTest()
+        {
+            StreamReadThroughputTest(BufferMode.Buffered);
+        }
+
+        [Test, Order(6)]
+        public void UnbufferedStreamReadThroughputTest()
+        {
+            StreamReadThroughputTest(BufferMode.Unbuffered);
+        }
+
+        [Test, Order(7)]
+        public void BufferedLineIndexingTest()
+        {
+            LineIndexingTest(BufferMode.Buffered);
+        }
+
+        [Test, Order(8)]
+        public void UnbufferedLineIndexingTest()
+        {
+            LineIndexingTest(BufferMode.Unbuffered);
+        }
+
+        [Test, Order(9)]
+        public void BufferedFileURLSearchTest()
+        {
+            FileURLSearchTest(BufferMode.Buffered);
+        }
+
+        [Test, Order(10)]
+        public void UnbfferedFileURLSearchTest()
+        {
+            FileURLSearchTest(BufferMode.Unbuffered);
+        }
+
+        [Test, Order(11)]
+        public void BufferedStreamURLSearchTest()
+        {
+            StreamURLSearchTest(BufferMode.Buffered);
+        }
+
+        [Test, Order(12)]
+        public void UnbufferedStreamURLSearchTest()
+        {
+            StreamURLSearchTest(BufferMode.Unbuffered);
+        }
+
+        [Test, Order(13)]
+        public void BufferedCompressedStreamURLSearchTest()
+        {
+            CompressedStreamURLSearchTest(BufferMode.Buffered);
+        }
+
+        [Test, Order(14)]
+        public void UnbufferedCompressedStreamURLSearchTest()
+        {
+            CompressedStreamURLSearchTest(BufferMode.Unbuffered);
+        }
+
+        [Test, Order(15)]
+        public void BufferedFileMultipleURLSearchTest()
+        {
+            FileMultipleURLSearchTest(BufferMode.Buffered);
+        }
+
+        [Test, Order(16)]
+        public void UnbfferedFileMultipleURLSearchTest()
+        {
+            FileMultipleURLSearchTest(BufferMode.Unbuffered);
+        }
+
+        [Test, Order(17)]
+        public void BufferedMultipleCompressedStreamURLSearchTest()
+        {
+            MultipleCompressedStreamURLSearchTest(BufferMode.Buffered);
+        }
+
+        [Test, Order(18)]
+        public void UnbufferedMultipleCompressedStreamURLSearchTest()
+        {
+            MultipleCompressedStreamURLSearchTest(BufferMode.Unbuffered);
         }
     }
 }
