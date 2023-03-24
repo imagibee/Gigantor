@@ -5,13 +5,11 @@ using System.IO;
 using NUnit.Framework;
 using Imagibee.Gigantor;
 
-#pragma warning disable CS8618
-
 namespace Testing {
     public class LineIndexerTests {
-        readonly int chunkKiBytes = 64;
+        readonly int chunkKiBytes = 1024;
         readonly int maxWorkers = 1;
-        string enwik9Path;
+        string enwik9Path = "";
         const string LINE_000001 = "<mediawiki xmlns=\"http://www.mediawiki.org/xml/export-0.3/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.mediawiki.org/xml/export-0.3/ http://www.mediawiki.org/xml/export-0.3.xsd\" version=\"0.3\" xml:lang=\"en\">";
         const string LINE_001515 = "    <title>ArtificialLanguages</title>";
         const string LINE_001516 = "    <id>56</id>";
@@ -62,7 +60,7 @@ namespace Testing {
         public void FilePositionTest()
         {
             AutoResetEvent progress = new(false);
-            LineIndexer indexer = new(enwik9Path, progress, chunkKiBytes: 512, maxWorkers: 0);
+            LineIndexer indexer = new(enwik9Path, progress, chunkKiBytes: 2 * 1024, maxWorkers: 0);
             Background.StartAndWait(
                 indexer,
                 progress,
@@ -96,7 +94,7 @@ namespace Testing {
         public void LineNumberTest()
         {
             AutoResetEvent progress = new(false);
-            LineIndexer indexer = new(enwik9Path, progress, chunkKiBytes: 511, maxWorkers: 0);
+            LineIndexer indexer = new(enwik9Path, progress, chunkKiBytes: 3 * 1024, maxWorkers: 0);
             Background.StartAndWait(indexer, progress, (_) => { });
             Assert.AreEqual(true, indexer.Error == "");
             Assert.AreEqual(false, indexer.Cancelled);

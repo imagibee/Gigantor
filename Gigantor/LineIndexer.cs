@@ -238,7 +238,7 @@ namespace Imagibee {
                         
                 };
                 using var fileStream = FileStream.Create(
-                    Path, bufferSize: chunkSize, bufferMode: bufferMode);
+                    Path, chunkKiBytes: chunkSize / 1024, bufferMode: bufferMode);
                 fileStream.Seek(data.StartFpos, SeekOrigin.Begin);
                 var buf = new byte[chunkSize];
                 var bytesRead = fileStream.Read(buf, 0, chunkSize);

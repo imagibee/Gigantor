@@ -5,7 +5,6 @@ using System.Threading;
 using System.IO;
 using System;
 using System.IO.Pipes;
-using System.Text.RegularExpressions;
 
 namespace Imagibee {
     namespace Gigantor {
@@ -74,7 +73,7 @@ namespace Imagibee {
                 string filePath,
                 System.Text.RegularExpressions.Regex regex,
                 AutoResetEvent progress,
-                int maxMatchCount = 10000,
+                int maxMatchCount = 100000,
                 int chunkKiBytes = 1024,
                 int maxWorkers = 1000,
                 int overlapKiBytes = 1,
@@ -102,11 +101,12 @@ namespace Imagibee {
             // that span two partitions, may not exceed half the chunk size
             // bufferMode - choose whether or not files are buffered, for gigantic files
             // unbuffered tends to be faster
+            // encoding - then encoding of the data, defaults to ASCII
             public RegexSearcher(
                 string filePath,
                 List<System.Text.RegularExpressions.Regex> regexs,
                 AutoResetEvent progress,
-                int maxMatchCount = 10000,
+                int maxMatchCount = 100000,
                 int chunkKiBytes = 1024,
                 int maxWorkers = 1000,
                 int overlapKiBytes = 1,
@@ -143,7 +143,7 @@ namespace Imagibee {
                 Stream stream,
                 System.Text.RegularExpressions.Regex regex,
                 AutoResetEvent progress,
-                int maxMatchCount = 10000,
+                int maxMatchCount = 100000,
                 int chunkKiBytes = 1024,
                 int maxWorkers = 1000,
                 int overlapKiBytes = 1) : this(
@@ -171,10 +171,11 @@ namespace Imagibee {
                 Stream stream,
                 List<System.Text.RegularExpressions.Regex> regexs,
                 AutoResetEvent progress,
-                int maxMatchCount = 10000,
+                int maxMatchCount = 100000,
                 int chunkKiBytes = 1024,
                 int maxWorkers = 1000,
-                int overlapKiBytes = 1) : base(
+                int overlapKiBytes = 1,
+                System.Text.Encoding? encoding = null) : base(
                     "",
                     progress,
                     JoinMode.None,
@@ -267,7 +268,7 @@ namespace Imagibee {
                 if (partitionMatches.Count > 0) {
                     var newMatches = 0;
                     for (int i = 0; i < partitionMatches.Count; i++) {
-                        Match match = partitionMatches[i];
+                        System.Text.RegularExpressions.Match match = partitionMatches[i];
                         if (match != null && matchCount < maxMatchCount) {
                             var groups = new List<GroupData>();
                             for (var j=0; j<match.Groups.Count; j++)  {

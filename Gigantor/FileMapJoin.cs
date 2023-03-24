@@ -319,8 +319,8 @@ namespace Imagibee {
                         ovBuf = new byte[chunkSize];
                     }
                     if (data.Buf == null) {
-                        using var fileStream = FileStream.Create(
-                            Path, bufferSize: chunkSize, bufferMode: bufferMode);
+                        using var fileStream = Imagibee.Gigantor.FileStream.Create(
+                            Path, chunkKiBytes: chunkSize / 1024, bufferMode: bufferMode);
                         fileStream.Seek(data.StartFpos, SeekOrigin.Begin);
                         data.Buf = ovBuf;
                         var bytesRead = fileStream.Read(data.Buf, 0, chunkSize);

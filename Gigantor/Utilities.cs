@@ -104,30 +104,20 @@ namespace Imagibee {
                 }
                 return true;
             }
-            // Progress bar class for examples
-            internal class ByteProgress {
-                int maxLength;
-                int lastLength;
-                long totalBytes;
 
-                public ByteProgress(int maxLength, long totalBytes)
-                {
-                    this.maxLength = maxLength;
-                    this.totalBytes = totalBytes;
-                }
+            //internal static string ByteToString(byte[]? value, Encoding? encoding)
+            //{
+            //    if (value == null) {
+            //        return "";
+            //    }
+            //    return (encoding ?? Encoding.UTF8).GetString(value);
+            //}
 
-                public void Update(long byteCount)
-                {
-                    var progressLength = (int)(maxLength * byteCount / totalBytes);
-                    for (var i = 0; i < progressLength - lastLength; i++) {
-                        Console.Write('#');
-                    }
-                    lastLength = progressLength;
-                }
-            }
-
-            internal static unsafe string UnsafeByteToString(byte[] value)
+            internal static unsafe string UnsafeByteToString(byte[]? value)
             {
+                if (value == null) {
+                    return "";
+                }
                 var length = value.Length;
                 string str = new('\0', length);
                 unsafe {
@@ -152,7 +142,7 @@ namespace Imagibee {
 
             internal static void ThrowBenchmarkSetupException()
             {
-                throw new ApplicationException("must run Benchmark/setup first");
+                throw new ApplicationException("must run Scripts/setup first");
             }
 
             internal static string GetEnwik9Gz()
@@ -226,9 +216,13 @@ namespace Imagibee {
             // https://stackoverflow.com/questions/3825390/effective-way-to-find-any-files-encoding
             internal static bool TryGetEncoding(byte[] bom, ref Encoding encoding)
             {
+                if (bom.Length < 4) {
+                    return false;
+                }
                 if (bom[0] == 0x2b && bom[1] == 0x2f && bom[2] == 0x76) {
 #pragma warning disable SYSLIB0001
                     encoding = Encoding.UTF7;
+#pragma warning restore SYSLIB0001
                     return true;
                 }
                 if (bom[0] == 0xef && bom[1] == 0xbb && bom[2] == 0xbf) {

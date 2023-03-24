@@ -5,11 +5,9 @@ using System.IO;
 using NUnit.Framework;
 using Imagibee.Gigantor;
 
-#pragma warning disable CS8618
-
 namespace Testing {
     public class FileMapJoinTests {
-        string biblePath;
+        string biblePath = "";
 
         // Test class for throwing exceptions in the code path
         public class MapJoinErrorThrower : FileMapJoin<MapJoinData> {
@@ -82,11 +80,11 @@ namespace Testing {
             for (var i = 0; i < iterations; i++) {
                 MapJoinErrorThrower thrower = new(
                     true,
-                    100,
+                    1,
                     biblePath,
                     progress,
                     JoinMode.Sequential,
-                    8,
+                    1024,
                     10);
                 Background.StartAndWait(
                     thrower,
@@ -106,11 +104,11 @@ namespace Testing {
             for (var i = 0; i < iterations; i++) {
                 MapJoinErrorThrower thrower = new(
                     false,
-                    100,
+                    2,
                     biblePath,
                     progress,
                     JoinMode.Sequential,
-                    8,
+                    1024,
                     10);
                 Background.StartAndWait(
                     thrower,

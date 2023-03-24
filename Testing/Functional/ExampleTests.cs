@@ -10,12 +10,10 @@ using System.Diagnostics;
 using NUnit.Framework;
 using Imagibee.Gigantor;
 
-#pragma warning disable CS8618
-
 namespace Testing {
     public class ExampleTests {
-        string enwik9Path;
-        string biblePath;
+        string enwik9Path = "";
+        string biblePath = "";
 
         [SetUp]
         public void Setup()
@@ -49,10 +47,17 @@ namespace Testing {
 
             // Start search and indexing in parallel and wait for completion
             Console.WriteLine($"Working ...");
+            Stopwatch stopwatch = new();
+            stopwatch.Start();
             Background.StartAndWait(
                 processes,
                 progress,
-                (_) => { Console.Write('.'); },
+                (_) => {
+                    if (stopwatch.Elapsed.TotalSeconds > 1) {
+                        Console.Write('.');
+                        stopwatch.Reset();
+                    }
+                },
                 1000);
             Console.Write('\n');
 
