@@ -1,0 +1,7 @@
+export STARTDIR=$PWD
+cd Testing/Functional
+dotnet coverage collect dotnet test -f xml --framework net7.0
+reportgenerator "-reports:output.xml" "-targetdir:TestResults"
+open TestResults/index.html
+cd $STARTDIR
+

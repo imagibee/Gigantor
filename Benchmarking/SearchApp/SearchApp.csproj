@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
+    <TargetFrameworks>net7.0</TargetFrameworks>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
@@ -37,9 +37,6 @@
     </Compile>
     <Compile Include="..\..\Gigantor\Utilities.cs">
       <Link>Utilities.cs</Link>
-    </Compile>
-    <Compile Include="..\Tests\BenchmarkUtilities.cs">
-      <Link>BenchmarkUtilities.cs</Link>
     </Compile>
     <Compile Include="..\..\Gigantor\FileStream.cs">
       <Link>FileStream.cs</Link>

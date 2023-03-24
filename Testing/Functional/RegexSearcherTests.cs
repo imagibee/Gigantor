@@ -6,19 +6,17 @@ using System.Text.RegularExpressions;
 using NUnit.Framework;
 using Imagibee.Gigantor;
 using System.IO.Compression;
-using Microsoft.VisualStudio.TestPlatform.Utilities;
 
-#pragma warning disable CS8618
 
 namespace Testing {
     public class RegexSearchTests {
         readonly int maxMatchCount = 5000;
-        readonly int overlap = 0;
-        readonly int chunkKiBytes = 64;
+        readonly int overlapKiBytes = 0;
+        readonly int chunkKiBytes = 1024;
         readonly int maxWorkers = 1;
-        string biblePath;
-        string enwik9Gz;
-        string enwik9;
+        string biblePath = "";
+        string enwik9Gz = "";
+        string enwik9 = "";
 
         [SetUp]
         public void Setup()
@@ -33,7 +31,7 @@ namespace Testing {
         {
             AutoResetEvent progress = new(false);
             RegexSearcher searcher = new(
-                "", new Regex(""), progress, maxMatchCount, chunkKiBytes, maxWorkers, overlap);
+                "", new Regex(""), progress, maxMatchCount, chunkKiBytes, maxWorkers, overlapKiBytes);
             Assert.AreEqual(false, searcher.Running);
             Assert.AreEqual(0, searcher.MatchCount);
             Assert.AreEqual(true, searcher.Error == "");
@@ -44,7 +42,7 @@ namespace Testing {
         {
             AutoResetEvent progress = new(false);
             RegexSearcher searcher = new(
-                "", new Regex(""), progress, maxMatchCount, chunkKiBytes, maxWorkers, overlap);
+                "", new Regex(""), progress, maxMatchCount, chunkKiBytes, maxWorkers, overlapKiBytes);
             Background.StartAndWait(
                 searcher,
                 progress,
@@ -59,7 +57,7 @@ namespace Testing {
         {
             AutoResetEvent progress = new(false);
             RegexSearcher searcher = new(
-                "A Missing File", new Regex(""), progress, maxMatchCount, chunkKiBytes, maxWorkers, overlap);
+                "A Missing File", new Regex(""), progress, maxMatchCount, chunkKiBytes, maxWorkers, overlapKiBytes);
             Background.StartAndWait(
                 searcher,
                 progress,
@@ -76,7 +74,7 @@ namespace Testing {
             const string pattern = @"son\s*of\s*man";
             Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
             RegexSearcher searcher = new(
-                biblePath, regex, progress, maxMatchCount, chunkKiBytes, maxWorkers, pattern.Length);
+                biblePath, regex, progress, maxMatchCount, chunkKiBytes, maxWorkers, 1);
             Background.StartAndWait(
                 searcher,
                 progress,
@@ -101,7 +99,7 @@ namespace Testing {
             Regex regex1 = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
             Regex regex2 = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
             RegexSearcher searcher = new(
-                biblePath, new List<Regex>() { regex1, regex2 }, progress, maxMatchCount, chunkKiBytes, maxWorkers, pattern.Length);
+                biblePath, new List<Regex>() { regex1, regex2 }, progress, maxMatchCount, chunkKiBytes, maxWorkers, 1);
             Background.StartAndWait(
                 searcher,
                 progress,
@@ -122,9 +120,9 @@ namespace Testing {
             const string pattern = @"son\s*of\s*man";
             Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
             RegexSearcher searcher1 = new(
-                biblePath, regex, progress, maxMatchCount, 64, maxWorkers, pattern.Length);
+                biblePath, regex, progress, maxMatchCount, 1, maxWorkers, 1);
             RegexSearcher searcher2 = new(
-                biblePath, regex, progress, maxMatchCount, 65, maxWorkers, pattern.Length);
+                biblePath, regex, progress, maxMatchCount, 2, maxWorkers, 1);
             Background.StartAndWait(
                 new List<IBackground>() { searcher1, searcher2 },
                 progress,
@@ -150,7 +148,7 @@ namespace Testing {
             const string pattern = @"son\s*of\s*man";
             Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
             RegexSearcher searcher = new(
-                biblePath, regex, progress, 209, chunkKiBytes, maxWorkers, pattern.Length);
+                biblePath, regex, progress, 209, chunkKiBytes, maxWorkers, 1);
             Background.StartAndWait(
                 searcher,
                 progress,
@@ -168,24 +166,35 @@ namespace Testing {
             const string pattern = @"son\s*of\s*man";
             Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
             RegexSearcher searcher1 = new(
-                biblePath, regex, progress, maxMatchCount, 64, maxWorkers, 32 * 1024);
+                biblePath, regex, progress, maxMatchCount, chunkKiBytes, maxWorkers, overlapKiBytes: 1);
+            using var fileStream = new System.IO.FileStream(
+                biblePath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                chunkKiBytes * 1024,
+                FileOptions.Asynchronous);
             RegexSearcher searcher2 = new(
-                biblePath, regex, progress, maxMatchCount, 64, maxWorkers, pattern.Length);
+                fileStream, regex, progress, maxMatchCount, chunkKiBytes, maxWorkers, overlapKiBytes: 512);
             Background.StartAndWait(
                 new List<IBackground>() { searcher1, searcher2 },
                 progress,
                 (_) => { },
                 1000);
-            Logger.Log($"{searcher1.Error}");
             var m1 = searcher1.GetMatchData();
-            var m2 = searcher1.GetMatchData();
-            for (var i=0; i<10; i++) {
-                Logger.Log($"1-> [{i}] {m1[i].Value} {m1[i].StartFpos}");
-                Logger.Log($"2-> [{i}] {m2[i].Value} {m2[i].StartFpos}");
+            var m2 = searcher2.GetMatchData();
+            for (var i=0; i<m1.Count; i++) {
+                if (m1[i].Value != m2[i].Value || m1[i].StartFpos != m2[i].StartFpos) {
+                    Logger.Log($"1-> [{i}] {m1[i].Value} {m1[i].StartFpos}");
+                    Logger.Log($"2-> [{i}] {m2[i].Value} {m2[i].StartFpos}");
+                }
             }
+            Assert.AreEqual(m1.Count, m2.Count);
             Assert.AreEqual(true, searcher1.Error == "");
             Assert.AreEqual(true, searcher2.Error == "");
-            Assert.AreEqual(searcher1.MatchCount, searcher2.MatchCount);
+            Assert.AreEqual(210, searcher1.MatchCount);
+            Assert.AreEqual(searcher2.GetMatchData().Count, searcher2.MatchCount);
+            Assert.AreEqual(210, searcher2.MatchCount);
         }
 
         [Test]
@@ -196,7 +205,7 @@ namespace Testing {
             const string pattern = @"(\w+)\s+is\s+(\w+)";
             Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
             RegexSearcher searcher = new(
-                biblePath, regex, progress, maxMatchCount: maxMatches, 64, maxWorkers);
+                biblePath, regex, progress, maxMatchCount: maxMatches, 1024, maxWorkers);
             Background.StartAndWait(
                 new List<IBackground>() { searcher },
                 progress,
@@ -231,10 +240,10 @@ namespace Testing {
                 FileMode.Open,
                 FileAccess.Read,
                 FileShare.Read,
-                chunkKiBytes,
+                chunkKiBytes * 1024,
                 FileOptions.Asynchronous);
             RegexSearcher searcher = new(
-                fileStream, regex, progress, maxMatchCount, chunkKiBytes: 512, maxWorkers: 16, overlap:pattern.Length);
+                fileStream, regex, progress, maxMatchCount, chunkKiBytes: 1024, maxWorkers: 16, overlapKiBytes:1);
             Background.StartAndWait(
                 searcher,
                 progress,
@@ -263,10 +272,10 @@ namespace Testing {
                 FileMode.Open,
                 FileAccess.Read,
                 FileShare.Read,
-                chunkKiBytes,
+                chunkKiBytes * 1024,
                 FileOptions.Asynchronous);
             RegexSearcher searcher = new(
-                fileStream, new List<Regex>() { regex1, regex2 }, progress, maxMatchCount, chunkKiBytes: 512, maxWorkers: 16, overlap: pattern.Length);
+                fileStream, new List<Regex>() { regex1, regex2 }, progress, maxMatchCount, chunkKiBytes: 1024, maxWorkers: 16, overlapKiBytes: 1);
             Background.StartAndWait(
                 searcher,
                 progress,
@@ -298,9 +307,9 @@ namespace Testing {
                 regex,
                 progress,
                 maxMatchCount,
-                chunkKiBytes:512,
+                chunkKiBytes:1024,
                 maxWorkers: 16,
-                overlap: pattern.Length);
+                overlapKiBytes: 1);
             Background.StartAndWait(
                 searcher,
                 progress,

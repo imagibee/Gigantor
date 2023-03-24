@@ -32,7 +32,7 @@ class SearchApp {
         public int iterations;
         public string pattern;
         public bool useStream;
-        public bool useUnbuffered;
+        public bool useBuffered;
         public bool patternx2;
         public System.IO.Stream stream;
     }
@@ -56,7 +56,7 @@ class SearchApp {
         SessionData sessionData = new()
         {
             paths = new(),
-            chunkKiBytes = 512,
+            chunkKiBytes = 64,
             maxWorkers = 0
         };
         if (args[0].Contains("benchmark")) {
@@ -66,8 +66,8 @@ class SearchApp {
             if (args[0].Contains("stream")) {
                 sessionData.useStream = true;
             }
-            else if (args[0].Contains("unbuffered")) {
-                sessionData.useUnbuffered = true;
+            else if (args[0].Contains("buffered")) {
+                sessionData.useBuffered = true;
             }
             if (args[0].Contains("legacy")) {
                 sessionData.pattern = "food";
@@ -98,7 +98,7 @@ class SearchApp {
         for (var i = startPathIndex; i < args.Length; i++) {
             sessionData.paths.Add(args[i]);
             if (args[i].Contains(".gz")) {
-                sessionData.chunkKiBytes = 512;
+                sessionData.chunkKiBytes = 128;
             }
         }
         return new Tuple<SessionType, SessionData>(sessionType, sessionData);
@@ -119,7 +119,8 @@ class SearchApp {
         List<SessionData> sessionDatas = new();
         List<int> maxWorkerPermutations;
         if (sessionInfo.maxWorkers == 0) {
-            maxWorkerPermutations = new List<int>() { 1, 2, 4, 8, 16, 32, 64, 128 };
+            maxWorkerPermutations = new List<int>() { 1, 2, 4, 8, 16, 32, 64, 128, 256, 512 };
+            //maxWorkerPermutations = new List<int>() { 128, 256, 512 };
         }
         else {
             maxWorkerPermutations = new List<int>() { sessionInfo.maxWorkers };
@@ -128,15 +129,21 @@ class SearchApp {
             maxWorkerPermutations = new List<int>() { 16 };
         }
         foreach (var maxWorkers in maxWorkerPermutations) {
+            var chunkSize = sessionInfo.chunkKiBytes / maxWorkers;
+            if (chunkSize == 0) {
+                // Use KiBytes (negative values)
+                chunkSize = -1024 / (maxWorkers / sessionInfo.chunkKiBytes);
+            }
+            chunkSize = -128;
             SessionData sessionData = new()
             {
                 paths = sessionInfo.paths,
-                chunkKiBytes = sessionInfo.chunkKiBytes,
+                chunkKiBytes = chunkSize,
                 maxWorkers = maxWorkers,
                 iterations = sessionInfo.iterations,
                 pattern = sessionInfo.pattern,
                 useStream = sessionInfo.useStream,
-                useUnbuffered = sessionInfo.useUnbuffered,
+                useBuffered = sessionInfo.useBuffered,
                 patternx2 = sessionInfo.patternx2,
             };
             sessionDatas.Add(sessionData);
@@ -201,15 +208,15 @@ class SearchApp {
         }
         foreach (var path in sessionData.paths) {
             RegexSearcher searcher;
-            if (sessionData.useStream || sessionData.useUnbuffered) {
-                System.IO.FileStream fs = Imagibee.Gigantor.FileStream.Create(
+            if (sessionData.useStream) {
+                var fs = Imagibee.Gigantor.FileStream.Create(
                     path,
-                    bufferSize: sessionData.chunkKiBytes,
-                    bufferMode: sessionData.useUnbuffered ? BufferMode.Unbuffered:BufferMode.Buffered);
+                    chunkKiBytes: sessionData.chunkKiBytes,
+                    bufferMode: sessionData.useBuffered ? BufferMode.Buffered:BufferMode.Unbuffered);
                 if (path.Contains(".gz")) {
                     sessionData.maxWorkers = 2;
                     sessionData.stream = new GZipStream(
-                    fs, CompressionMode.Decompress, true);
+                        fs, CompressionMode.Decompress, true);
                 }
                 else {
                     sessionData.stream = fs;
@@ -221,7 +228,7 @@ class SearchApp {
                     maxMatchCount: 50000,
                     chunkKiBytes: sessionData.chunkKiBytes,
                     maxWorkers: sessionData.maxWorkers,
-                    overlap: sessionData.pattern.Length);
+                    overlapKiBytes: 1);
             }
             else {
                 searcher = new RegexSearcher(
@@ -231,7 +238,8 @@ class SearchApp {
                     maxMatchCount: 50000,
                     chunkKiBytes: sessionData.chunkKiBytes,
                     maxWorkers: sessionData.maxWorkers,
-                    overlap: sessionData.pattern.Length);
+                    overlapKiBytes: 1,
+                    bufferMode: sessionData.useBuffered?BufferMode.Buffered:BufferMode.Unbuffered);
             }
             searcher.Start();
             searchers.Add(searcher);

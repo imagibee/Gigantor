@@ -46,8 +46,8 @@ namespace Imagibee {
             public LineIndexer(
                 string filePath,
                 AutoResetEvent progress,
-                int chunkKiBytes=512,
-                int maxWorkers=0,
+                int chunkKiBytes = 1024,
+                int maxWorkers = 0,
                 BufferMode bufferMode = BufferMode.Unbuffered) : base(
                     filePath,
                     progress,
@@ -238,7 +238,7 @@ namespace Imagibee {
                         
                 };
                 using var fileStream = FileStream.Create(
-                    Path, bufferSize: chunkSize, bufferMode: bufferMode);
+                    Path, chunkKiBytes: chunkSize / 1024, bufferMode: bufferMode);
                 fileStream.Seek(data.StartFpos, SeekOrigin.Begin);
                 var buf = new byte[chunkSize];
                 var bytesRead = fileStream.Read(buf, 0, chunkSize);

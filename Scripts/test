@@ -1,0 +1,6 @@
+export STARTDIR=$PWD
+cd Testing/Functional/
+dotnet test -c Release
+cd ../Nuget
+dotnet test -c Release
+cd $STARTDIR

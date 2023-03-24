@@ -143,10 +143,17 @@ var processes = new List<IBackground>()
 
 // Start search and indexing in parallel and wait for completion
 Console.WriteLine($"Working ...");
+Stopwatch stopwatch = new();
+stopwatch.Start();
 Background.StartAndWait(
     processes,
     progress,
-    (_) => { Console.Write('.'); },
+    (_) => {
+        if (stopwatch.Elapsed.TotalSeconds > 1) {
+            Console.Write('.');
+            stopwatch.Reset();
+        }
+    },
     1000);
 Console.Write('\n');
 
@@ -243,7 +250,7 @@ Gigantor provides several strategies for boosting performance.  Depending on you
 ### Notes
 1. Target net7.0 if possible because of [regular expression improvements released with .NET 7](https://devblogs.microsoft.com/dotnet/regular-expression-improvements-in-dotnet-7/).
 1. Disable file cacheing for gigantic files using `bufferMode`, `Imagibee.Gigantor.FileStream.Create`, or equivalent
-1. Use case tuning is supported by the following parameters: `maxMatchCount`, `chunkKiBytes`, `maxWorkers`, `overlap`, `bufferMode`
+1. Use case tuning is supported by the following parameters: `maxMatchCount`, `chunkKiBytes`, `maxWorkers`, `overlapKiBytes`, `bufferMode`
 1. See [NOTES](https://github.com/imagibee/Gigantor/blob/main/NOTES) and [benchmarking apps](https://github.com/imagibee/Gigantor/tree/main/Benchmarking) for hints about running the benchmarks
 
 

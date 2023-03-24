@@ -4,13 +4,11 @@ using System.IO;
 using NUnit.Framework;
 using Imagibee.Gigantor;
 
-#pragma warning disable CS8618
-
 namespace Testing {
     public class DuplicateCheckerTests {
-        string biblePath;
-        string simplePath;
-        string simplePath2;
+        string biblePath = "";
+        string simplePath = "";
+        string simplePath2 = "";
 
         [SetUp]
         public void Setup()

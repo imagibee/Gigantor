@@ -8,12 +8,18 @@ using System.Diagnostics;
 namespace NugetTesting {
 
     public class ExampleTests {
-        string enwik9Path = Path.Combine(Path.GetTempPath(), "enwik9");
-        string biblePath = Path.Combine(Path.GetTempPath(), "Gigantor-bible");
+        string enwik9Path;
+        string biblePath;
 
         [SetUp]
         public void Setup()
         {
+            enwik9Path = Path.Combine(
+                Path.Combine(
+                    Path.GetTempPath(), "gigantor"), "enwik9");
+            biblePath = Path.Combine(
+                Path.Combine(
+                    Path.GetTempPath(), "gigantor"), "10.txt.utf-8");
         }
 
         [Test]

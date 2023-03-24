@@ -1,5 +1,0 @@
-#!/bin/bash
-for i in {1..100}
-do
-   cat ${TMPDIR}/enwik9  >> ${TMPDIR}/enwik9x100
-done

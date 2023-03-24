@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Mono.Unix.Native;
 using System.Runtime.InteropServices;
 using System.IO.Pipes;
+using System.Text;
 
 namespace Imagibee {
     namespace Gigantor {
@@ -103,30 +104,20 @@ namespace Imagibee {
                 }
                 return true;
             }
-            // Progress bar class for examples
-            internal class ByteProgress {
-                int maxLength;
-                int lastLength;
-                long totalBytes;
 
-                public ByteProgress(int maxLength, long totalBytes)
-                {
-                    this.maxLength = maxLength;
-                    this.totalBytes = totalBytes;
-                }
+            //internal static string ByteToString(byte[]? value, Encoding? encoding)
+            //{
+            //    if (value == null) {
+            //        return "";
+            //    }
+            //    return (encoding ?? Encoding.UTF8).GetString(value);
+            //}
 
-                public void Update(long byteCount)
-                {
-                    var progressLength = (int)(maxLength * byteCount / totalBytes);
-                    for (var i = 0; i < progressLength - lastLength; i++) {
-                        Console.Write('#');
-                    }
-                    lastLength = progressLength;
-                }
-            }
-
-            internal static unsafe string UnsafeByteToString(byte[] value)
+            internal static unsafe string UnsafeByteToString(byte[]? value)
             {
+                if (value == null) {
+                    return "";
+                }
                 var length = value.Length;
                 string str = new('\0', length);
                 unsafe {
@@ -140,47 +131,51 @@ namespace Imagibee {
                 return str;
             }
 
+            internal static string GetBenchmarkPath()
+            {
+                var path = Environment.GetEnvironmentVariable("GIGANTOR_BENCHMARK_PATH");
+                if (path == null) {
+                    path = Path.Combine(Path.GetTempPath(), "gigantor");
+                }
+                return path;
+            }
+
+            internal static void ThrowBenchmarkSetupException()
+            {
+                throw new ApplicationException("must run Scripts/setup first");
+            }
+
             internal static string GetEnwik9Gz()
             {
                 var enwik9Path = GetEnwik9();
                 var gzPath = $"{enwik9Path}.gz";
                 if (!File.Exists(gzPath)) {
-                    Console.WriteLine($"gzipping enwik9 to {gzPath}...");
-                    using System.IO.FileStream originalFileStream = File.Open(enwik9Path, FileMode.Open);
-                    using System.IO.FileStream compressedFileStream = File.Create(gzPath);
-                    using var compressor = new GZipStream(compressedFileStream, CompressionMode.Compress);
-                    originalFileStream.CopyTo(compressor);
+                    ThrowBenchmarkSetupException();
                 }
                 return gzPath;
             }
 
             internal static string GetEnwik9()
             {
-                var zipPath = Path.Combine(Path.GetTempPath(), "enwik9.zip");
-                var enwik9Path = Path.Combine(Path.GetTempPath(), "enwik9");
+                var enwik9Path = Path.Combine(GetBenchmarkPath(), "enwik9");
                 if (!File.Exists(enwik9Path)) {
-                    if (!File.Exists(zipPath)) {
-                        Console.WriteLine($"downloading enwik9 to {zipPath}...");
-                        Wget("https://archive.org/download/enwik9/enwik9.zip", zipPath).Wait();
-                    }
-                    ZipFile.ExtractToDirectory(zipPath, Path.GetTempPath());
+                    ThrowBenchmarkSetupException();
                 }
                 return enwik9Path;
             }
 
             internal static string GetGutenbergBible()
             {
-                var path = Path.Combine(Path.GetTempPath(), "Gigantor-bible");
+                var path = Path.Combine(GetBenchmarkPath(), "10.txt.utf-8");
                 if (!File.Exists(path)) {
-                    Console.WriteLine($"downloading Gutenburg bible to {path}...");
-                    Wget("https://www.gutenberg.org/ebooks/10.txt.utf-8", path).Wait();
+                    ThrowBenchmarkSetupException();
                 }
                 return path;
             }
 
             internal static string GetSimpleFile()
             {
-                var path = Path.Combine(Path.GetTempPath(), "Gigantor-simple");
+                var path = Path.Combine(GetBenchmarkPath(), "simple");
                 if (!File.Exists(path)) {
                     using var fileStream = new System.IO.FileStream(path, FileMode.Create);
                     var writer = new StreamWriter(fileStream);
@@ -194,7 +189,7 @@ namespace Imagibee {
 
             internal static string GetSimpleFile2()
             {
-                var path = Path.Combine(Path.GetTempPath(), "Gigantor-simple2");
+                var path = Path.Combine(GetBenchmarkPath(), "simple2");
                 if (!File.Exists(path)) {
                     using var fileStream = new System.IO.FileStream(path, FileMode.Create);
                     var writer = new StreamWriter(fileStream);
@@ -204,17 +199,6 @@ namespace Imagibee {
                     writer.Close();
                 }
                 return path;
-            }
-
-            internal static async Task Wget(string url, string destinationPath)
-            {
-                using (HttpClient httpClient = new()) {
-                    using (var stream = await httpClient.GetStreamAsync(url)) {
-                        using (var fileStream = new System.IO.FileStream(destinationPath, FileMode.CreateNew)) {
-                            await stream.CopyToAsync(fileStream);
-                        }
-                    }
-                }
             }
 
             internal static int ReadChunk(Stream stream, byte[] buf, int offset, int chunkSize)
@@ -227,6 +211,41 @@ namespace Imagibee {
                 }
                 while (count < chunkSize && bytesRead > 0);
                 return count;
+            }
+
+            // https://stackoverflow.com/questions/3825390/effective-way-to-find-any-files-encoding
+            internal static bool TryGetEncoding(byte[] bom, ref Encoding encoding)
+            {
+                if (bom.Length < 4) {
+                    return false;
+                }
+                if (bom[0] == 0x2b && bom[1] == 0x2f && bom[2] == 0x76) {
+#pragma warning disable SYSLIB0001
+                    encoding = Encoding.UTF7;
+#pragma warning restore SYSLIB0001
+                    return true;
+                }
+                if (bom[0] == 0xef && bom[1] == 0xbb && bom[2] == 0xbf) {
+                    encoding = Encoding.UTF8;
+                    return true;
+                }
+                if (bom[0] == 0xff && bom[1] == 0xfe && bom[2] == 0 && bom[3] == 0) {
+                    encoding = Encoding.UTF32;
+                    return true;
+                }
+                if (bom[0] == 0xff && bom[1] == 0xfe) {
+                    encoding = Encoding.Unicode;
+                    return true;
+                }
+                if (bom[0] == 0xfe && bom[1] == 0xff) {
+                    encoding = Encoding.BigEndianUnicode;
+                    return true;
+                }
+                if (bom[0] == 0 && bom[1] == 0 && bom[2] == 0xfe && bom[3] == 0xff) {
+                    encoding = new UTF32Encoding(true, true);
+                    return true;
+                }
+                return false;
             }
         }
     }

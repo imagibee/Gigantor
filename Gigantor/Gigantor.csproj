@@ -10,8 +10,9 @@
     <Copyright>Copyright (c) Imagibee 2023</Copyright>
     <RepositoryUrl>https://github.com/imagibee/Gigantor</RepositoryUrl>
     <RespositoryType>git</RespositoryType>
-    <PackageTags>parallel regex regular expression file search text thread</PackageTags>
+    <PackageTags>parallel performance regex regular expression text file search thread</PackageTags>
     <TargetFrameworks>netstandard2.1;netcoreapp3.1;net5.0;net6.0;net7.0</TargetFrameworks>
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
