@@ -27,7 +27,7 @@ class SearchApp {
 
     struct SessionData {
         public List<string> paths;
-        public int chunkKiBytes;
+        public int partitionSize;
         public int maxWorkers;
         public int iterations;
         public string pattern;
@@ -56,7 +56,7 @@ class SearchApp {
         SessionData sessionData = new()
         {
             paths = new(),
-            chunkKiBytes = 64,
+            partitionSize = 64,
             maxWorkers = 0
         };
         if (args[0].Contains("benchmark")) {
@@ -98,7 +98,7 @@ class SearchApp {
         for (var i = startPathIndex; i < args.Length; i++) {
             sessionData.paths.Add(args[i]);
             if (args[i].Contains(".gz")) {
-                sessionData.chunkKiBytes = 128;
+                sessionData.partitionSize = 128;
             }
         }
         return new Tuple<SessionType, SessionData>(sessionType, sessionData);
@@ -129,16 +129,16 @@ class SearchApp {
             maxWorkerPermutations = new List<int>() { 16 };
         }
         foreach (var maxWorkers in maxWorkerPermutations) {
-            var chunkSize = sessionInfo.chunkKiBytes / maxWorkers;
+            var chunkSize = sessionInfo.partitionSize / maxWorkers;
             if (chunkSize == 0) {
-                // Use KiBytes (negative values)
-                chunkSize = -1024 / (maxWorkers / sessionInfo.chunkKiBytes);
+                // Use bytes (negative values)
+                chunkSize = -1024 / (maxWorkers / sessionInfo.partitionSize);
             }
             chunkSize = -128;
             SessionData sessionData = new()
             {
                 paths = sessionInfo.paths,
-                chunkKiBytes = chunkSize,
+                partitionSize = chunkSize,
                 maxWorkers = maxWorkers,
                 iterations = sessionInfo.iterations,
                 pattern = sessionInfo.pattern,
@@ -157,7 +157,7 @@ class SearchApp {
         SessionData sessionData = new()
         {
             paths = sessionInfo.paths,
-            chunkKiBytes = sessionInfo.chunkKiBytes,
+            partitionSize = sessionInfo.partitionSize,
             maxWorkers = sessionInfo.maxWorkers,
             iterations = 1,
             pattern = sessionInfo.pattern,
@@ -211,7 +211,7 @@ class SearchApp {
             if (sessionData.useStream) {
                 var fs = Imagibee.Gigantor.FileStream.Create(
                     path,
-                    chunkKiBytes: sessionData.chunkKiBytes,
+                    bufferSize: sessionData.partitionSize,
                     bufferMode: sessionData.useBuffered ? BufferMode.Buffered:BufferMode.Unbuffered);
                 if (path.Contains(".gz")) {
                     sessionData.maxWorkers = 2;
@@ -226,9 +226,9 @@ class SearchApp {
                     regex,
                     progress,
                     maxMatchCount: 50000,
-                    chunkKiBytes: sessionData.chunkKiBytes,
+                    partitionSize: sessionData.partitionSize,
                     maxWorkers: sessionData.maxWorkers,
-                    overlapKiBytes: 1);
+                    overlap: 1);
             }
             else {
                 searcher = new RegexSearcher(
@@ -236,9 +236,9 @@ class SearchApp {
                     regex,
                     progress,
                     maxMatchCount: 50000,
-                    chunkKiBytes: sessionData.chunkKiBytes,
+                    partitionSize: sessionData.partitionSize,
                     maxWorkers: sessionData.maxWorkers,
-                    overlapKiBytes: 1,
+                    overlap: 1,
                     bufferMode: sessionData.useBuffered?BufferMode.Buffered:BufferMode.Unbuffered);
             }
             searcher.Start();
@@ -274,7 +274,7 @@ class SearchApp {
     {
         long totalBytes = resultData.byteCount;
         ThreadPool.GetMaxThreads(out int maxThreads, out int _);
-        Console.WriteLine($"files={sessionData.paths.Count}, maxWorkers={sessionData.maxWorkers}, chunkKiBytes={sessionData.chunkKiBytes}");
+        Console.WriteLine($"files={sessionData.paths.Count}, maxWorkers={sessionData.maxWorkers}, partitionSize={sessionData.partitionSize}");
         Console.WriteLine($"   {resultData.matchCount} matches found");
         Console.WriteLine(value: $"   searched {totalBytes} bytes in {resultData.elapsedTime} seconds");
         Console.WriteLine(value: $"-> {totalBytes / resultData.elapsedTime / 1e6} MBytes/s");

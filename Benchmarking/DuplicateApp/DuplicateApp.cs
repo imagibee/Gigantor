@@ -23,7 +23,7 @@ class DuplicateApp {
     struct SessionData {
         public List<string> paths1;
         public List<string> paths2;
-        public int chunkKiBytes;
+        public int partitionSize;
         public int maxWorkers;
         public int iterations;
         public long byteCount;
@@ -48,7 +48,7 @@ class DuplicateApp {
         {
             paths1 = new(),
             paths2 = new(),
-            chunkKiBytes = 512,
+            partitionSize = 512,
             maxWorkers = 0
         };
         if (args[0] == "benchmark") {
@@ -90,7 +90,7 @@ class DuplicateApp {
             {
                 paths1 = sessionInfo.paths1,
                 paths2 = sessionInfo.paths2,
-                chunkKiBytes = sessionInfo.chunkKiBytes,
+                partitionSize = sessionInfo.partitionSize,
                 maxWorkers = maxWorkers,
                 iterations = sessionInfo.iterations,
                 byteCount = sessionInfo.byteCount,
@@ -107,7 +107,7 @@ class DuplicateApp {
         {
             paths1 = sessionInfo.paths1,
             paths2 = sessionInfo.paths2,
-            chunkKiBytes = sessionInfo.chunkKiBytes,
+            partitionSize = sessionInfo.partitionSize,
             maxWorkers = sessionInfo.maxWorkers,
             iterations = 1,
             byteCount = sessionInfo.byteCount,
@@ -153,7 +153,7 @@ class DuplicateApp {
                 sessionData.paths1[i],
                 sessionData.paths2[i],
                 progress,
-                chunkKiBytes: sessionData.chunkKiBytes,
+                partitionSize: sessionData.partitionSize,
                 maxWorkers: sessionData.maxWorkers);
             checker.Start();
             checkers.Add(checker);
@@ -189,7 +189,7 @@ class DuplicateApp {
         long totalBytes = sessionData.iterations * sessionData.byteCount;
         var result = resultData.identical ? "identical" : "different";
         ThreadPool.GetMaxThreads(out int maxThreads, out int _);
-        Console.WriteLine($"maxWorkers={sessionData.maxWorkers}, chunkKiBytes={sessionData.chunkKiBytes}, maxThread={maxThreads}");
+        Console.WriteLine($"maxWorkers={sessionData.maxWorkers}, partitionSize={sessionData.partitionSize}, maxThread={maxThreads}");
         Console.WriteLine(value: $"   files are {result}");
         Console.WriteLine(value: $"   checked {totalBytes} bytes in {resultData.elapsedTime} seconds");
         Console.WriteLine(value: $"-> {totalBytes / resultData.elapsedTime / 1e6} MBytes/s");

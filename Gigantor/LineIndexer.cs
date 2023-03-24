@@ -29,7 +29,7 @@ namespace Imagibee {
         // stored in Error.
         //
         // A balance between memory footprint and performance can be achieved
-        // by varying chunkKiBytes and maxWorkers parameters.
+        // by varying partitionSize and maxWorkers parameters.
         //
         public class LineIndexer : Partitioner<LineIndexerData> {
             // The number of lines that have been indexed so far
@@ -39,20 +39,22 @@ namespace Imagibee {
             //
             // filePath - the path to the file to process
             // progress - signaled each time LineCount is updated
-            // chunkKiBytes - the chunk size in KiBytes that each worker works on
-            // maxWorkers - optional limit to the maximum number of simultaneous workers
-            // bufferMode - choose whether or not files are buffered, for gigantic files
-            // unbuffered tends to be faster
+            // partitionSize - the chunk size in bytes that each worker works on,
+            // defaults to 4194304
+            // maxWorkers - optional limit to the maximum number of simultaneous workers,
+            // defaults to unlimited
+            // bufferMode - choose whether or not files are buffered, defaults to buffered,
+            // unbuffered is experimental
             public LineIndexer(
                 string filePath,
                 AutoResetEvent progress,
-                int chunkKiBytes = 1024,
+                int partitionSize = 4096 * 1024,
                 int maxWorkers = 0,
-                BufferMode bufferMode = BufferMode.Unbuffered) : base(
+                BufferMode bufferMode = BufferMode.Buffered) : base(
                     filePath,
                     progress,
                     JoinMode.Sequential,
-                    chunkKiBytes: chunkKiBytes,
+                    partitionSize: partitionSize,
                     maxWorkers: maxWorkers,
                     bufferMode: bufferMode)
             {
@@ -98,11 +100,11 @@ namespace Imagibee {
                         FileMode.Open,
                         FileAccess.Read,
                         FileShare.Read,
-                        chunkSize,
+                        partitionSize,
                         FileOptions.Asynchronous);
                     fileStream.Seek(chunk.Value.StartFpos, SeekOrigin.Begin);
-                    var buf = new byte[chunkSize];
-                    var bytesRead = fileStream.Read(buf, 0, chunkSize);
+                    var buf = new byte[partitionSize];
+                    var bytesRead = fileStream.Read(buf, 0, partitionSize);
                     for (var i = 0; i < bytesRead; i++) {
                         if (buf[i] == '\n') {
                             linesToConsume--;
@@ -123,7 +125,7 @@ namespace Imagibee {
             public long LineFromPosition(long fpos)
             {
                 long line = -1;
-                var chunkIndex = (int)(fpos/chunkSize);
+                var chunkIndex = (int)(fpos/partitionSize);
                 if (chunkIndex >= 0 && chunkIndex < chunks.Count) {
                     var chunk = chunks[chunkIndex];
                     var distance = fpos - chunk.StartFpos;
@@ -133,11 +135,11 @@ namespace Imagibee {
                         FileMode.Open,
                         FileAccess.Read,
                         FileShare.Read,
-                        chunkSize,
+                        partitionSize,
                         FileOptions.Asynchronous);
                     fileStream.Seek(chunk.StartFpos, SeekOrigin.Begin);
-                    var buf = new byte[chunkSize];
-                    var bytesRead = fileStream.Read(buf, 0, chunkSize);
+                    var buf = new byte[partitionSize];
+                    var bytesRead = fileStream.Read(buf, 0, partitionSize);
                     for (var i = 0; i < bytesRead; i++) {
                         if (i >= distance) {
                             break;
@@ -238,10 +240,10 @@ namespace Imagibee {
                         
                 };
                 using var fileStream = FileStream.Create(
-                    Path, chunkKiBytes: chunkSize / 1024, bufferMode: bufferMode);
+                    Path, bufferSize: partitionSize, bufferMode: bufferMode);
                 fileStream.Seek(data.StartFpos, SeekOrigin.Begin);
-                var buf = new byte[chunkSize];
-                var bytesRead = fileStream.Read(buf, 0, chunkSize);
+                var buf = new byte[partitionSize];
+                var bytesRead = fileStream.Read(buf, 0, partitionSize);
                 result.ByteCount = bytesRead;
                 for (var i = 0; i < bytesRead; i++) {
                     if (buf[i] == '\n') {

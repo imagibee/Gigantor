@@ -34,9 +34,9 @@ namespace Testing {
                 string path,
                 AutoResetEvent progress,
                 JoinMode joinMode,
-                int chunkKiBytes,
+                int partitionSize,
                 int maxWorkers) :
-                base(path, progress, joinMode, chunkKiBytes, maxWorkers)
+                base(path, progress, joinMode, partitionSize, maxWorkers)
             {
                 this.throwInMap = throwInMap;
                 this.startId = startId;
@@ -84,7 +84,7 @@ namespace Testing {
                     biblePath,
                     progress,
                     JoinMode.Sequential,
-                    1024,
+                    1024 * 1024,
                     10);
                 Background.StartAndWait(
                     thrower,
@@ -108,7 +108,7 @@ namespace Testing {
                     biblePath,
                     progress,
                     JoinMode.Sequential,
-                    1024,
+                    1024 * 1024,
                     10);
                 Background.StartAndWait(
                     thrower,

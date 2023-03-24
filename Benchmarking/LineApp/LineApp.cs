@@ -22,7 +22,7 @@ class LineApp {
 
     struct SessionData {
         public List<string> paths;
-        public int chunkKiBytes;
+        public int partitionSize;
         public int maxWorkers;
         public int iterations;
         public long byteCount;
@@ -46,7 +46,7 @@ class LineApp {
         SessionData sessionData = new()
         {
             paths = new(),
-            chunkKiBytes = 512,
+            partitionSize = 512,
             maxWorkers = 0
         };
         if (args[0] == "benchmark") {
@@ -86,7 +86,7 @@ class LineApp {
             SessionData sessionData = new()
             {
                 paths = sessionInfo.paths,
-                chunkKiBytes = sessionInfo.chunkKiBytes,
+                partitionSize = sessionInfo.partitionSize,
                 maxWorkers = maxWorkers,
                 iterations = sessionInfo.iterations,
                 byteCount = sessionInfo.byteCount,
@@ -102,7 +102,7 @@ class LineApp {
         SessionData sessionData = new()
         {
             paths = sessionInfo.paths,
-            chunkKiBytes = sessionInfo.chunkKiBytes,
+            partitionSize = sessionInfo.partitionSize,
             maxWorkers = sessionInfo.maxWorkers,
             iterations = 1,
             byteCount = sessionInfo.byteCount,
@@ -146,7 +146,7 @@ class LineApp {
             var indexer = new LineIndexer(
                 path,
                 progress,
-                chunkKiBytes: sessionData.chunkKiBytes,
+                partitionSize: sessionData.partitionSize,
                 maxWorkers: sessionData.maxWorkers);
             indexer.Start();
             indexers.Add(indexer);
@@ -184,7 +184,7 @@ class LineApp {
         ThreadPool.GetMaxThreads(out int maxThreads, out int _);
         Console.WriteLine(
             $"maxWorkers={sessionData.maxWorkers}, " +
-            $"chunkKiBytes={sessionData.chunkKiBytes}, " +
+            $"partitionSize={sessionData.partitionSize}, " +
             $"maxThread={maxThreads}");
         Console.WriteLine($"   {resultData.lineCount} lines indexed");
         Console.WriteLine(

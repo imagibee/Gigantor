@@ -7,11 +7,11 @@ using System.IO;
 namespace Imagibee {
     namespace Gigantor {
         //
-        // Base class for chunk processing very large files
+        // Base class for partition processing very large files
         //
         // Creates a background manager thread that dispatches
         // additional background worker threads to partition the
-        // file into chunks.  These chunks are mapped to a T result
+        // file into partitions.  These partitions are mapped to a T result
         // by the implementation of the Map method.  Results are
         // then joined by the implementation of the Join method
         // according to the JoinMode.
@@ -39,38 +39,32 @@ namespace Imagibee {
             //
             // filePath - the path to the file to process
             // progress - signaled each time a thread completes
-            // joinMode - defines the map/join mode
-            // chunkKiBytes - the chunk size in KiBytes that each worker works on
-            // maxWorkers - optional limit to the maximum number of simultaneous workers
-            // overlapKiBytes - size in KiBytes of partition overlap, defaults to 0
+            // joinMode - defines the partition join mode
+            // partitionSize - the partition size in bytes that each worker works on, must
+            // be at least 2048
+            // maxWorkers - optional limit to the maximum number of simultaneous workers,
+            // defaults to unlimited
+            // overlap - size in bytes of partition overlap, defaults to 0, if non-zero
+            // must be even and not exceed half the partitionSize
+            // bufferMode - choose whether or not files are buffered, defaults to buffered,
+            // unbuffered is experimental
             public Partitioner(
                 string filePath,
                 AutoResetEvent progress,
                 JoinMode joinMode,
-                int chunkKiBytes,
+                int partitionSize,
                 int maxWorkers = 0,
-                int overlapKiBytes = 0,
-                BufferMode bufferMode = BufferMode.Unbuffered)
+                int overlap = 0,
+                BufferMode bufferMode = BufferMode.Buffered)
             {
                 Path = filePath;
                 this.progress = progress;
                 this.joinMode = joinMode;
-                if (chunkKiBytes < 2) {
-                    // don't allow chunk size less than 2 KiBytes
-                    chunkKiBytes = 2;
-                }
-                if (overlapKiBytes < 0) {
-                    // don't allow negative overlap
-                    overlapKiBytes = 0;
-                }
-                if (overlapKiBytes > chunkKiBytes / 2) {
-                    // overlap cannot exceed 1/2 the chunk size
-                    overlapKiBytes = chunkKiBytes / 2;
-                }
-                chunkSize = chunkKiBytes * 1024;
-                overlap = overlapKiBytes * 1024;
+                this.partitionSize = partitionSize;
+                this.overlap = overlap;
                 this.maxWorkers = maxWorkers;
                 this.bufferMode = bufferMode;
+                EnforceValidations();
                 synchronize = new AutoResetEvent(false);
                 cancel = new ManualResetEvent(false);
                 resultQueue = new ConcurrentQueue<T>();
@@ -87,7 +81,7 @@ namespace Imagibee {
                     Running = true;
                     Error = "";
                     joins = 0;
-                    scheduledChunks = 0;
+                    scheduledPartitions = 0;
                     resultQueue.Clear();
                     jobQueue.Clear();
                     ThreadPool.QueueUserWorkItem((_) => ManageJobs(Path));
@@ -121,7 +115,7 @@ namespace Imagibee {
             protected T priorResult;
 
             // Partitioning size in bytes
-            protected int chunkSize;
+            protected int partitionSize;
 
             // Partition overlap in bytes
             protected int overlap;
@@ -139,16 +133,16 @@ namespace Imagibee {
 
             void QueueFileJobs(string filePath)
             {
-                // Create all the chunk jobs (in order)
-                var chunkNum = 0;
+                // Create all the partition jobs (in order)
+                var partitionNum = 0;
                 FileInfo fileInfo = new(filePath);
                 //Logger.Log($"{filePath} is {fileInfo.Length} bytes");
-                for (long pos = 0; pos < fileInfo.Length; pos += chunkSize - overlap) {
-                    //Logger.Log($"queueing file chunk {chunkNum}, {chunkSize} bytes");
+                for (long pos = 0; pos < fileInfo.Length; pos += partitionSize - overlap) {
+                    //Logger.Log($"queueing file partition {partitionNum}, {partitionSize} bytes");
                     jobQueue.Enqueue(
                         new PartitionerData()
                         {
-                            Id = chunkNum++,
+                            Id = partitionNum++,
                             StartFpos = pos,
                             Buf = null,
                         });
@@ -159,24 +153,24 @@ namespace Imagibee {
             void QueueStreamJobs(Stream stream)
             {
                 try {
-                    if (ovBuf == null || ovBuf.Length != chunkSize) {
+                    if (ovBuf == null || ovBuf.Length != partitionSize) {
                         ovBuf = new byte[overlap];
                     }
-                    var readSize = chunkSize - overlap;
-                    var chunkNum = 0;
+                    var readSize = partitionSize - overlap;
+                    var partitionNum = 0;
                     long pos = 0;
                     var bytesRead = Utilities.ReadChunk(stream, ovBuf, 0, overlap);
                     do {
                         if (jobQueue.Count < maxWorkers) {
-                            var buf = new byte[chunkSize];
+                            var buf = new byte[partitionSize];
                             bytesRead = Utilities.ReadChunk(stream, buf, overlap, readSize);
                             Array.Copy(ovBuf, 0, buf, 0, overlap);
-                            if (chunkSize != bytesRead + overlap) {
+                            if (partitionSize != bytesRead + overlap) {
                                 Array.Resize(ref buf, bytesRead + overlap);
                             }
                             var job = new PartitionerData()
                             {
-                                Id = chunkNum++,
+                                Id = partitionNum++,
                                 StartFpos = pos,
                                 Buf = buf,
                             };
@@ -217,9 +211,9 @@ namespace Imagibee {
                     while (queueDone == false ||
                            jobQueue.Count != 0 ||
                            resultQueue.Count != 0 ||
-                           scheduledChunks != 0) {
-                        //Logger.Log($"manager {jobQueue.Count} {resultQueue.Count} {scheduledChunks}");
-                        ScheduleChunks();
+                           scheduledPartitions != 0) {
+                        //Logger.Log($"manager {jobQueue.Count} {resultQueue.Count} {scheduledpartitions}");
+                        Schedulepartitions();
                         synchronize.WaitOne(1000);
                         JoinResults();
                         if (cancel.WaitOne(0)) {
@@ -238,13 +232,13 @@ namespace Imagibee {
                 progress.Set();
             }
 
-            void ScheduleChunks()
+            void Schedulepartitions()
             {
-                while (scheduledChunks < maxWorkers || maxWorkers < 1) {
+                while (scheduledPartitions < maxWorkers || maxWorkers < 1) {
                     if (jobQueue.TryDequeue(out PartitionerData job)) {
-                        Interlocked.Add(ref scheduledChunks, 1);
+                        Interlocked.Add(ref scheduledPartitions, 1);
                         ThreadPool.QueueUserWorkItem((_) => MapJob(job));
-                        //Logger.Log($"scheduled chunk {job.Id}, currently {scheduledChunks} scheduled chunks");
+                        //Logger.Log($"scheduled partition {job.Id}, currently {scheduledpartitions} scheduled partitions");
                     }
                     else {
                         break;
@@ -307,7 +301,7 @@ namespace Imagibee {
                     resultQueue.Enqueue(result);
                 }
                 if (progressMade != 0) {
-                    Interlocked.Add(ref scheduledChunks, -progressMade);
+                    Interlocked.Add(ref scheduledPartitions, -progressMade);
                 }
                 progress.Set();
             }
@@ -315,18 +309,18 @@ namespace Imagibee {
             void MapJob(PartitionerData data)
             {
                 try {
-                    if (ovBuf == null || ovBuf.Length != chunkSize) {
-                        ovBuf = new byte[chunkSize];
+                    if (ovBuf == null || ovBuf.Length != partitionSize) {
+                        ovBuf = new byte[partitionSize];
                     }
                     if (data.Buf == null) {
                         using var fileStream = Imagibee.Gigantor.FileStream.Create(
-                            Path, chunkKiBytes: chunkSize / 1024, bufferMode: bufferMode);
+                            Path, bufferSize: partitionSize, bufferMode: bufferMode);
                         fileStream.Seek(data.StartFpos, SeekOrigin.Begin);
                         data.Buf = ovBuf;
-                        var bytesRead = fileStream.Read(data.Buf, 0, chunkSize);
-                        // If this is the final read the buffer may be smaller than the chunk
+                        var bytesRead = fileStream.Read(data.Buf, 0, partitionSize);
+                        // If this is the final read the buffer may be smaller than the partition
                         // and needs to be resized
-                        if (bytesRead != chunkSize) {
+                        if (bytesRead != partitionSize) {
                             var buf = new byte[bytesRead];
                             Array.Copy(data.Buf, buf, bytesRead);
                             data.Buf = buf;
@@ -343,13 +337,33 @@ namespace Imagibee {
                 synchronize.Set();
             }
 
+            void EnforceValidations()
+            {
+                if (partitionSize < 2048) {
+                    // partition size must be at least 2048 bytes
+                    partitionSize = 2048;
+                }
+                if (overlap < 0) {
+                    // overlap cannot be negative
+                    overlap = 0;
+                }
+                if (overlap > partitionSize / 2) {
+                    // overlap cannot exceed 1/2 the partition size
+                    overlap = partitionSize / 2;
+                }
+                if ((overlap & 1) != 0) {
+                    // overlap must be even
+                    overlap += 1;
+                }
+            }
+
             // private data
             readonly AutoResetEvent synchronize;
             readonly AutoResetEvent progress;
             readonly int maxWorkers;
             readonly ConcurrentQueue<PartitionerData> jobQueue;
             readonly ConcurrentQueue<T> resultQueue;
-            int scheduledChunks;
+            int scheduledPartitions;
             int joins;
             bool queueDone;
             [ThreadStatic] static byte[]? ovBuf;
