@@ -7,10 +7,7 @@ For the search benchmarks the following pattern is used to find all URLs in the 
 ```csharp
 var pattern = @"/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#()?&//=]*)/"; 
 ```
-The source code for the benchmarks is in [BenchmarkTests.cs](https://github.com/imagibee/Gigantor/blob/main/Gigantor/Benchmarking/Tests/BenchmarkTests.cs)
-
-## Buffered vs Unbuffered IO
-Throughout the benchmarks some comparisons are made between buffered (default) and unbuffered IO.  Buffered IO is faster in some cases but its not clear cut when to use it and when not.  It would be nice to develop some heuristics, but for now it will be up to you to determine what performs best for your use case.  One way to do this is to fix `maxWorkers` at 1000 and run in both buffered and unbuffered modes over a range of `partitionSize`.  The `partitionSize` sets both the size of the the worker thread data and the read buffer.
+The source code for the benchmarks is in [BenchmarkTests.cs](https://github.com/imagibee/Gigantor/blob/main/Benchmarking/Tests/BenchmarkTests.cs)
 
 ## Read Throughput Baseline
 This baseline establishes how fast a single thread can simply read through the test file and throw away the results.  After some experimentation a buffer size of 128 MiByte was determined to be optimal for the baseline and resulted in a throughput of 3271 MBytes/s.  
@@ -31,7 +28,7 @@ Gigantor's [`Partitioner`](https://github.com/imagibee/Gigantor/blob/main/Gigant
 
 The read performance differences between the `Partitioner` and the baseline in file mode are negligible.  This demonstrates that the read overhead introduced by the `Partitioner` is negligible in file mode.  The efficiency in stream mode is not as good.
 
-The next graph shows the results of fixing `maxWorkers` at 1000 and running the do-nothing `Partitioner` while varying the `partitionSize`.  In file mode the throughput peaks at 5541 MBytes/s which .  Since the read throughput increases with more workers I assume the IO hardware was not saturated during the single threaded baseline test.
+The next graph shows the results of fixing `maxWorkers` at 1000 and running the do-nothing `Partitioner` while varying the `partitionSize`.  In file mode the throughput peaks at 5541 MBytes/s which is nearly 2x faster than the single threaded baseline.  Since the read throughput increases with more workers I assume the IO hardware was not saturated during the single threaded baseline test.
 
 ![Image](https://raw.githubusercontent.com/imagibee/Gigantor/main/Docs/FileRead-vs-Buffer.png)
 
@@ -42,12 +39,12 @@ Here is the same test as above but using stream mode instead of file mode.
 
 
 ## Search vs Buffer Size
-The following graph compares `RegexSearcher` throughput run over various modes.  The peak using Gigantor is 2704 MBytes/s which is about 4x faster than the 691 MBytes/s peak for the single threaded baseline.
+The following graph compares `RegexSearcher` throughput in various modes.  The peak using Gigantor is 2704 MBytes/s which is about 4x faster than the 691 MBytes/s peak for the single threaded baseline.
 
 ![Image](https://raw.githubusercontent.com/imagibee/Gigantor/main/Docs/Search-vs-Buffer.png)
 
 ## Indexing vs Buffer Size
-The following graph compares `LineIndexer` throughput run over various modes.  The peak using Gigantor is 2463 MBytes/s which is about 4x faster than the 677 MBytes/s peak for the single threaded baseline.
+The following graph compares `LineIndexer` throughput in various modes.  The peak using Gigantor is 2463 MBytes/s which is about 4x faster than the 677 MBytes/s peak for the single threaded baseline.
 
 ![Image](https://raw.githubusercontent.com/imagibee/Gigantor/main/Docs/Indexing-vs-Buffer.png)
 
@@ -68,17 +65,17 @@ The following graph demonstrates how search throughput changes when searching mu
 
 
 ## Use Case Tuning
-Gigantor provides several strategies and tuning parameters for boosting performance.  For optimal results you should tune for your use case.  Based on my experience with these benchmarks I recomend the following approach to tuning.
+Gigantor provides several strategies and tuning parameters for boosting performance.  The defaults should provide some performance gain out-of-the box, but tuning is generally necessary to find the optimal settings.  Hopefully, these benchmarks can provide some insight.  I can also make the following suggestions about tuning.
 
 1. Target net7.0 if possible because of [regular expression improvements released with .NET 7](https://devblogs.microsoft.com/dotnet/regular-expression-improvements-in-dotnet-7/).
 1. Try various values of `partitionSize`.  For these benchmarks this was the most influential parameter.
 1. Try both `Buffered` and `Unbuffered` modes.  In some cases this made a noticable difference.  If your not sure I recommend buffered because it is standard.
-1. Leave `maxWorkers` alone.  The default is 0 which places no limits on the number of threads used.  In these benchmarks I found that limiting the threads only served to slow things down. 
+1. Leave `maxWorkers` alone unless you have a reason to change it.  The default is 0 which places no limits on the number of threads used.  In these benchmarks I found that limiting the threads did not improve performance. 
 
 ## Test System
-The benchmarks were run on a 2019 16-inch Macbook Pro with the following hardware running macOS Ventura 13.2.1.
+The benchmarks were run on a 2019 16-inch Macbook Pro running macOS Ventura 13.2.1 with the following hardware:
 - 8-Core Intel Core i9
 - L2 Cache (per Core):	256 KB
 - L3 Cache:	16 MB
 - Memory:	16 GB
-- APPLE SSD AP1024N
+- Apple SSD AP1024N

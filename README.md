@@ -59,7 +59,7 @@ Console.WriteLine(reader.ReadLine());
 ```
 
 ## Input Data
-The input data can either be uncompressed files, or streams.  Files should be used when possible because they were [benchmarked](Docs/Benhchmarks.md) to be about twice as fast as streams.  One notable use case for streams is searching compressed data without decompressing it to disk first.
+The input data can either be uncompressed files, or streams.  Files should be used when possible because they were [benchmarked](Docs/Benchmarks.md) to be about twice as fast as streams.  One notable use case for streams is searching compressed data without decompressing it to disk first.
 
 ## [Examples](Docs/Examples.md)
 
