@@ -18,9 +18,9 @@ namespace Imagibee {
         // stored in Error.  Exceptions during Start are not handled.
         //
         // A balance between memory footprint and performance can be achieved
-        // by varying chunkKiBytes and maxWorkers parameters.
+        // by varying partitionSize and maxWorkers parameters.
         //
-        public class DuplicateChecker : FileMapJoin<MapJoinData> {
+        public class DuplicateChecker : Partitioner<PartitionData> {
             // True if the files are identical, otherwise false
             public bool Identical {
                 get {
@@ -40,18 +40,20 @@ namespace Imagibee {
             //
             // path1, path2 - the paths of the files to compare
             // progress - signaled each time ByteCount is updated
-            // chunkKiBytes - the chunk size in KiBytes that each worker works on
-            // maxWorkers - optional limit to the maximum number of simultaneous workers
+            // partitionSize - the chunk size in bytes that each worker works on,
+            // defaults to 1048576
+            // maxWorkers - optional limit to the maximum number of simultaneous workers,
+            // defaults to unlimited
             public DuplicateChecker(
                 string path1,
                 string path2,
                 AutoResetEvent progress,
-                int chunkKiBytes = 1024,
+                int partitionSize = 1024 * 1024,
                 int maxWorkers = 0) : base(
                     path1,
                     progress,
                     JoinMode.None,
-                    chunkKiBytes,
+                    partitionSize,
                     maxWorkers)
             {
                 this.path2 = path2;
@@ -77,34 +79,34 @@ namespace Imagibee {
                 }
             }
 
-            protected override MapJoinData Join(MapJoinData a, MapJoinData b)
+            protected override PartitionData Join(PartitionData a, PartitionData b)
             {
                 return a;
             }
 
-            protected override MapJoinData Map(FileMapJoinData data)
+            protected override PartitionData Map(PartitionerData data)
             {
-                MapJoinData result = new(){};
+                PartitionData result = new(){};
                 using var fileStream1 = new System.IO.FileStream(
                     Path,
                     FileMode.Open,
                     FileAccess.Read,
                     FileShare.Read,
-                    chunkSize,
+                    partitionSize,
                     FileOptions.Asynchronous);
                 fileStream1.Seek(data.StartFpos, SeekOrigin.Begin);
                 var streamReader1 = new BinaryReader(fileStream1, System.Text.Encoding.UTF8, true);
-                var buf1 = streamReader1.ReadBytes(chunkSize);
+                var buf1 = streamReader1.ReadBytes(partitionSize);
                 using var fileStream2 = new System.IO.FileStream(
                     path2,
                     FileMode.Open,
                     FileAccess.Read,
                     FileShare.Read,
-                    chunkSize,
+                    partitionSize,
                     FileOptions.Asynchronous);
                 fileStream2.Seek(data.StartFpos, SeekOrigin.Begin);
                 var streamReader2 = new BinaryReader(fileStream2, System.Text.Encoding.UTF8, true);
-                var buf2 = streamReader2.ReadBytes(chunkSize);
+                var buf2 = streamReader2.ReadBytes(partitionSize);
                 if (!Utilities.UnsafeIsEqual(buf1, buf2)) {
                     //Logger.Log($"{data.Id}");
                     if (Identical) {

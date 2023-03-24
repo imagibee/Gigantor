@@ -7,7 +7,7 @@ using Imagibee.Gigantor;
 
 namespace Testing {
     public class LineIndexerTests {
-        readonly int chunkKiBytes = 1024;
+        readonly int partitionSize = 1024 * 1024;
         readonly int maxWorkers = 1;
         string enwik9Path = "";
         const string LINE_000001 = "<mediawiki xmlns=\"http://www.mediawiki.org/xml/export-0.3/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.mediawiki.org/xml/export-0.3/ http://www.mediawiki.org/xml/export-0.3.xsd\" version=\"0.3\" xml:lang=\"en\">";
@@ -28,7 +28,7 @@ namespace Testing {
         [Test]
         public void InitialStateTest()
         {
-            LineIndexer indexer = new("", new AutoResetEvent(false), chunkKiBytes, maxWorkers);
+            LineIndexer indexer = new("", new AutoResetEvent(false), partitionSize, maxWorkers);
             Assert.AreEqual(false, indexer.Running);
             Assert.AreEqual(0, indexer.LineCount);
             Assert.AreEqual(true, indexer.Error == "");
@@ -39,7 +39,7 @@ namespace Testing {
         public void EmptyPathTest()
         {
             AutoResetEvent progress = new(false);
-            LineIndexer indexer = new("", progress, chunkKiBytes, maxWorkers);
+            LineIndexer indexer = new("", progress, partitionSize, maxWorkers);
             Background.StartAndWait(indexer, progress, (_) => { });
             Assert.AreEqual(true, indexer.Error != "");
             Assert.AreEqual(false, indexer.Cancelled);
@@ -49,7 +49,7 @@ namespace Testing {
         public void MissingPathTest()
         {
             AutoResetEvent progress = new(false);
-            LineIndexer indexer = new("A Missing File", progress, chunkKiBytes, maxWorkers);
+            LineIndexer indexer = new("A Missing File", progress, partitionSize, maxWorkers);
             indexer.Start();
             Background.Wait(indexer, progress, (_) => { });
             Assert.AreEqual(true, indexer.Error != "");
@@ -60,7 +60,7 @@ namespace Testing {
         public void FilePositionTest()
         {
             AutoResetEvent progress = new(false);
-            LineIndexer indexer = new(enwik9Path, progress, chunkKiBytes: 2 * 1024, maxWorkers: 0);
+            LineIndexer indexer = new(enwik9Path, progress, partitionSize: 2 * 1024 * 1024, maxWorkers: 0);
             Background.StartAndWait(
                 indexer,
                 progress,
@@ -94,7 +94,7 @@ namespace Testing {
         public void LineNumberTest()
         {
             AutoResetEvent progress = new(false);
-            LineIndexer indexer = new(enwik9Path, progress, chunkKiBytes: 3 * 1024, maxWorkers: 0);
+            LineIndexer indexer = new(enwik9Path, progress, partitionSize: 3 * 1024 * 1024, maxWorkers: 0);
             Background.StartAndWait(indexer, progress, (_) => { });
             Assert.AreEqual(true, indexer.Error == "");
             Assert.AreEqual(false, indexer.Cancelled);

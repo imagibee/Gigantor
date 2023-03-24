@@ -1,0 +1,4 @@
+export STARTDIR=$PWD
+cd Testing/Functional/
+dotnet test -c Release --framework net7.0
+cd $STARTDIR

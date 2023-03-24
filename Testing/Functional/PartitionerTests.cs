@@ -6,11 +6,11 @@ using NUnit.Framework;
 using Imagibee.Gigantor;
 
 namespace Testing {
-    public class FileMapJoinTests {
+    public class PartitionerTests {
         string biblePath = "";
 
         // Test class for throwing exceptions in the code path
-        public class MapJoinErrorThrower : FileMapJoin<MapJoinData> {
+        public class PartitionerErrorThrower : Partitioner<PartitionData> {
 
             private static readonly Random rand = new Random();
             [ThreadStatic] private static Random? tRand;
@@ -28,31 +28,31 @@ namespace Testing {
                 return tRand.Next(a, b);
             }
 
-            public MapJoinErrorThrower(
+            public PartitionerErrorThrower(
                 bool throwInMap,
                 int startId,
                 string path,
                 AutoResetEvent progress,
                 JoinMode joinMode,
-                int chunkKiBytes,
+                int partitionSize,
                 int maxWorkers) :
-                base(path, progress, joinMode, chunkKiBytes, maxWorkers)
+                base(path, progress, joinMode, partitionSize, maxWorkers)
             {
                 this.throwInMap = throwInMap;
                 this.startId = startId;
             }
 
-            protected override MapJoinData Map(FileMapJoinData data)
+            protected override PartitionData Map(PartitionerData data)
             {
                 //Logger.Log($"{data.Id}");
                 Thread.Sleep(Next(1, 5));
                 if (throwInMap && data.Id > startId) {
                     throw new Exception($"map error {data.Id}");
                 }
-                return new MapJoinData() { Id = data.Id };
+                return new PartitionData() { Id = data.Id };
             }
 
-            protected override MapJoinData Join(MapJoinData a, MapJoinData b)
+            protected override PartitionData Join(PartitionData a, PartitionData b)
             {
                 Thread.Sleep(Next(1,5));
                 if (!throwInMap && a.Id > startId) {
@@ -78,13 +78,13 @@ namespace Testing {
             const int iterations = 2;
             AutoResetEvent progress = new(false);
             for (var i = 0; i < iterations; i++) {
-                MapJoinErrorThrower thrower = new(
+                PartitionerErrorThrower thrower = new(
                     true,
                     1,
                     biblePath,
                     progress,
                     JoinMode.Sequential,
-                    1024,
+                    1024 * 1024,
                     10);
                 Background.StartAndWait(
                     thrower,
@@ -102,13 +102,13 @@ namespace Testing {
             const int iterations = 2;
             AutoResetEvent progress = new(false);
             for (var i = 0; i < iterations; i++) {
-                MapJoinErrorThrower thrower = new(
+                PartitionerErrorThrower thrower = new(
                     false,
                     2,
                     biblePath,
                     progress,
                     JoinMode.Sequential,
-                    1024,
+                    1024 * 1024,
                     10);
                 Background.StartAndWait(
                     thrower,

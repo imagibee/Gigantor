@@ -14,25 +14,25 @@ using Mono.Unix.Native;
 
 
 namespace BenchmarkTesting {
-    internal class ReadThroughputTester : FileMapJoin<MapJoinData>
+    internal class ReadThroughputTester : Partitioner<PartitionData>
     {
-        MapJoinData result = new();
+        PartitionData result = new();
         [ThreadStatic] static byte[]? buffer;
 
         // Constructs a file based overhead tester
         public ReadThroughputTester(
             string path,
             AutoResetEvent progress,
-            int chunkKiBytes,
+            int partitionSize,
             int maxWorkers,
             BufferMode bufferMode = BufferMode.Unbuffered) :
             base(
                 path,
                 progress,
                 JoinMode.Sequential,
-                chunkKiBytes: chunkKiBytes,
+                partitionSize: partitionSize,
                 maxWorkers: maxWorkers,
-                overlapKiBytes: 0,
+                overlap: 0,
                 bufferMode: bufferMode)
         {
         }
@@ -41,43 +41,43 @@ namespace BenchmarkTesting {
         public ReadThroughputTester(
             System.IO.FileStream stream,
             AutoResetEvent progress,
-            int chunkKiBytes,
+            int partitionSize,
             int maxWorkers) :
             base(
                 "",
                 progress,
                 JoinMode.Sequential,
-                chunkKiBytes: chunkKiBytes,
+                partitionSize: partitionSize,
                 maxWorkers: maxWorkers)
         {
             Stream = stream;
         }
 
-        protected override MapJoinData Join(MapJoinData a, MapJoinData b)
+        protected override PartitionData Join(PartitionData a, PartitionData b)
         {
             return a;
         }
 
-        protected override MapJoinData Map(FileMapJoinData data)
+        protected override PartitionData Map(PartitionerData data)
         {
             // File based, read and throw away results
             if (data.Buf == null) {
                 using var fileStream = Imagibee.Gigantor.FileStream.Create(
-                    Path, chunkKiBytes: chunkSize / 1024, bufferMode: bufferMode);
+                    Path, bufferSize: partitionSize, bufferMode: bufferMode);
                 fileStream.Seek(data.StartFpos, SeekOrigin.Begin);
                 long pos = 0;
                 var bytesRead = 0;
                 if (buffer == null) {
-                    buffer = new byte[chunkSize];
+                    buffer = new byte[partitionSize];
                 }
                 do {
-                    bytesRead = fileStream.Read(buffer, 0, chunkSize);
+                    bytesRead = fileStream.Read(buffer, 0, partitionSize);
                     Interlocked.Add(ref byteCount, bytesRead);
                     pos += bytesRead;
                 }
-                while (bytesRead == chunkSize && pos < chunkSize);
+                while (bytesRead == partitionSize && pos < partitionSize);
             }
-            // Stream based, reading has already been done in FileMapJoin<T> base class
+            // Stream based, reading has already been done in Partition<T> base class
             else {
                 Interlocked.Add(ref byteCount, data.Buf.Length);
             }
@@ -123,16 +123,16 @@ namespace BenchmarkTesting {
 
         public void BaselineReadThroughputTest(BufferMode bufferMode)
         {
-            var chunkKiBytes = 128 * 1024;
+            var partitionSize = 128 * 1024 * 1024;
             Console.WriteLine($"{TestContext.CurrentContext.Test.Name} " +
                 $"{Utilities.FileByteCount(testPath) / 1e6} MByte " +
-                $"file with {chunkKiBytes} KiByte buffer size");
+                $"file with {partitionSize} byte buffer size");
             var totalBytes = Utilities.FileByteCount(testPath);
             Stopwatch stopwatch = new();
             AutoResetEvent progress = new(false);
             using var fileStream = Imagibee.Gigantor.FileStream.Create(
-                testPath, chunkKiBytes: chunkKiBytes, bufferMode: bufferMode);
-            var buf = new byte[chunkKiBytes * 1024];
+                testPath, bufferSize: partitionSize, bufferMode: bufferMode);
+            var buf = new byte[partitionSize];
             fileStream.Seek(0, SeekOrigin.Begin);
             stopwatch.Start();
             ReadThroughputTester.ReadAndThrowAway(fileStream, buf);
@@ -150,19 +150,19 @@ namespace BenchmarkTesting {
             AutoResetEvent progress = new(false);
             List<Tuple<int, int>> cases = new()
             {
-                new Tuple<int, int>(128 * 1024, 1),
-                new Tuple<int, int>(2048, 1000),
-                new Tuple<int, int>(1024, 1000),
-                new Tuple<int, int>(512, 1000),
-                new Tuple<int, int>(256, 1000),
-                new Tuple<int, int>(128, 1000),
-                new Tuple<int, int>(64, 1000),
+                new Tuple<int, int>(128 * 1024 * 1024, 1),
+                new Tuple<int, int>(2048 * 1024, 1000),
+                new Tuple<int, int>(1024 * 1024, 1000),
+                new Tuple<int, int>(512 * 1024, 1000),
+                new Tuple<int, int>(256 * 1024, 1000),
+                new Tuple<int, int>(128 * 1024, 1000),
+                new Tuple<int, int>(64 * 1024, 1000),
             };
             foreach (var c in cases) {
                 ReadThroughputTester tester = new(
                     testPath,
                     progress,
-                    chunkKiBytes: c.Item1,
+                    partitionSize: c.Item1,
                     maxWorkers: c.Item2,
                     bufferMode: bufferMode);
                 stopwatch.Start();
@@ -174,7 +174,7 @@ namespace BenchmarkTesting {
                 stopwatch.Stop();
                 Console.WriteLine($"{TestContext.CurrentContext.Test.Name} " +
                     $"{tester.ByteCount / 1e6} MByte " +
-                    $"file with {c.Item1} KiByte buffer size");
+                    $"file with {c.Item1} byte buffer size");
                 Console.WriteLine(
                     $"{c.Item2} threads: " +
                     $"{tester.ByteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps");
@@ -189,20 +189,20 @@ namespace BenchmarkTesting {
             AutoResetEvent progress = new(false);
             List<Tuple<int, int>> cases = new()
             {
-                new Tuple<int, int>(128 * 1024, 1),
-                new Tuple<int, int>(32768, 1000),
-                new Tuple<int, int>(16384, 1000),
-                new Tuple<int, int>(8192, 1000),
-                new Tuple<int, int>(4096, 1000),
+                new Tuple<int, int>(128 * 1024 * 1024, 1),
+                new Tuple<int, int>(32768 * 1024, 1000),
+                new Tuple<int, int>(16384 * 1024, 1000),
+                new Tuple<int, int>(8192 * 1024, 1000),
+                new Tuple<int, int>(4096 * 1024, 1000),
             };
             foreach (var c in cases) {
                 using var fileStream = Imagibee.Gigantor.FileStream.Create(
-                    testPath, chunkKiBytes: c.Item1, bufferMode: bufferMode);
+                    testPath, bufferSize: c.Item1, bufferMode: bufferMode);
                 fileStream.Seek(0, SeekOrigin.Begin);
                 ReadThroughputTester tester = new(
                     fileStream,
                     progress,
-                    chunkKiBytes: c.Item1,
+                    partitionSize: c.Item1,
                     maxWorkers: c.Item2);
                 stopwatch.Start();
                 Background.StartAndWait(
@@ -213,7 +213,7 @@ namespace BenchmarkTesting {
                 stopwatch.Stop();
                 Console.WriteLine($"{TestContext.CurrentContext.Test.Name} " +
                     $"{tester.ByteCount / 1e6} MByte " +
-                    $"file with {c.Item1} KiByte buffer size");
+                    $"file with {c.Item1} byte buffer size");
                 Console.WriteLine(
                     $"{c.Item2} threads: " +
                     $"{tester.ByteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps");
@@ -228,21 +228,21 @@ namespace BenchmarkTesting {
             AutoResetEvent progress = new(false);
             List<Tuple<int, int>> cases = new()
             {
-                new Tuple<int, int>(131072, 1),
-                new Tuple<int, int>(8192, 1000),
-                new Tuple<int, int>(4096, 1000),
-                new Tuple<int, int>(2048, 1000),
-                new Tuple<int, int>(1024, 1000),
-                new Tuple<int, int>(512, 1000),
-                new Tuple<int, int>(256, 1000),
-                new Tuple<int, int>(128, 1000),
-                new Tuple<int, int>(64, 1000),
+                new Tuple<int, int>(128  * 1024 * 1024, 1),
+                new Tuple<int, int>(8192 * 1024, 1000),
+                new Tuple<int, int>(4096 * 1024, 1000),
+                new Tuple<int, int>(2048 * 1024, 1000),
+                new Tuple<int, int>(1024 * 1024, 1000),
+                new Tuple<int, int>(512 * 1024, 1000),
+                new Tuple<int, int>(256 * 1024, 1000),
+                new Tuple<int, int>(128 * 1024, 1000),
+                new Tuple<int, int>(64 * 1024, 1000),
             };
             foreach (var c in cases) {
                 LineIndexer indexer = new(
                     testPath,
                     progress,
-                    chunkKiBytes: c.Item1,
+                    partitionSize: c.Item1,
                     maxWorkers: c.Item2,
                     bufferMode: bufferMode);
                 stopwatch.Start();
@@ -254,7 +254,7 @@ namespace BenchmarkTesting {
                 stopwatch.Stop();
                 Console.WriteLine($"{TestContext.CurrentContext.Test.Name} " +
                     $"{indexer.ByteCount / 1e6} MByte " +
-                    $"file with {c.Item1} KiByte buffer size");
+                    $"file with {c.Item1} byte buffer size");
                 Console.WriteLine(
                     $"{c.Item2} threads: " +
                     $"{indexer.ByteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps " +
@@ -269,21 +269,21 @@ namespace BenchmarkTesting {
             AutoResetEvent progress = new(false);
             List<Tuple<int, int>> cases = new()
             {
-                new Tuple<int, int>(131072, 1),
-                new Tuple<int, int>(4096, 1000),
-                new Tuple<int, int>(2048, 1000),
-                new Tuple<int, int>(1024, 1000),
-                new Tuple<int, int>(512, 1000),
-                new Tuple<int, int>(256, 1000),
-                new Tuple<int, int>(128, 1000),
-                new Tuple<int, int>(64, 1000),
+                new Tuple<int, int>(128 * 1024 * 1024, 1),
+                new Tuple<int, int>(4096 * 1024, 1000),
+                new Tuple<int, int>(2048 * 1024, 1000),
+                new Tuple<int, int>(1024 * 1024, 1000),
+                new Tuple<int, int>(512 * 1024, 1000),
+                new Tuple<int, int>(256 * 1024, 1000),
+                new Tuple<int, int>(128 * 1024, 1000),
+                new Tuple<int, int>(64 * 1024, 1000),
             };
             foreach (var c in cases) {
                 RegexSearcher searcher = new(
                     testPath,
                     regex,
                     progress,
-                    chunkKiBytes: c.Item1,
+                    partitionSize: c.Item1,
                     maxWorkers: c.Item2,
                     maxMatchCount: 100000,
                     bufferMode: bufferMode);
@@ -296,7 +296,7 @@ namespace BenchmarkTesting {
                 stopwatch.Stop();
                 Console.WriteLine($"{TestContext.CurrentContext.Test.Name} " +
                     $"{searcher.ByteCount / 1e6} MByte " +
-                    $"file with {c.Item1} KiByte buffer size");
+                    $"file with {c.Item1} byte buffer size");
                 Console.WriteLine(
                     $"{c.Item2} threads: " +
                     $"{searcher.ByteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps " +
@@ -311,24 +311,24 @@ namespace BenchmarkTesting {
             AutoResetEvent progress = new(false);
             List<Tuple<int, int>> cases = new()
             {
-                new Tuple<int, int>(131072, 1),
-                new Tuple<int, int>(4096, 1000),
-                new Tuple<int, int>(2048, 1000),
-                new Tuple<int, int>(1024, 1000),
-                new Tuple<int, int>(512, 1000),
-                new Tuple<int, int>(256, 1000),
-                new Tuple<int, int>(128, 1000),
-                new Tuple<int, int>(64, 1000),
+                new Tuple<int, int>(128  * 1024 * 1024, 1),
+                new Tuple<int, int>(4096 * 1024, 1000),
+                new Tuple<int, int>(2048 * 1024, 1000),
+                new Tuple<int, int>(1024 * 1024, 1000),
+                new Tuple<int, int>(512 * 1024, 1000),
+                new Tuple<int, int>(256 * 1024, 1000),
+                new Tuple<int, int>(128 * 1024, 1000),
+                new Tuple<int, int>(64 * 1024, 1000),
             };
             foreach (var c in cases) {
                 using var fileStream = Imagibee.Gigantor.FileStream.Create(
-                    testPath, chunkKiBytes: c.Item1, bufferMode: bufferMode);
+                    testPath, bufferSize: c.Item1, bufferMode: bufferMode);
                 fileStream.Seek(0, SeekOrigin.Begin);
                 RegexSearcher searcher = new(
                     fileStream,
                     regex,
                     progress,
-                    chunkKiBytes: c.Item1,
+                    partitionSize: c.Item1,
                     maxWorkers: c.Item2,
                     maxMatchCount: 100000);
                 stopwatch.Start();
@@ -340,7 +340,7 @@ namespace BenchmarkTesting {
                 stopwatch.Stop();
                 Console.WriteLine($"{TestContext.CurrentContext.Test.Name} " +
                     $"{searcher.ByteCount / 1e6} MByte " +
-                    $"file with {c.Item1} KiByte buffer size");
+                    $"file with {c.Item1} byte buffer size");
                 Console.WriteLine(
                     $"{c.Item2} threads: " +
                     $"{searcher.ByteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps " +
@@ -356,15 +356,15 @@ namespace BenchmarkTesting {
             AutoResetEvent progress = new(false);
             List<Tuple<int, int>> cases = new()
             {
-                new Tuple<int, int>(131072, 1),
-                new Tuple<int, int>(32768, 1000),
-                new Tuple<int, int>(16384, 1000),
-                new Tuple<int, int>(8192, 1000),
-                new Tuple<int, int>(4096, 1000),
+                new Tuple<int, int>(128 * 1024 * 1024, 1),
+                new Tuple<int, int>(32768 * 1024, 1000),
+                new Tuple<int, int>(16384 * 1024, 1000),
+                new Tuple<int, int>(8192 * 1024, 1000),
+                new Tuple<int, int>(4096 * 1024, 1000),
             };
             foreach (var c in cases) {
                 using var fileStream = Imagibee.Gigantor.FileStream.Create(
-                    $"{testPath}.gz", chunkKiBytes: c.Item1, bufferMode: bufferMode);
+                    $"{testPath}.gz", bufferSize: c.Item1, bufferMode: bufferMode);
                 fileStream.Seek(0, SeekOrigin.Begin);
                 using var gzStream = new GZipStream(
                     fileStream, CompressionMode.Decompress, true);
@@ -372,7 +372,7 @@ namespace BenchmarkTesting {
                     gzStream,
                     regex,
                     progress,
-                    chunkKiBytes: c.Item1,
+                    partitionSize: c.Item1,
                     maxWorkers: c.Item2,
                     maxMatchCount: 100000);
                 stopwatch.Start();
@@ -384,7 +384,7 @@ namespace BenchmarkTesting {
                 stopwatch.Stop();
                 Console.WriteLine($"{TestContext.CurrentContext.Test.Name} " +
                     $"{searcher.ByteCount / 1e6} MByte " +
-                    $"file with {c.Item1} KiByte buffer size");
+                    $"file with {c.Item1} byte buffer size");
                 Console.WriteLine(
                     $"{c.Item2} threads: " +
                     $"{searcher.ByteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps " +
@@ -397,7 +397,7 @@ namespace BenchmarkTesting {
 
         public void FileMultipleURLSearchTest(BufferMode bufferMode)
         {
-            var chunkKiBytes = 256;
+            var partitionSize = 256 * 1024;
             var maxWorkers = 1000;
             var maxRegexes = 10;
             Stopwatch stopwatch = new();
@@ -411,7 +411,7 @@ namespace BenchmarkTesting {
                     testPath,
                     regexs,
                     progress,
-                    chunkKiBytes: chunkKiBytes,
+                    partitionSize: partitionSize,
                     maxWorkers: maxWorkers,
                     maxMatchCount: 1000000,
                     bufferMode: bufferMode);
@@ -425,7 +425,7 @@ namespace BenchmarkTesting {
                 var byteCount = searcher.ByteCount * numRegexes;
                 Console.WriteLine($"{numRegexes} x {TestContext.CurrentContext.Test.Name} " +
                     $"{byteCount / 1e6} MByte " +
-                    $"data with {chunkKiBytes} KiByte buffer size");
+                    $"data with {partitionSize} byte buffer size");
                 Console.WriteLine(
                     $"{maxWorkers} threads: " +
                     $"{byteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps " +
@@ -436,7 +436,7 @@ namespace BenchmarkTesting {
 
         public void MultipleCompressedStreamURLSearchTest(BufferMode bufferMode)
         {
-            var chunkKiBytes = 8192;
+            var partitionSize = 8192 * 1024;
             var maxWorkers = 1000;
             var maxFiles = 5;
             Stopwatch stopwatch = new();
@@ -450,7 +450,7 @@ namespace BenchmarkTesting {
                     path = $"{testPath}.gz";
                 }
                 var f = Imagibee.Gigantor.FileStream.Create(
-                    path, chunkKiBytes: chunkKiBytes, bufferMode: bufferMode);
+                    path, bufferSize: partitionSize, bufferMode: bufferMode);
                 var g = new GZipStream(f, CompressionMode.Decompress, true);
                 files.Add(f);
                 gZips.Add(g);
@@ -467,7 +467,7 @@ namespace BenchmarkTesting {
                             gZips[j],
                             new Regex(pattern, RegexOptions.Compiled),
                             progress,
-                            chunkKiBytes: chunkKiBytes,
+                            partitionSize: partitionSize,
                             maxWorkers: maxWorkers,
                             maxMatchCount: 100000);
                         searchers.Add(s);
@@ -488,7 +488,7 @@ namespace BenchmarkTesting {
                     }
                     Console.WriteLine($"{numFiles} x {TestContext.CurrentContext.Test.Name} " +
                         $"{byteCount / 1e6} MByte " +
-                        $"data with {chunkKiBytes} KiByte buffer size");
+                        $"data with {partitionSize} byte buffer size");
                     Console.WriteLine(
                         $"{maxWorkers} threads: " +
                         $"{byteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps " +

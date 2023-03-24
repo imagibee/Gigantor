@@ -1,10 +1,7 @@
-using System.Linq;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.IO;
-using System;
-using System.IO.Pipes;
 
 namespace Imagibee {
     namespace Gigantor {
@@ -30,9 +27,9 @@ namespace Imagibee {
         // stored in Error.
         //
         // A balance between memory footprint and performance can be achieved
-        // by varying maxMatchCount, chunkKiBytes and maxWorkers parameters.
+        // by varying maxMatchCount, partitionSize and maxWorkers parameters.
         //
-        public class RegexSearcher : FileMapJoin<MapJoinData> {
+        public class RegexSearcher : Partitioner<PartitionData> {
             // The number of matches found so far
             public long MatchCount { get { return Interlocked.Read(ref matchCount); } }
 
@@ -62,29 +59,31 @@ namespace Imagibee {
             // filePath - the path to the file to search
             // regex - the regular expression to match against the file
             // progress - signaled each time MatchCount is updated
-            // maxMatchCount - places a limit on the number of matches, defaults to 1000
-            // chunkKiBytes - the chunk size in KiBytes that each worker works on
-            // maxWorkers - optional limit to the maximum number of simultaneous workers
-            // overlapKiBytes - size in KiBytes of partition overlap, used for finding matches
-            // that span two partitions, may not exceed half the chunk size
-            // bufferMode - choose whether or not files are buffered, for gigantic files
-            // unbuffered tends to be faster
+            // maxMatchCount - places a limit on the number of matches, defaults to 100000
+            // partitionSize - the chunk size in bytes that each worker works on,
+            // defaults to 524288
+            // maxWorkers - optional limit to the maximum number of simultaneous workers,
+            // defaults to unlimited
+            // overlap - size in bytes of partition overlap, used for finding matches,
+            // that span two partitions, may not exceed half the chunk size, defaults to 1024
+            // bufferMode - choose whether or not files are buffered, defaults to buffered,
+            // unbuffered is experimental
             public RegexSearcher(
                 string filePath,
                 System.Text.RegularExpressions.Regex regex,
                 AutoResetEvent progress,
                 int maxMatchCount = 100000,
-                int chunkKiBytes = 1024,
-                int maxWorkers = 1000,
-                int overlapKiBytes = 1,
-                BufferMode bufferMode = BufferMode.Unbuffered) : this(
+                int partitionSize = 512 * 1024,
+                int maxWorkers = 0,
+                int overlap = 1024,
+                BufferMode bufferMode = BufferMode.Buffered) : this(
                     filePath,
                     new List<System.Text.RegularExpressions.Regex>() { regex },
                     progress,
                     maxMatchCount,
-                    chunkKiBytes,
+                    partitionSize,
                     maxWorkers,
-                    overlapKiBytes,
+                    overlap,
                     bufferMode)
             {
             }
@@ -94,29 +93,30 @@ namespace Imagibee {
             // filePath - the path to the file to search
             // regexs - the list of regular expression to match against the file
             // progress - signaled each time MatchCount is updated
-            // maxMatchCount - places a limit on the number of matches, defaults to 1000
-            // chunkKiBytes - the chunk size in KiBytes that each worker works on
-            // maxWorkers - optional limit to the maximum number of simultaneous workers
-            // overlapKiBytes - size in KiBytes of partition overlap, used for finding matches
-            // that span two partitions, may not exceed half the chunk size
-            // bufferMode - choose whether or not files are buffered, for gigantic files
-            // unbuffered tends to be faster
-            // encoding - then encoding of the data, defaults to ASCII
+            // maxMatchCount - places a limit on the number of matches, defaults to 100000
+            // partitionSize - the chunk size in bytes that each worker works on,
+            // defaults to 524288
+            // maxWorkers - optional limit to the maximum number of simultaneous workers,
+            // defaults to unlimited
+            // overlap - size in bytes of partition overlap, used for finding matches,
+            // that span two partitions, may not exceed half the chunk size, defaults to 1024
+            // bufferMode - choose whether or not files are buffered, defaults to buffered,
+            // unbuffered is experimental
             public RegexSearcher(
                 string filePath,
                 List<System.Text.RegularExpressions.Regex> regexs,
                 AutoResetEvent progress,
                 int maxMatchCount = 100000,
-                int chunkKiBytes = 1024,
-                int maxWorkers = 1000,
-                int overlapKiBytes = 1,
-                BufferMode bufferMode = BufferMode.Unbuffered) : base(
+                int partitionSize = 512 * 1024,
+                int maxWorkers = 0,
+                int overlap = 1024,
+                BufferMode bufferMode = BufferMode.Buffered) : base(
                     filePath,
                     progress,
                     JoinMode.None,
-                    chunkKiBytes,
+                    partitionSize,
                     maxWorkers: maxWorkers,
-                    overlapKiBytes: overlapKiBytes,
+                    overlap: overlap,
                     bufferMode: bufferMode)
             {
                 matchess = new();
@@ -134,26 +134,28 @@ namespace Imagibee {
             // stream - the stream to search
             // regex - the regular expression to match against the stream
             // progress - signaled each time MatchCount is updated
-            // maxMatchCount - places a limit on the number of matches, defaults to 1000
-            // chunkKiBytes - the chunk size in KiBytes that each worker works on
-            // maxWorkers - optional limit to the maximum number of simultaneous workers
-            // overlapKiBytes - size in KiBytes of partition overlap, used for finding matches
-            // that span two partitions, may not exceed half the chunk size
+            // maxMatchCount - places a limit on the number of matches, defaults to 100000
+            // partitionSize - the chunk size in bytes that each worker works on,
+            // defaults to 524288
+            // maxWorkers - optional limit to the maximum number of simultaneous workers,
+            // defaults to unlimited
+            // overlap - size in bytes of partition overlap, used for finding matches,
+            // that span two partitions, may not exceed half the chunk size, defaults to 1024
             public RegexSearcher(
                 Stream stream,
                 System.Text.RegularExpressions.Regex regex,
                 AutoResetEvent progress,
                 int maxMatchCount = 100000,
-                int chunkKiBytes = 1024,
-                int maxWorkers = 1000,
-                int overlapKiBytes = 1) : this(
+                int partitionSize = 512 * 1024,
+                int maxWorkers = 0,
+                int overlap = 1024) : this(
                     stream,
                     new List<System.Text.RegularExpressions.Regex>() { regex },
                     progress,
                     maxMatchCount,
-                    chunkKiBytes,
+                    partitionSize,
                     maxWorkers,
-                    overlapKiBytes)
+                    overlap)
             {
             }
 
@@ -162,26 +164,27 @@ namespace Imagibee {
             // stream - the stream to search
             // regexs - the list of regular expressions to match against the stream
             // progress - signaled each time MatchCount is updated
-            // maxMatchCount - places a limit on the number of matches, defaults to 1000
-            // chunkKiBytes - the chunk size in KiBytes that each worker works on
-            // maxWorkers - optional limit to the maximum number of simultaneous workers
-            // overlapKiBytes - size in KiBytes of partition overlap, used for finding matches
-            // that span two partitions, may not exceed half the chunk size
+            // maxMatchCount - places a limit on the number of matches, defaults to 100000
+            // partitionSize - the chunk size in bytes that each worker works on,
+            // defaults to 524288
+            // maxWorkers - optional limit to the maximum number of simultaneous workers,
+            // defaults to unlimited
+            // overlap - size in bytes of partition overlap, used for finding matches,
+            // that span two partitions, may not exceed half the chunk size, defaults to 1024
             public RegexSearcher(
                 Stream stream,
                 List<System.Text.RegularExpressions.Regex> regexs,
                 AutoResetEvent progress,
                 int maxMatchCount = 100000,
-                int chunkKiBytes = 1024,
-                int maxWorkers = 1000,
-                int overlapKiBytes = 1,
-                System.Text.Encoding? encoding = null) : base(
+                int partitionSize = 512 * 1024,
+                int maxWorkers = 0,
+                int overlap = 1024) : base(
                     "",
                     progress,
                     JoinMode.None,
-                    chunkKiBytes,
+                    partitionSize,
                     maxWorkers: maxWorkers,
-                    overlapKiBytes: overlapKiBytes)
+                    overlap: overlap)
             {
                 matchess = new();
                 matchQueues = new();
@@ -246,12 +249,12 @@ namespace Imagibee {
                 }
             }
 
-            protected override MapJoinData Join(MapJoinData a, MapJoinData b)
+            protected override PartitionData Join(PartitionData a, PartitionData b)
             {
                 return a;
             }
 
-            protected override MapJoinData Map(FileMapJoinData data)
+            protected override PartitionData Map(PartitionerData data)
             {
                 var str = Utilities.UnsafeByteToString(data.Buf);
                 for (var i = 0; i < regexs.Count; i++) {
@@ -259,10 +262,10 @@ namespace Imagibee {
                 }
                 var bufLen = data.Buf == null ? 0:data.Buf.Length;
                 Interlocked.Add(ref byteCount, bufLen - overlap);
-                return new MapJoinData();
+                return new PartitionData();
             }
 
-            void DoMatch(FileMapJoinData data, string partition, int regexIndex)
+            void DoMatch(PartitionerData data, string partition, int regexIndex)
             {
                 var partitionMatches = regexs[regexIndex].Matches(partition);
                 if (partitionMatches.Count > 0) {

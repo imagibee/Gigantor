@@ -8,7 +8,7 @@ namespace Imagibee {
         //
         // Defines an abstraction for mapping many JobT to 1 or many ResultT.
         //
-        public abstract class MapJoin<JobT, ResultT> where JobT : IMapJoinData
+        public abstract class Partition<JobT, ResultT> where JobT : IPartitionData
         {
             // Called by a background worker thread to map partition data to a ResultT
             protected abstract ResultT Map(JobT data);
@@ -64,14 +64,14 @@ namespace Imagibee {
             Reduce,
         }
 
-        // Required MapJoin job properties
-        public interface IMapJoinData {
+        // Required Partition job properties
+        public interface IPartitionData {
             public int Id { get; set; }
             public int Cycle { get; set; }
         }
 
-        // A default MapJoin job type for convenience
-        public struct MapJoinData : IMapJoinData {
+        // A default Partition job type for convenience
+        public struct PartitionData : IPartitionData {
             public int Id { get; set; }
             public int Cycle { get; set; }
         }

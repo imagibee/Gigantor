@@ -34,8 +34,8 @@
     <Compile Include="..\..\Gigantor\DuplicateChecker.cs">
       <Link>DuplicateChecker.cs</Link>
     </Compile>
-    <Compile Include="..\..\Gigantor\FileMapJoin.cs">
-      <Link>FileMapJoin.cs</Link>
+    <Compile Include="..\..\Gigantor\Partitioner.cs">
+      <Link>Partitioner.cs</Link>
     </Compile>
     <Compile Include="..\..\Gigantor\LineIndexer.cs">
       <Link>LineIndexer.cs</Link>
@@ -43,8 +43,8 @@
     <Compile Include="..\..\Gigantor\Logging.cs">
       <Link>Logging.cs</Link>
     </Compile>
-    <Compile Include="..\..\Gigantor\MapJoin.cs">
-      <Link>MapJoin.cs</Link>
+    <Compile Include="..\..\Gigantor\Partition.cs">
+      <Link>Partition.cs</Link>
     </Compile>
     <Compile Include="..\..\Gigantor\RegexSearcher.cs">
       <Link>RegexSearcher.cs</Link>
