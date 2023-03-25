@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>Imagibee.Gigantor</PackageId>
-    <PackageVersion>1.0.0</PackageVersion>
+    <PackageVersion>1.0.1</PackageVersion>
     <Authors>dynamicbutter</Authors>
     <Description>Provides classes that support regular expression searches of gigantic files</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -10,7 +10,7 @@
     <Copyright>Copyright (c) Imagibee 2023</Copyright>
     <RepositoryUrl>https://github.com/imagibee/Gigantor</RepositoryUrl>
     <RespositoryType>git</RespositoryType>
-    <PackageTags>parallel performance regex regular expression text file search thread</PackageTags>
+    <PackageTags>parallel performance regex regular expression text file search decompress thread</PackageTags>
     <TargetFrameworks>netstandard2.1;netcoreapp3.1;net5.0;net6.0;net7.0</TargetFrameworks>
     <CheckEolTargetFramework>false</CheckEolTargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
