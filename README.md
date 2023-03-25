@@ -11,7 +11,7 @@ It solves the following problems:
 The approach is to partition the data into chunks which are processed in parallel using a [System.Threading.ThreadPool](https://learn.microsoft.com/en-us/dotnet/api/system.threading.threadpool?view=net-7.0) of background threads.  Since the threads are in the background they do not cause the main thread to become unresponsive.  Since the chunks are reasonably sized it does not matter if the whole file can fit into memory.
 
 ## [RegexSearcher](https://github.com/imagibee/Gigantor/blob/main/Gigantor/RegexSearcher.cs)
-`RegexSearcher` is the class that boosts regular expression performance for gigantic files or streams.  Search was [benchmarked](Docs/Benchmarks.md) at about 2.7 Gigabyte/s which was roughly 4x faster than the single threaded baseline.  It depends on a [System.Text.RegularExpressions.Regex](https://learn.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.regex?view=net-7.0) to do the searching of the partitions.  It uses an overlap to handle matches that fall on partition boundaries.  De-duping of the overlap regions is performed automatically at the end of the search so that the final results are free of duplicates.  Performance can be further enhanced by simultaneously searching multiple regular expressions or files for use cases that have these dimensions.
+`RegexSearcher` is the class that boosts regular expression performance for gigantic files or streams.  Search was [benchmarked](https://github.com/imagibee/Gigantor/blob/main/Docs/Benchmarks.md#search-vs-buffer-size) at about 2.7 Gigabyte/s which was roughly 4x faster than the single threaded baseline.  It depends on a [System.Text.RegularExpressions.Regex](https://learn.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.regex?view=net-7.0) to do the searching of the partitions.  It uses an overlap to handle matches that fall on partition boundaries.  De-duping of the overlap regions is performed automatically at the end of the search so that the final results are free of duplicates.  Performance can be further enhanced by simultaneously searching multiple regular expressions or files for use cases that have these dimensions.
 
 ```csharp
 // Create a regular expression to match urls
@@ -37,7 +37,7 @@ foreach (var match in searcher.GetMatchData()) {
 ```
 
 ## [LineIndexer](https://github.com/imagibee/Gigantor/blob/main/Gigantor/LineIndexer.cs)
-`LineIndexer` is the class that creates a mapping between line numbers and file positions for gigantic files.  Once the mapping has been created it can be used to quickly find the position at the start of a line or the line number that contains a position.  Index creation was [benchmarked](Docs/Benchmarks.md) at about 2.5 Gigabyte/s which was roughly 4x faster than the single threaded baseline.
+`LineIndexer` is the class that creates a mapping between line numbers and file positions for gigantic files.  Once the mapping has been created it can be used to quickly find the position at the start of a line or the line number that contains a position.  Index creation was [benchmarked](https://github.com/imagibee/Gigantor/blob/main/Docs/Benchmarks.md#indexing-vs-buffer-size) at about 2.5 Gigabyte/s which was roughly 4x faster than the single threaded baseline.
 
 ```csharp
 // Create the indexer
@@ -59,9 +59,14 @@ Console.WriteLine(reader.ReadLine());
 ```
 
 ## Input Data
-The input data can either be uncompressed files, or streams.  Files should be used when possible because they were [benchmarked](Docs/Benchmarks.md) to be about twice as fast as streams.  One notable use case for streams is searching compressed data without decompressing it to disk first.
+The input data can either be uncompressed files, or streams.  Files should be used when possible because they were [benchmarked](https://github.com/imagibee/Gigantor/blob/main/Docs/Benchmarks.md#search-vs-buffer-size) to be faster than streams.  However, one notable use case for streams is searching compressed data without decompressing it to disk first.
 
-## [Examples](Docs/Examples.md)
+## [Examples](https://github.com/imagibee/Gigantor/blob/main/Docs/Examples.md)
+
+## [Benchmarks](https://github.com/imagibee/Gigantor/blob/main/Docs/Benchmarks.md)
+
+## Testing
+Prior to running the tests run `Scripts/setup` to prepare the test files.  This script creates some large files in the temporary folder which are deleted on reboot.  Once setup has been completed run `Scripts/test`.
 
 ## License
 [MIT](https://raw.githubusercontent.com/imagibee/Gigantor/main/LICENSE)
