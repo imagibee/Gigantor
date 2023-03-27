@@ -3,18 +3,12 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.810.25
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LineApp", "Benchmarking\LineApp\LineApp.csproj", "{4B0FC57D-BE96-4E1B-BDF8-B8A750A47A4A}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Functional", "Testing\Functional\Functional.csproj", "{D6330B86-46DA-4E9B-9DFF-F63B499DF3EB}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SearchApp", "Benchmarking\SearchApp\SearchApp.csproj", "{03A9350E-67F4-4324-8187-B840501C5233}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{D56217B2-6E67-4152-B302-8597AB9BE1B5}"
 	ProjectSection(SolutionItems) = preProject
 		Gigantor.sln = Gigantor.sln
 	EndProjectSection
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DuplicateApp", "Benchmarking\DuplicateApp\DuplicateApp.csproj", "{1129842F-A6CC-44E6-AF1E-4465F54B1FDB}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Gigantor", "Gigantor\Gigantor.csproj", "{5B2906BF-DA91-4C30-9B30-B2360EFA3927}"
 EndProject
@@ -28,22 +22,10 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{4B0FC57D-BE96-4E1B-BDF8-B8A750A47A4A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4B0FC57D-BE96-4E1B-BDF8-B8A750A47A4A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4B0FC57D-BE96-4E1B-BDF8-B8A750A47A4A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4B0FC57D-BE96-4E1B-BDF8-B8A750A47A4A}.Release|Any CPU.Build.0 = Release|Any CPU
 		{D6330B86-46DA-4E9B-9DFF-F63B499DF3EB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{D6330B86-46DA-4E9B-9DFF-F63B499DF3EB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D6330B86-46DA-4E9B-9DFF-F63B499DF3EB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D6330B86-46DA-4E9B-9DFF-F63B499DF3EB}.Release|Any CPU.Build.0 = Release|Any CPU
-		{03A9350E-67F4-4324-8187-B840501C5233}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{03A9350E-67F4-4324-8187-B840501C5233}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{03A9350E-67F4-4324-8187-B840501C5233}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{03A9350E-67F4-4324-8187-B840501C5233}.Release|Any CPU.Build.0 = Release|Any CPU
-		{1129842F-A6CC-44E6-AF1E-4465F54B1FDB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{1129842F-A6CC-44E6-AF1E-4465F54B1FDB}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{1129842F-A6CC-44E6-AF1E-4465F54B1FDB}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{1129842F-A6CC-44E6-AF1E-4465F54B1FDB}.Release|Any CPU.Build.0 = Release|Any CPU
 		{5B2906BF-DA91-4C30-9B30-B2360EFA3927}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{5B2906BF-DA91-4C30-9B30-B2360EFA3927}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5B2906BF-DA91-4C30-9B30-B2360EFA3927}.Release|Any CPU.ActiveCfg = Release|Any CPU
