@@ -42,7 +42,7 @@ Below is the same test as above but using stream mode instead of file mode.
 
 
 ## Search vs Buffer Size
-The following graph compares `RegexSearcher` throughput in various modes.  The peak using multiple threads is 2704 MBytes/s which is about 4x faster than the 691 MBytes/s peak for single threaded.
+The following graph compares `RegexSearcher` throughput in various modes.  The peak using multiple threads is 2704 MBytes/s which is about 4x faster than the 601 MBytes/s peak for single threaded.
 
 ![Image](https://raw.githubusercontent.com/imagibee/Gigantor/main/Docs/Search-vs-Buffer.png)
 
