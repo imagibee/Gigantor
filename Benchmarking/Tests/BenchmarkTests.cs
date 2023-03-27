@@ -25,7 +25,7 @@ namespace BenchmarkTesting {
             AutoResetEvent progress,
             int partitionSize,
             int maxWorkers,
-            BufferMode bufferMode = BufferMode.Unbuffered) :
+            BufferMode bufferMode) :
             base(
                 path,
                 progress,
