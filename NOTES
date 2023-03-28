@@ -3,12 +3,12 @@ Setup
 # 1) Clear mac disk space by thinning 100 GB of time machine snapshots
 #    $ sudo tmutil thinlocalsnapshots / 107374182400 4
 # 2) Prepare the benchmarking files
-#    $ Benchmarking/setup
+#    $ Scripts/setup
 # 3) Quit all user apps
 # 4) Disable Time Machine
 # 5) Disable Power Saving Mode
 
-Scripts
+Testing
 -------
 Scripts/test
 Scripts/benchmark
