@@ -59,7 +59,7 @@ namespace Imagibee {
             // filePath - the path to the file to search
             // regex - the regular expression to match against the file
             // progress - signaled each time MatchCount is updated
-            // maxMatchCount - places a limit on the number of matches, defaults to 100000
+            // maxMatchCount - places an approximate limit on the number of matches, defaults to 100000
             // partitionSize - the chunk size in bytes that each worker works on,
             // defaults to 524288
             // maxWorkers - optional limit to the maximum number of simultaneous workers,
@@ -93,7 +93,7 @@ namespace Imagibee {
             // filePath - the path to the file to search
             // regexs - the list of regular expression to match against the file
             // progress - signaled each time MatchCount is updated
-            // maxMatchCount - places a limit on the number of matches, defaults to 100000
+            // maxMatchCount - places an approximate limit on the number of matches, defaults to 100000
             // partitionSize - the chunk size in bytes that each worker works on,
             // defaults to 524288
             // maxWorkers - optional limit to the maximum number of simultaneous workers,
@@ -134,7 +134,7 @@ namespace Imagibee {
             // stream - the stream to search
             // regex - the regular expression to match against the stream
             // progress - signaled each time MatchCount is updated
-            // maxMatchCount - places a limit on the number of matches, defaults to 100000
+            // maxMatchCount - places an approximate limit on the number of matches, defaults to 100000
             // partitionSize - the chunk size in bytes that each worker works on,
             // defaults to 524288
             // maxWorkers - optional limit to the maximum number of simultaneous workers,
@@ -164,7 +164,7 @@ namespace Imagibee {
             // stream - the stream to search
             // regexs - the list of regular expressions to match against the stream
             // progress - signaled each time MatchCount is updated
-            // maxMatchCount - places a limit on the number of matches, defaults to 100000
+            // maxMatchCount - places an approximate limit on the number of matches, defaults to 100000
             // partitionSize - the chunk size in bytes that each worker works on,
             // defaults to 524288
             // maxWorkers - optional limit to the maximum number of simultaneous workers,
@@ -272,7 +272,7 @@ namespace Imagibee {
                     var newMatches = 0;
                     for (int i = 0; i < partitionMatches.Count; i++) {
                         System.Text.RegularExpressions.Match match = partitionMatches[i];
-                        if (match != null && matchCount < maxMatchCount) {
+                        if (match != null && Interlocked.Read(ref matchCount) < maxMatchCount) {
                             var groups = new List<GroupData>();
                             for (var j=0; j<match.Groups.Count; j++)  {
                                 var group = match.Groups[j];
