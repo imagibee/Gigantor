@@ -31,7 +31,7 @@ namespace Imagibee {
         //
         public class RegexSearcher : Partitioner<PartitionData> {
             // The number of matches found so far
-            public long MatchCount { get { return Interlocked.Read(ref matchCount); } }
+            public long MatchCount { get { return matchCount; } }
 
             // A structure for storing capture data
             public struct CaptureData {
@@ -269,10 +269,9 @@ namespace Imagibee {
             {
                 var partitionMatches = regexs[regexIndex].Matches(partition);
                 if (partitionMatches.Count > 0) {
-                    var newMatches = 0;
                     for (int i = 0; i < partitionMatches.Count; i++) {
                         System.Text.RegularExpressions.Match match = partitionMatches[i];
-                        if (match != null && Interlocked.Read(ref matchCount) < maxMatchCount) {
+                        if (match != null && matchQueues[regexIndex].Count < maxMatchCount) {
                             var groups = new List<GroupData>();
                             for (var j=0; j<match.Groups.Count; j++)  {
                                 var group = match.Groups[j];
@@ -303,9 +302,7 @@ namespace Imagibee {
                                     Value = match.Value,
                                     Groups = groups.AsReadOnly(),
                                 });
-                            newMatches++;
                         }
-                        Interlocked.Add(ref matchCount, 1);
                     }
                 }
             }
