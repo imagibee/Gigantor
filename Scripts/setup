@@ -1,4 +1,4 @@
-export DOTNET_gcServer=0
+export DOTNET_gcServer=1
 export DOTNET_gcConcurrent=1
 export STARTDIR=$PWD
 export MINGB=150
