@@ -27,7 +27,7 @@ Imagibee.Gigantor.Background.StartAndWait(
 Another way to gain performacne is to search multiple files in parallel.  An easy way to do that is to use one RegexSearcher for each file and run them in parallel.
 
 ```csharp
-// Open compressed files with buffering disabled
+// Open compressed files
 using var fs1 = Imagibee.Gigantor.FileStream.Create("myfile1.gz");
 using var fs2 = Imagibee.Gigantor.FileStream.Create("myfile2.gz");
 

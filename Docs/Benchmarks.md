@@ -1,68 +1,71 @@
 # Gigantor Benchmarks
 
-One of the primary goals of Gigantor is performance boost.  Performance is benchmarked by processing a 32 GB prepared text file.  Each benchmark is timed, and throughput is computed by dividing the number of bytes processed by the time.
+One of the primary goals of Gigantor is performance boost.  Performance is benchmarked by processing a 32 GByte prepared text file.  Each benchmark is timed, and throughput is computed by dividing the number of bytes processed by the time.
 
-For the search benchmarks the following pattern is used to find all URLs in the file.
-
-```csharp
-var pattern = @"/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#()?&//=]*)/"; 
-```
 The source code for the benchmarks is in [BenchmarkTests.cs](https://github.com/imagibee/Gigantor/blob/main/Benchmarking/Tests/BenchmarkTests.cs)
 
 Prior to running the benchmarks run `Scripts/setup` to prepare the test files.  This script creates some large files in the temporary folder which are deleted on reboot.  Once setup has been completed run `Scripts/benchmark`.
 
-
 ## Read Throughput Baseline
-This baseline establishes how fast a single thread can simply read through the test file and throw away the results.  After some experimentation a buffer size of 128 MiByte was determined to be optimal for the baseline and resulted in a throughput of 3271 MBytes/s.  
+This baseline establishes how fast a single-thread can simply read through the test file and throw away the results.  After some experimentation a buffer size of 128 MiByte was determined to be optimal for the baseline and resulted in a throughput of 3370 MBytes/s.  
 
 Here is the code for the baseline:
 ```csharp
-var buf = new byte[128 * 1024 * 1024];
-var bytesRead = 0;
-do {
-    bytesRead = stream.Read(buf, 0, buf.Length);
+void ReadAndThrowAway(System.IO.FileStream stream, byte[] buf)
+{
+    int bytesRead;
+    do {
+        bytesRead = stream.Read(buf, 0, buf.Length);
+    }
+    while (bytesRead == buf.Length);
 }
-while (bytesRead == buf.Length);
 ```
 
-Gigantor's [`Partitioner`](https://github.com/imagibee/Gigantor/blob/main/Gigantor/Partitioner.cs) class can be run in single threaded mode by setting `maxWorkers` to 1.  When this is done with a do-nothing implementation that just reads the file but doesn't do any processing it becomes a good way to compare `Partitioner`'s single threaded read efficiency with the baseline code shown above.  The following graph shows this comparison.
+Gigantor's [`Partitioner`](https://github.com/imagibee/Gigantor/blob/main/Gigantor/Partitioner.cs) class can be configured like the baseline by setting `maxWorkers` to 1 and `partitionSize` to 128 MiBytes.  When this is done with a do-nothing implementation that just reads the file but doesn't do any processing it becomes a good way to compare `Partitioner`'s single-threaded read efficiency with the baseline code shown above.  The following graph shows this comparison.
 
 ![Image](https://raw.githubusercontent.com/imagibee/Gigantor/main/Docs/Read-Baseline.png)
 
-For file mode the differences between the performance of the `Partitioner` and the baseline are negligible which demonstrates that the `Partitioner` is efficient at file IO.  The efficiency for stream mode is not as good.
+The differences between the performance of the `Partitioner` and the baseline are negligible for both buffered and unbuffered file mode which demonstrates that the `Partitioner` is efficient at reading files.  The efficiency for `Partitioner`'s stream mode is not as good because of additional overhead needed by that mode.
 
-Now that we have established a single threaded baseline we can introduce multiple threads and compare the performance.  The next graph shows the results of changing `maxWorkers` from 1 to  1000 and re-running the do-nothing `Partitioner`.  This test is repeated for varying `partitionSize` and peaks between 128 KiBytes and 1024 KiBytes at 5541 MBytes/s which is significantly faster than the single threaded baseline.  Since the read throughput increases with more workers I assume the IO was not saturated by the single threaded baseline test.
+Now that we have established that the `Partitioner` is efficient in single-threaded mode we can compare the `Partitioner`'s single and multiple threaded modes to see the impact of parallelization on do-nothing reads.
+
+The next graph shows the results of changing `maxWorkers` from 1 to  1000 and re-running the do-nothing `Partitioner`.  This test is repeated for varying `partitionSize` and the throughput peaks between 128 KiBytes and 1024 KiBytes at 5234 MBytes/s which is 1.6x faster than the 3255 MByte/s single-threaded baseline.  Since the read throughput increases with more workers I conclude that the IO was not saturated by the single-threaded baseline test.  I have not been able to find the specs on the AP1024N SSD used for this test.  It would be nice to know the hardware's maximum theoretical read throughput in order to better assess the validity of this result.
 
 ![Image](https://raw.githubusercontent.com/imagibee/Gigantor/main/Docs/FileRead-vs-Buffer.png)
 
-Below is the same test as above but using stream mode instead of file mode.
+Below is the same test as above but using stream mode instead of file mode.  In multi-threaded stream mode the do-nothing `Partitioner` peaks at 2206 MBytes/s between 4096 and 8192 KiBytes.  This result is 1.8x better than the stream mode single-threaded baseline.
 
 ![Image](https://raw.githubusercontent.com/imagibee/Gigantor/main/Docs/StreamRead-vs-Buffer.png)
 
-
+This concludes the do-nothing read throughput comparisons.  The main purpose of this section was to get an idea of how efficiently Gigantor is reading the input by comparing it to the simplest possible do-nothing code, and to establish an upper limit on the throughput that the do-something classes can be expected to achieve.  The remainder of the document will focus on benchmarking the actual `RegexSearcher` and `LineIndexer` classes.
 
 ## Search vs Buffer Size
-The following graph compares `RegexSearcher` throughput in various modes.  The peak using multiple threads is 2704 MBytes/s which is about 4x faster than the 691 MBytes/s peak for single threaded.
+For all the search benchmarks the following pattern is used to find all URLs in the 32 GByte test file.
+
+```csharp
+var pattern = @"/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#()?&//=]*)/"; 
+```
+The following graph compares `RegexSearcher` throughput in various modes.  The peak using multiple threads is 3169 MBytes/s with a 256 KiByte partition size which is about 6x faster than the 531 MBytes/s peak for single-threaded using a 128 MiByte partition size.
 
 ![Image](https://raw.githubusercontent.com/imagibee/Gigantor/main/Docs/Search-vs-Buffer.png)
 
 ## Indexing vs Buffer Size
-The following graph compares `LineIndexer` throughput in various modes.  The peak using multiple threads is 2463 MBytes/s which is about 4x faster than the 677 MBytes/s peak for single threaded.
+The following graph compares `LineIndexer` throughput in various modes.  The peak using multiple threads is 2786 MBytes/s with a 512 KiByte partition size which is about 4x faster than the 677 MBytes/s peak for single-threaded using a 128 MiByte partition size.
 
 ![Image](https://raw.githubusercontent.com/imagibee/Gigantor/main/Docs/Indexing-vs-Buffer.png)
 
 ## Compressed Search vs Buffer Size
-The following graph compares `RegexSearcher` using a compressed stream as input.  The peak using mutlipe threads is 319 MBytes/s which is about 15% faster than the 278 MBytes/s peak for single threaded.
+The following graph compares `RegexSearcher` using a compressed stream as input.  The peak using mutlipe threads is 288 MBytes/s with a 8192 KiByte partition size which is about 4% faster than the 278 MBytes/s peak for single-threaded using a 128 MiByte partition size.
 
 ![Image](https://raw.githubusercontent.com/imagibee/Gigantor/main/Docs/CompressedSearch-vs-Buffer.png)
 
 ## Search vs Number of Regex
-The following graph demonstrates how search throughput changes when using multiple regular expressions per partition pass.
+The following graph compares `RegexSearcher` using from 1 to 10 regular expressions per partition pass.  A 10x increase in the number of searches yields about a 7x performance increase.
 
 ![Image](https://raw.githubusercontent.com/imagibee/Gigantor/main/Docs/Search-vs-NumRegex.png)
 
 ## Compressed Search vs Number of Files
-The following graph demonstrates how search throughput changes when searching multiple files simultaneously.
+The following graph compares `RegexSearcher` using from 1 to 5 compressed files in parallel.  A 5x increase in the number of files yields about a 3x performance increase.
 
 ![Image](https://raw.githubusercontent.com/imagibee/Gigantor/main/Docs/Compressed-vs-NumFiles.png)
 
@@ -73,8 +76,9 @@ Gigantor provides several strategies and tuning parameters for boosting performa
 1. Target net7.0 if possible because of [regular expression improvements released with .NET 7](https://devblogs.microsoft.com/dotnet/regular-expression-improvements-in-dotnet-7/).
 1. Use files mode instead of stream mode when possible because it is faster.
 1. Try various values of `partitionSize`.  For these benchmarks this was the most influential parameter.
+1. Try various dotnet garbage collection modes.  These benchmarks were run using DOTNET_gcServer=1 and DOTNET_gcConcurrent=1.
 1. Try both `Buffered` and `Unbuffered` modes.  In some cases this made a noticable difference.  If your not sure I recommend buffered because it is standard.
-1. Leave `maxWorkers` alone unless you have a reason to change it.  The default is 0 which places no limits on the number of threads used.  In these benchmarks I found that limiting the threads did not improve performance. 
+1. Probably just leave `maxWorkers` alone unless you have a reason to change it.  The default is 0 which places no limits on the number of threads used.  In these benchmarks I used a value of 1000 and found that furhter limiting the threads did not improve performance.
 
 ## Test System
 The benchmarks were run on a 2019 16-inch Macbook Pro running macOS Ventura 13.2.1 with the following hardware:

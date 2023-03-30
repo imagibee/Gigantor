@@ -1,3 +1,5 @@
+export DOTNET_gcServer=1
+export DOTNET_gcConcurrent=1
 export STARTDIR=$PWD
 export MINGB=150
 export GIGANTOR_DIR=${TMPDIR}gigantor
