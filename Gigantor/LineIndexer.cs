@@ -40,7 +40,7 @@ namespace Imagibee {
             // filePath - the path to the file to process
             // progress - signaled each time LineCount is updated
             // partitionSize - the chunk size in bytes that each worker works on,
-            // defaults to 4194304
+            // defaults to 512 KiB
             // maxWorkers - optional limit to the maximum number of simultaneous workers,
             // defaults to unlimited
             // bufferMode - choose whether or not files are buffered, defaults to buffered,
@@ -48,7 +48,7 @@ namespace Imagibee {
             public LineIndexer(
                 string filePath,
                 AutoResetEvent progress,
-                int partitionSize = 4096 * 1024,
+                int partitionSize = 512 * 1024,
                 int maxWorkers = 0,
                 BufferMode bufferMode = BufferMode.Buffered) : base(
                     filePath,
