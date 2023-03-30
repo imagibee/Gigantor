@@ -265,6 +265,40 @@ namespace BenchmarkTesting {
             }
         }
 
+        public void FileUnicornSearchTest(BufferMode bufferMode)
+        {
+            Stopwatch stopwatch = new();
+            AutoResetEvent progress = new(false);
+            var bufSize = 256 * 1024;
+            var numTrials = 4;
+            var totalThroughput = 0.0;
+            for (var i=0; i<numTrials; i++) {
+                RegexSearcher searcher = new(
+                    testPath,
+                    new Regex("unicorn", RegexOptions.Compiled),
+                    progress,
+                    partitionSize: bufSize,
+                    maxWorkers: 1000,
+                    bufferMode: bufferMode,
+                    overlap: 8);
+                stopwatch.Start();
+                Background.StartAndWait(
+                    searcher,
+                    progress,
+                    (_) => { },
+                    1000);
+                stopwatch.Stop();
+                var throughput = searcher.ByteCount / stopwatch.Elapsed.TotalSeconds / 1e6;
+                totalThroughput += throughput;
+                Console.WriteLine(
+                    $"{TestContext.CurrentContext.Test.Name} " +
+                    $"{throughput} MBps " +
+                    $"with {searcher.MatchCount} matches");
+                stopwatch.Reset();
+            }
+            Console.WriteLine($"average throughput is {totalThroughput/numTrials} MBps");
+        }
+
         public void FileURLSearchTest(BufferMode bufferMode)
         {
             Stopwatch stopwatch = new();
@@ -606,6 +640,12 @@ namespace BenchmarkTesting {
         public void UnbufferedMultipleCompressedStreamURLSearchTest()
         {
             MultipleCompressedStreamURLSearchTest(BufferMode.Unbuffered);
+        }
+
+        [Test, Order(19)]
+        public void UnbufferedFileUnicornSearchTest()
+        {
+            FileUnicornSearchTest(BufferMode.Unbuffered);
         }
     }
 }
