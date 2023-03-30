@@ -86,7 +86,7 @@ namespace BenchmarkTesting {
 
         internal static void ReadAndThrowAway(System.IO.FileStream stream, byte[] buf)
         {
-            var bytesRead = 0;
+            int bytesRead;
             do {
                 bytesRead = stream.Read(buf, 0, buf.Length);
             }
