@@ -8,10 +8,10 @@ It solves the following problems:
 * searching streams
 * searching compressed data
 
-The approach is to partition the data into chunks which are processed in parallel using a [System.Threading.ThreadPool](https://learn.microsoft.com/en-us/dotnet/api/system.threading.threadpool?view=net-7.0) of background threads.  Since the threads are in the background they do not cause the main thread to become unresponsive.  Since the chunks are reasonably sized it does not matter if the whole file can fit into memory.
+The approach is to partition the data into chunks which are simultaneously processed on multiple threads.  Since processing takes place on worker threads, the main thread  remains responsive.  Since the chunks are reasonably sized it does not matter if the whole file can fit into memory.
 
 ## [RegexSearcher](https://github.com/imagibee/Gigantor/blob/main/Gigantor/RegexSearcher.cs)
-`RegexSearcher` is the class that boosts regular expression performance for gigantic files or streams.  Search was [benchmarked](https://github.com/imagibee/Gigantor/blob/main/Docs/Benchmarks.md#search-vs-buffer-size) at about 2.7 Gigabyte/s which was roughly 4x faster than the single threaded baseline.  It depends on a [System.Text.RegularExpressions.Regex](https://learn.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.regex?view=net-7.0) to do the searching of the partitions.  It uses an overlap to handle matches that fall on partition boundaries.  De-duping of the overlap regions is performed automatically at the end of the search so that the final results are free of duplicates.  Performance can be further enhanced by simultaneously searching multiple regular expressions or files for use cases that have these dimensions.
+`RegexSearcher` is the class that boosts regular expression performance for gigantic files or streams.  Search was [benchmarked](https://github.com/imagibee/Gigantor/blob/main/Docs/Benchmarks.md#search-vs-buffer-size) at about 3.2 Gigabyte/s which was roughly 6x faster than the single threaded baseline.  It depends on a [System.Text.RegularExpressions.Regex](https://learn.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.regex?view=net-7.0) to do the searching of the partitions.  It uses an overlap to handle matches that fall on partition boundaries.  De-duping of the overlap regions is performed automatically at the end of the search so that the final results are free of duplicates.  Performance can be further enhanced by simultaneously searching multiple regular expressions or files for use cases that have these dimensions.
 
 ```csharp
 // Create a regular expression to match urls
@@ -37,7 +37,7 @@ foreach (var match in searcher.GetMatchData()) {
 ```
 
 ## [LineIndexer](https://github.com/imagibee/Gigantor/blob/main/Gigantor/LineIndexer.cs)
-`LineIndexer` is the class that creates a mapping between line numbers and file positions for gigantic files.  Once the mapping has been created it can be used to quickly find the position at the start of a line or the line number that contains a position.  Index creation was [benchmarked](https://github.com/imagibee/Gigantor/blob/main/Docs/Benchmarks.md#indexing-vs-buffer-size) at about 2.5 Gigabyte/s which was roughly 4x faster than the single threaded baseline.
+`LineIndexer` is the class that creates a mapping between line numbers and file positions for gigantic files.  Once the mapping has been created it can be used to quickly find the position at the start of a line or the line number that contains a position.  Index creation was [benchmarked](https://github.com/imagibee/Gigantor/blob/main/Docs/Benchmarks.md#indexing-vs-buffer-size) at about 2.8 Gigabyte/s which was roughly 4x faster than the single threaded baseline.
 
 ```csharp
 // Create the indexer
@@ -45,15 +45,15 @@ LineIndexer indexer = new("myfile", progress);
 
 // Do the indexing
 Imagibee.Gigantor.Background.StartAndWait(
-indexer,
+    indexer,
     progress,
     (_) => { Console.Write("."); },
     1000);
 
 // Use indexer to print the middle line
-using System.IO.FileStream fs = new("myfile", FileMode.Open);
-Imagibee.Gigantor.StreamReader reader = new(fs);
-fs(indexer.PositionFromLine(indexer.LineCount / 2), SeekOrigin.Begin);
+using System.IO.FileStream stream = new("myfile", FileMode.Open);
+Imagibee.Gigantor.StreamReader reader = new(stream);
+stream.Seek(indexer.PositionFromLine(indexer.LineCount / 2), SeekOrigin.Begin);
 Console.WriteLine(reader.ReadLine());
 
 ```
