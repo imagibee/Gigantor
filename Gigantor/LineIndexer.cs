@@ -40,23 +40,19 @@ namespace Imagibee {
             // filePath - the path to the file to process
             // progress - signaled each time LineCount is updated
             // partitionSize - the chunk size in bytes that each worker works on,
-            // defaults to 512 KiB
+            // defaults to 8 MiB
             // maxWorkers - optional limit to the maximum number of simultaneous workers,
             // defaults to unlimited
-            // bufferMode - choose whether or not files are buffered, defaults to buffered,
-            // unbuffered is experimental
             public LineIndexer(
                 string filePath,
                 AutoResetEvent progress,
-                int partitionSize = 512 * 1024,
-                int maxWorkers = 0,
-                BufferMode bufferMode = BufferMode.Buffered) : base(
+                int partitionSize = 8192 * 1024,
+                int maxWorkers = 0) : base(
                     filePath,
                     progress,
                     JoinMode.Sequential,
                     partitionSize: partitionSize,
-                    maxWorkers: maxWorkers,
-                    bufferMode: bufferMode)
+                    maxWorkers: maxWorkers)
             {
                 chunkQueue = new();
                 chunks = new();
@@ -240,7 +236,7 @@ namespace Imagibee {
                         
                 };
                 using var fileStream = FileStream.Create(
-                    Path, bufferSize: partitionSize, bufferMode: bufferMode);
+                    Path, bufferSize: partitionSize);
                 fileStream.Seek(data.StartFpos, SeekOrigin.Begin);
                 var buf = new byte[partitionSize];
                 var bytesRead = fileStream.Read(buf, 0, partitionSize);

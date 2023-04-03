@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>Imagibee.Gigantor</PackageId>
-    <PackageVersion>1.0.2</PackageVersion>
+    <PackageVersion>2.0.0</PackageVersion>
     <Authors>dynamicbutter</Authors>
     <Description>Provides classes that support regular expression searches of gigantic files</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -28,8 +28,5 @@
   <ItemGroup>
     <None Include="..\README.md" Pack="true" PackagePath="\" />
     <None Include="..\LICENSE" Pack="true" PackagePath="\" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Mono.Posix.NETStandard" Version="1.0.0" />
   </ItemGroup>
 </Project> 

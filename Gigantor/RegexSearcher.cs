@@ -66,8 +66,6 @@ namespace Imagibee {
             // defaults to unlimited
             // overlap - size in bytes of partition overlap, used for finding matches,
             // that span two partitions, may not exceed half the chunk size, defaults to 1024
-            // bufferMode - choose whether or not files are buffered, defaults to unbuffered,
-            // unbuffered is experimental
             public RegexSearcher(
                 string filePath,
                 System.Text.RegularExpressions.Regex regex,
@@ -75,16 +73,14 @@ namespace Imagibee {
                 int maxMatchCount = 100000,
                 int partitionSize = 256 * 1024,
                 int maxWorkers = 0,
-                int overlap = 1024,
-                BufferMode bufferMode = BufferMode.Unbuffered) : this(
+                int overlap = 1024) : this(
                     filePath,
                     new List<System.Text.RegularExpressions.Regex>() { regex },
                     progress,
                     maxMatchCount,
                     partitionSize,
                     maxWorkers,
-                    overlap,
-                    bufferMode)
+                    overlap)
             {
             }
 
@@ -100,8 +96,6 @@ namespace Imagibee {
             // defaults to unlimited
             // overlap - size in bytes of partition overlap, used for finding matches,
             // that span two partitions, may not exceed half the chunk size, defaults to 1024
-            // bufferMode - choose whether or not files are buffered, defaults to unbuffered,
-            // unbuffered is experimental
             public RegexSearcher(
                 string filePath,
                 List<System.Text.RegularExpressions.Regex> regexs,
@@ -109,15 +103,13 @@ namespace Imagibee {
                 int maxMatchCount = 100000,
                 int partitionSize = 256 * 1024,
                 int maxWorkers = 0,
-                int overlap = 1024,
-                BufferMode bufferMode = BufferMode.Unbuffered) : base(
+                int overlap = 1024) : base(
                     filePath,
                     progress,
                     JoinMode.None,
                     partitionSize,
                     maxWorkers: maxWorkers,
-                    overlap: overlap,
-                    bufferMode: bufferMode)
+                    overlap: overlap)
             {
                 matchess = new();
                 matchQueues = new();
