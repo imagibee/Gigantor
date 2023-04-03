@@ -3,12 +3,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using System.Net;
-using System.Net.Http;
 using System.Threading.Tasks;
-using Mono.Unix.Native;
-using System.Runtime.InteropServices;
-using System.IO.Pipes;
 using System.Text;
 
 namespace Imagibee {

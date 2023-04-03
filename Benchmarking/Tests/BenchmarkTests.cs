@@ -4,36 +4,33 @@ using System.Threading;
 using System.IO;
 using System.IO.Compression;
 using System.Collections.Generic;
-using System.Net;
 using NUnit.Framework;
 using System.Text.RegularExpressions;
 using Imagibee.Gigantor;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using Mono.Unix.Native;
+using NUnit.Framework.Internal;
 
 
 namespace BenchmarkTesting {
     internal class ReadThroughputTester : Partitioner<PartitionData>
     {
+        private readonly object lockObj = new object();
+        public List<long> startFpos = new();
         PartitionData result = new();
-        [ThreadStatic] static byte[]? buffer;
 
         // Constructs a file based overhead tester
         public ReadThroughputTester(
             string path,
             AutoResetEvent progress,
             int partitionSize,
-            int maxWorkers,
-            BufferMode bufferMode) :
+            int maxWorkers) :
             base(
                 path,
                 progress,
                 JoinMode.Sequential,
                 partitionSize: partitionSize,
                 maxWorkers: maxWorkers,
-                overlap: 0,
-                bufferMode: bufferMode)
+                overlap: 0)
         {
         }
 
@@ -61,25 +58,16 @@ namespace BenchmarkTesting {
         protected override PartitionData Map(PartitionerData data)
         {
             // File based, read and throw away results
-            if (data.Buf == null) {
-                using var fileStream = Imagibee.Gigantor.FileStream.Create(
-                    Path, bufferSize: partitionSize, bufferMode: bufferMode);
-                fileStream.Seek(data.StartFpos, SeekOrigin.Begin);
-                long pos = 0;
-                var bytesRead = 0;
-                if (buffer == null) {
-                    buffer = new byte[partitionSize];
+            if (data.Buf != null) {
+#if VALIDATE_PARTITIONS
+                lock (lockObj) {
+                    startFpos.Add(data.StartFpos);
                 }
-                do {
-                    bytesRead = fileStream.Read(buffer, 0, partitionSize);
-                    Interlocked.Add(ref byteCount, bytesRead);
-                    pos += bytesRead;
-                }
-                while (bytesRead == partitionSize && pos < partitionSize);
-            }
-            // Stream based, reading has already been done in Partition<T> base class
-            else {
+#endif
                 Interlocked.Add(ref byteCount, data.Buf.Length);
+            }
+            else {
+                throw new Exception("data.Buf is null");
             }
             return result;
         }
@@ -121,7 +109,8 @@ namespace BenchmarkTesting {
             testPath = $"{Utilities.GetEnwik9()}x32";
         }
 
-        public void BaselineReadThroughputTest(BufferMode bufferMode)
+        [Test, Order(1)]
+        public void BaselineReadThroughputTest()
         {
             var partitionSize = 128 * 1024 * 1024;
             Console.WriteLine($"{TestContext.CurrentContext.Test.Name} " +
@@ -131,7 +120,7 @@ namespace BenchmarkTesting {
             Stopwatch stopwatch = new();
             AutoResetEvent progress = new(false);
             using var fileStream = Imagibee.Gigantor.FileStream.Create(
-                testPath, bufferSize: partitionSize, bufferMode: bufferMode);
+                testPath, bufferSize: partitionSize);
             var buf = new byte[partitionSize];
             fileStream.Seek(0, SeekOrigin.Begin);
             stopwatch.Start();
@@ -144,7 +133,8 @@ namespace BenchmarkTesting {
             fileStream.Close();
         }
 
-        public void FileReadThroughputTest(BufferMode bufferMode)
+        [Test, Order(2)]
+        public void FileReadThroughputTest()
         {
             Stopwatch stopwatch = new();
             AutoResetEvent progress = new(false);
@@ -163,8 +153,7 @@ namespace BenchmarkTesting {
                     testPath,
                     progress,
                     partitionSize: c.Item1,
-                    maxWorkers: c.Item2,
-                    bufferMode: bufferMode);
+                    maxWorkers: c.Item2);
                 stopwatch.Start();
                 Background.StartAndWait(
                     tester,
@@ -179,11 +168,25 @@ namespace BenchmarkTesting {
                     $"{c.Item2} threads: " +
                     $"{tester.ByteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps");
                 stopwatch.Reset();
+                Assert.AreEqual("", tester.Error);
+#if VALIDATE_PARTITIONS
+
+                var numPartitions = Math.Ceiling((float)tester.ByteCount / c.Item1);
+                Assert.AreEqual(numPartitions, tester.startFpos.Count);
+                HashSet<long> longs = new();
+                for (var i=0; i<numPartitions; i++) {
+                    longs.Add((long)i * c.Item1);
+                }
+                for (var i = 0; i < tester.startFpos.Count; i++) {
+                    Assert.AreEqual(true, longs.Contains(tester.startFpos[i]));
+                }
+#endif
             }
         }
 
 
-        public void StreamReadThroughputTest(BufferMode bufferMode)
+        [Test, Order(3)]
+        public void StreamReadThroughputTest()
         {
             Stopwatch stopwatch = new();
             AutoResetEvent progress = new(false);
@@ -194,10 +197,11 @@ namespace BenchmarkTesting {
                 new Tuple<int, int>(16384 * 1024, 1000),
                 new Tuple<int, int>(8192 * 1024, 1000),
                 new Tuple<int, int>(4096 * 1024, 1000),
+                new Tuple<int, int>(2048 * 1024, 1000),
             };
             foreach (var c in cases) {
                 using var fileStream = Imagibee.Gigantor.FileStream.Create(
-                    testPath, bufferSize: c.Item1, bufferMode: bufferMode);
+                    testPath, bufferSize: c.Item1);
                 fileStream.Seek(0, SeekOrigin.Begin);
                 ReadThroughputTester tester = new(
                     fileStream,
@@ -222,7 +226,8 @@ namespace BenchmarkTesting {
             }
         }
 
-        public void LineIndexingTest(BufferMode bufferMode)
+        [Test, Order(4)]
+        public void LineIndexingTest()
         {
             Stopwatch stopwatch = new();
             AutoResetEvent progress = new(false);
@@ -245,8 +250,7 @@ namespace BenchmarkTesting {
                     testPath,
                     progress,
                     partitionSize: c.Item1,
-                    maxWorkers: c.Item2,
-                    bufferMode: bufferMode);
+                    maxWorkers: c.Item2);
                 stopwatch.Start();
                 Background.StartAndWait(
                     indexer,
@@ -262,10 +266,12 @@ namespace BenchmarkTesting {
                     $"{indexer.ByteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps " +
                     $"with {indexer.LineCount} lines");
                 stopwatch.Reset();
+                Assert.AreEqual("", indexer.Error);
             }
         }
 
-        public void FileUnicornSearchTest(BufferMode bufferMode)
+        [Test, Order(5)]
+        public void FileUnicornSearchTest()
         {
             Stopwatch stopwatch = new();
             AutoResetEvent progress = new(false);
@@ -279,7 +285,6 @@ namespace BenchmarkTesting {
                     progress,
                     partitionSize: bufSize,
                     maxWorkers: 1000,
-                    bufferMode: bufferMode,
                     overlap: 8);
                 stopwatch.Start();
                 Background.StartAndWait(
@@ -295,11 +300,13 @@ namespace BenchmarkTesting {
                     $"{throughput} MBps " +
                     $"with {searcher.MatchCount} matches");
                 stopwatch.Reset();
+                Assert.AreEqual("", searcher.Error);
             }
             Console.WriteLine($"average throughput is {totalThroughput/numTrials} MBps");
         }
 
-        public void FileURLSearchTest(BufferMode bufferMode)
+        [Test, Order(6)]
+        public void FileURLSearchTest()
         {
             Stopwatch stopwatch = new();
             AutoResetEvent progress = new(false);
@@ -321,8 +328,7 @@ namespace BenchmarkTesting {
                     progress,
                     partitionSize: c.Item1,
                     maxWorkers: c.Item2,
-                    maxMatchCount: 100000,
-                    bufferMode: bufferMode);
+                    maxMatchCount: 100000);
                 stopwatch.Start();
                 Background.StartAndWait(
                     searcher,
@@ -338,10 +344,12 @@ namespace BenchmarkTesting {
                     $"{searcher.ByteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps " +
                     $"with {searcher.MatchCount} matches");
                 stopwatch.Reset();
+                Assert.AreEqual("", searcher.Error);
             }
         }
 
-        public void StreamURLSearchTest(BufferMode bufferMode)
+        [Test, Order(7)]
+        public void StreamURLSearchTest()
         {
             Stopwatch stopwatch = new();
             AutoResetEvent progress = new(false);
@@ -358,7 +366,7 @@ namespace BenchmarkTesting {
             };
             foreach (var c in cases) {
                 using var fileStream = Imagibee.Gigantor.FileStream.Create(
-                    testPath, bufferSize: c.Item1, bufferMode: bufferMode);
+                    testPath, bufferSize: c.Item1);
                 fileStream.Seek(0, SeekOrigin.Begin);
                 RegexSearcher searcher = new(
                     fileStream,
@@ -383,10 +391,12 @@ namespace BenchmarkTesting {
                     $"with {searcher.MatchCount} matches");
                 stopwatch.Reset();
                 fileStream.Close();
+                Assert.AreEqual("", searcher.Error);
             }
         }
 
-        public void CompressedStreamURLSearchTest(BufferMode bufferMode)
+        [Test, Order(8)]
+        public void CompressedStreamURLSearchTest()
         {
             Stopwatch stopwatch = new();
             AutoResetEvent progress = new(false);
@@ -400,7 +410,7 @@ namespace BenchmarkTesting {
             };
             foreach (var c in cases) {
                 using var fileStream = Imagibee.Gigantor.FileStream.Create(
-                    $"{testPath}.gz", bufferSize: c.Item1, bufferMode: bufferMode);
+                    $"{testPath}.gz", bufferSize: c.Item1);
                 fileStream.Seek(0, SeekOrigin.Begin);
                 using var gzStream = new GZipStream(
                     fileStream, CompressionMode.Decompress, true);
@@ -428,10 +438,12 @@ namespace BenchmarkTesting {
                 stopwatch.Reset();
                 gzStream.Close();
                 fileStream.Close();
+                Assert.AreEqual("", searcher.Error);
             }
         }
 
-        public void FileMultipleURLSearchTest(BufferMode bufferMode)
+        [Test, Order(9)]
+        public void FileMultipleURLSearchTest()
         {
             var partitionSize = 256 * 1024;
             var maxWorkers = 1000;
@@ -449,8 +461,7 @@ namespace BenchmarkTesting {
                     progress,
                     partitionSize: partitionSize,
                     maxWorkers: maxWorkers,
-                    maxMatchCount: 1000000,
-                    bufferMode: bufferMode);
+                    maxMatchCount: 1000000);
                 stopwatch.Start();
                 Background.StartAndWait(
                     searcher,
@@ -467,10 +478,12 @@ namespace BenchmarkTesting {
                     $"{byteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps " +
                     $"with {searcher.MatchCount} matches");
                 stopwatch.Reset();
+                Assert.AreEqual("", searcher.Error);
             }
         }
 
-        public void MultipleCompressedStreamURLSearchTest(BufferMode bufferMode)
+        [Test, Order(10)]
+        public void MultipleCompressedStreamURLSearchTest()
         {
             var partitionSize = 8192 * 1024;
             var maxWorkers = 1000;
@@ -486,7 +499,7 @@ namespace BenchmarkTesting {
                     path = $"{testPath}.gz";
                 }
                 var f = Imagibee.Gigantor.FileStream.Create(
-                    path, bufferSize: partitionSize, bufferMode: bufferMode);
+                    path, bufferSize: partitionSize);
                 var g = new GZipStream(f, CompressionMode.Decompress, true);
                 files.Add(f);
                 gZips.Add(g);
@@ -530,122 +543,9 @@ namespace BenchmarkTesting {
                         $"{byteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps " +
                         $"with {matchCount} matches");
                     stopwatch.Reset();
+                    Assert.AreEqual("", Background.AnyError(processes));
                 }
             }
-        }
-
-        [Test, Order(1)]
-        public void BufferedBaselineReadThroughputTest()
-        {
-            BaselineReadThroughputTest(BufferMode.Buffered);
-        }
-
-        [Test, Order(2)]
-        public void UnbufferedBaselineReadThroughputTest()
-        {
-            BaselineReadThroughputTest(BufferMode.Unbuffered);
-        }
-
-        [Test, Order(3)]
-        public void BufferedFileReadThroughputTest()
-        {
-            FileReadThroughputTest(BufferMode.Buffered);
-        }
-
-        [Test, Order(4)]
-        public void UnbufferedFileReadThroughputTest()
-        {
-            FileReadThroughputTest(BufferMode.Unbuffered);
-        }
-
-        [Test, Order(5)]
-        public void BufferedStreamReadThroughputTest()
-        {
-            StreamReadThroughputTest(BufferMode.Buffered);
-        }
-
-        [Test, Order(6)]
-        public void UnbufferedStreamReadThroughputTest()
-        {
-            StreamReadThroughputTest(BufferMode.Unbuffered);
-        }
-
-        [Test, Order(7)]
-        public void BufferedLineIndexingTest()
-        {
-            LineIndexingTest(BufferMode.Buffered);
-        }
-
-        [Test, Order(8)]
-        public void UnbufferedLineIndexingTest()
-        {
-            LineIndexingTest(BufferMode.Unbuffered);
-        }
-
-        [Test, Order(9)]
-        public void BufferedFileURLSearchTest()
-        {
-            FileURLSearchTest(BufferMode.Buffered);
-        }
-
-        [Test, Order(10)]
-        public void UnbfferedFileURLSearchTest()
-        {
-            FileURLSearchTest(BufferMode.Unbuffered);
-        }
-
-        [Test, Order(11)]
-        public void BufferedStreamURLSearchTest()
-        {
-            StreamURLSearchTest(BufferMode.Buffered);
-        }
-
-        [Test, Order(12)]
-        public void UnbufferedStreamURLSearchTest()
-        {
-            StreamURLSearchTest(BufferMode.Unbuffered);
-        }
-
-        [Test, Order(13)]
-        public void BufferedCompressedStreamURLSearchTest()
-        {
-            CompressedStreamURLSearchTest(BufferMode.Buffered);
-        }
-
-        [Test, Order(14)]
-        public void UnbufferedCompressedStreamURLSearchTest()
-        {
-            CompressedStreamURLSearchTest(BufferMode.Unbuffered);
-        }
-
-        [Test, Order(15)]
-        public void BufferedFileMultipleURLSearchTest()
-        {
-            FileMultipleURLSearchTest(BufferMode.Buffered);
-        }
-
-        [Test, Order(16)]
-        public void UnbfferedFileMultipleURLSearchTest()
-        {
-            FileMultipleURLSearchTest(BufferMode.Unbuffered);
-        }
-
-        [Test, Order(17)]
-        public void BufferedMultipleCompressedStreamURLSearchTest()
-        {
-            MultipleCompressedStreamURLSearchTest(BufferMode.Buffered);
-        }
-
-        [Test, Order(18)]
-        public void UnbufferedMultipleCompressedStreamURLSearchTest()
-        {
-            MultipleCompressedStreamURLSearchTest(BufferMode.Unbuffered);
-        }
-
-        [Test, Order(19)]
-        public void UnbufferedFileUnicornSearchTest()
-        {
-            FileUnicornSearchTest(BufferMode.Unbuffered);
         }
     }
 }

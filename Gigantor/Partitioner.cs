@@ -46,16 +46,13 @@ namespace Imagibee {
             // defaults to unlimited
             // overlap - size in bytes of partition overlap, defaults to 0, if non-zero
             // must be even and not exceed half the partitionSize
-            // bufferMode - choose whether or not files are buffered, defaults to buffered,
-            // unbuffered is experimental
             public Partitioner(
                 string filePath,
                 AutoResetEvent progress,
                 JoinMode joinMode,
                 int partitionSize,
                 int maxWorkers = 0,
-                int overlap = 0,
-                BufferMode bufferMode = BufferMode.Buffered)
+                int overlap = 0)
             {
                 Path = filePath;
                 this.progress = progress;
@@ -63,7 +60,6 @@ namespace Imagibee {
                 this.partitionSize = partitionSize;
                 this.overlap = overlap;
                 this.maxWorkers = maxWorkers;
-                this.bufferMode = bufferMode;
                 EnforceValidations();
                 synchronize = new AutoResetEvent(false);
                 cancel = new ManualResetEvent(false);
@@ -122,9 +118,6 @@ namespace Imagibee {
 
             // Optional streaming mode
             protected Stream? Stream { get; set; }
-
-            // Optional flags
-            protected BufferMode bufferMode;
 
 
             //
@@ -265,17 +258,6 @@ namespace Imagibee {
                     resultBuf.Sort((a, b) => a.Id.CompareTo(b.Id));
                     if (joinMode == JoinMode.Reduce) {
                         throw new NotImplementedException();
-                        //for (var i = 0; i < resultBuf.Count - 1; i++) {
-                        //    var result1 = resultBuf[i];
-                        //    var result2 = resultBuf[i + 1];
-                        //    if (result1.Id == result2.Id - 1 &&
-                        //        result1.Cycle == result2.Cycle) {
-                        //        resultQueue.Enqueue(Join(result1, result2));
-                        //        resultBuf.RemoveAt(i);
-                        //        resultBuf.RemoveAt(i+1);
-                        //        progressMade += 1;
-                        //    }
-                        //}
                     }
                     else if (joinMode == JoinMode.Sequential) {
                         var currentResult = resultBuf[0];
@@ -314,7 +296,7 @@ namespace Imagibee {
                     }
                     if (data.Buf == null) {
                         using var fileStream = Imagibee.Gigantor.FileStream.Create(
-                            Path, bufferSize: partitionSize, bufferMode: bufferMode);
+                            Path, bufferSize: partitionSize);
                         fileStream.Seek(data.StartFpos, SeekOrigin.Begin);
                         data.Buf = ovBuf;
                         var bytesRead = fileStream.Read(data.Buf, 0, partitionSize);
