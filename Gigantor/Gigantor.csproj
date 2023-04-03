@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>Imagibee.Gigantor</PackageId>
-    <PackageVersion>2.0.0</PackageVersion>
+    <PackageVersion>2.0.1</PackageVersion>
     <Authors>dynamicbutter</Authors>
     <Description>Provides classes that support regular expression searches of gigantic files</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
