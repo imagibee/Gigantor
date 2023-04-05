@@ -23,5 +23,6 @@ nuget push Gigantor/bin/Release/Imagibee.Gigantor.${MYVER}.nupkg -source https:/
 nuget delete Imagibee.Gigantor ${MYVER}  -source ~/nuget
 
 (if apikey isn't saved)
+nuget setapikey ${MYKEY} -source https://api.nuget.org/v3/index.json 
 dotnet nuget push Gigantor/bin/Release/Imagibee.Gigantor.${MYVER}.nupkg --api-key ${MYKEY} --source https://api.nuget.org/v3/index.json
 

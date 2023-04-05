@@ -52,6 +52,7 @@ namespace Imagibee {
                 public string Name;
                 public string Value;
                 public IReadOnlyList<GroupData> Groups;
+                public int RegexIndex;
             }
 
             // Create a new instance to search a file with single regex
@@ -111,13 +112,9 @@ namespace Imagibee {
                     maxWorkers: maxWorkers,
                     overlap: overlap)
             {
-                matchess = new();
-                matchQueues = new();
+                matches = new();
+                matchQueue = new();
                 this.regexs = regexs;
-                for (var i = 0; i < regexs.Count; i++) {
-                    matchQueues.Add(new ConcurrentQueue<MatchData>());
-                    matchess.Add(new List<MatchData>());
-                }
                 this.maxMatchCount = maxMatchCount;
             }
 
@@ -178,13 +175,9 @@ namespace Imagibee {
                     maxWorkers: maxWorkers,
                     overlap: overlap)
             {
-                matchess = new();
-                matchQueues = new();
+                matches = new();
+                matchQueue = new();
                 this.regexs = regexs;
-                for (var i = 0; i < regexs.Count; i++) {
-                    matchQueues.Add(new ConcurrentQueue<MatchData>());
-                    matchess.Add(new List<MatchData>());
-                }
                 this.maxMatchCount = maxMatchCount;
                 base.Stream = stream;
             }
@@ -193,12 +186,8 @@ namespace Imagibee {
             public override void Start()
             {
                 if (!Running) {
-                    foreach (var matches in matchess) {
-                        matches.Clear();
-                    }
-                    foreach (var matchQueue in matchQueues) {
-                        matchQueue.Clear();
-                    }
+                    matches.Clear();
+                    matchQueue.Clear();
                     matchCount = 0;
                     base.Start();
                 }
@@ -208,21 +197,18 @@ namespace Imagibee {
             protected override void Finish()
             {
                 var dedupedMatchCount = 0;
-                for (var i = 0; i < regexs.Count; i++) {
-                    HashSet<long> matchPositions = new();
-                    var matches = matchess[i];
-                    var matchQueue = matchQueues[i];
-                    while (matchQueue.TryDequeue(out MatchData result)) {
-                        // Ignore duplicates
-                        if (!matchPositions.Contains(result.StartFpos)) {
-                            matches.Add(result);
-                            matchPositions.Add(result.StartFpos);
-                        }
+                HashSet<long> matchPositions = new();
+                var matchQueue = this.matchQueue;
+                while (matchQueue.TryDequeue(out MatchData result)) {
+                    // Ignore duplicates
+                    if (!matchPositions.Contains(result.StartFpos)) {
+                        matches.Add(result);
+                        matchPositions.Add(result.StartFpos);
                     }
-                    //matches = matches.OrderBy(x => x.StartFpos).ToList();
-                    matches.Sort((a, b) => a.StartFpos.CompareTo(b.StartFpos));
-                    dedupedMatchCount += matches.Count;
                 }
+                //matches = matches.OrderBy(x => x.StartFpos).ToList();
+                matches.Sort((a, b) => a.StartFpos.CompareTo(b.StartFpos));
+                dedupedMatchCount += matches.Count;
                 // Adjust matchCount after dedup
                 matchCount = dedupedMatchCount;
                 // Adjust byte count for overlap
@@ -231,13 +217,13 @@ namespace Imagibee {
 
             // Return the MatchData of the completed search
             // regexIndex - refers to the index of the regex when multiple regex are searched
-            public IReadOnlyList<MatchData> GetMatchData(int regexIndex = 0)
+            public IReadOnlyList<MatchData> GetMatchData()
             {
                 if (Running) {
                     return new List<MatchData>().AsReadOnly();
                 }
                 else {
-                    return matchess[regexIndex].AsReadOnly();
+                    return matches.AsReadOnly();
                 }
             }
 
@@ -263,7 +249,7 @@ namespace Imagibee {
                 if (partitionMatches.Count > 0) {
                     for (int i = 0; i < partitionMatches.Count; i++) {
                         System.Text.RegularExpressions.Match match = partitionMatches[i];
-                        if (match != null && matchQueues[regexIndex].Count < maxMatchCount) {
+                        if (match != null && matchQueue.Count < maxMatchCount) {
                             var groups = new List<GroupData>();
                             for (var j=0; j<match.Groups.Count; j++)  {
                                 var group = match.Groups[j];
@@ -286,13 +272,14 @@ namespace Imagibee {
                                         Captures = cd.AsReadOnly(),
                                     });
                             }
-                            matchQueues[regexIndex].Enqueue(
+                            matchQueue.Enqueue(
                                 new MatchData()
                                 {
                                     StartFpos = data.StartFpos + match.Index,
                                     Name = match.Name,
                                     Value = match.Value,
                                     Groups = groups.AsReadOnly(),
+                                    RegexIndex = regexIndex,
                                 });
                         }
                     }
@@ -300,8 +287,8 @@ namespace Imagibee {
             }
 
             // private data
-            readonly List<ConcurrentQueue<MatchData>> matchQueues;
-            readonly List<List<MatchData>> matchess;
+            readonly ConcurrentQueue<MatchData> matchQueue;
+            readonly List<MatchData> matches;
             readonly List<System.Text.RegularExpressions.Regex> regexs;
             readonly int maxMatchCount;
             long matchCount;

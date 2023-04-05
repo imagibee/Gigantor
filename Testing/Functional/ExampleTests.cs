@@ -73,39 +73,37 @@ namespace Testing {
             }
 
             // Display results
-            for (var j = 0; j < regexs.Count; j++) {
-                Console.WriteLine($"Found {searcher.GetMatchData(j).Count} matches for regex {j} ...");
-                if (searcher.GetMatchData(j).Count != 0) {
-                    var matchDatas = searcher.GetMatchData(j);
-                    for (var i = 0; i < matchDatas.Count; i++) {
-                        var matchData = matchDatas[i];
-                        Console.WriteLine(
-                            $"[{i}]({matchData.Value}) ({matchData.Name}) " +
-                            $"line {indexer.LineFromPosition(matchData.StartFpos)} " +
-                            $"fpos {matchData.StartFpos}");
-                    }
+            Console.WriteLine($"Found {searcher.GetMatchData().Count} matches for regex ...");
+            if (searcher.GetMatchData().Count != 0) {
+                var matchDatas = searcher.GetMatchData();
+                for (var i = 0; i < matchDatas.Count; i++) {
+                    var matchData = matchDatas[i];
+                    Console.WriteLine(
+                        $"[{i}]({matchData.Value}) ({matchData.Name}) " +
+                        $"line {indexer.LineFromPosition(matchData.StartFpos)} " +
+                        $"fpos {matchData.StartFpos}");
+                }
 
-                    // Get the line of the 1st match
-                    var matchLine = indexer.LineFromPosition(
-                        searcher.GetMatchData(j)[0].StartFpos);
+                // Get the line of the 1st match
+                var matchLine = indexer.LineFromPosition(
+                    searcher.GetMatchData()[0].StartFpos);
 
-                    // Open the searched file for reading
-                    using System.IO.FileStream fileStream = new(enwik9Path, FileMode.Open);
-                    Imagibee.Gigantor.StreamReader gigantorReader = new(fileStream);
+                // Open the searched file for reading
+                using System.IO.FileStream fileStream = new(enwik9Path, FileMode.Open);
+                Imagibee.Gigantor.StreamReader gigantorReader = new(fileStream);
 
-                    // Seek to the first line we want to read
-                    var contextLines = 3;
-                    fileStream.Seek(indexer.PositionFromLine(
-                        matchLine - contextLines), SeekOrigin.Begin);
+                // Seek to the first line we want to read
+                var contextLines = 3;
+                fileStream.Seek(indexer.PositionFromLine(
+                    matchLine - contextLines), SeekOrigin.Begin);
 
-                    // Read and display a few lines around the match
-                    for (var line = matchLine - contextLines;
-                        line <= matchLine + contextLines;
-                        line++) {
-                        Console.WriteLine(
-                            $"[{line}]({indexer.PositionFromLine(line)})  " +
-                            gigantorReader.ReadLine());
-                    }
+                // Read and display a few lines around the match
+                for (var line = matchLine - contextLines;
+                    line <= matchLine + contextLines;
+                    line++) {
+                    Console.WriteLine(
+                        $"[{line}]({indexer.PositionFromLine(line)})  " +
+                        gigantorReader.ReadLine());
                 }
             }
         }
