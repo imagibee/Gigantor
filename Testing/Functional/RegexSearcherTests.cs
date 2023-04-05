@@ -171,6 +171,42 @@ namespace Testing {
         }
 
         [Test]
+        public void ReplaceTest()
+        {
+            AutoResetEvent progress = new(false);
+            const string pattern = @"unicorn";
+            Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            RegexSearcher searcher = new(
+                enwik9, regex, progress);
+            Background.StartAndWait(
+                searcher,
+                progress,
+                (_) => { },
+                1000);
+            Assert.AreEqual(true, searcher.Error == "");
+            var outputPath = $"{enwik9}-unicorn";
+            using System.IO.FileStream output = File.Create(outputPath);
+            searcher.Replace(output, (_) => { return "imagicorn"; });
+            output.Close();
+            searcher = new(
+                outputPath,
+                new List<Regex>() { regex, new Regex("imagicorn", RegexOptions.Compiled) },
+                progress);
+            Background.StartAndWait(
+                searcher,
+                progress,
+                (_) => { },
+                1000);
+            Assert.AreEqual(true, searcher.Error == "");
+            Assert.AreEqual(531, searcher.MatchCount);
+            Assert.AreEqual(531, searcher.GetMatchData().Count);
+            foreach (var match in searcher.GetMatchData()) {
+                Assert.AreEqual(1, match.RegexIndex);
+            }
+            Assert.AreEqual(1e9 + 531 * 2, Utilities.FileByteCount(outputPath)); ;
+        }
+
+        [Test]
         public void DedupTest()
         {
             AutoResetEvent progress = new(false);

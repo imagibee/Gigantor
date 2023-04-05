@@ -9,17 +9,20 @@ using System.Net;
 using System.Diagnostics;
 using NUnit.Framework;
 using Imagibee.Gigantor;
+using Microsoft.VisualStudio.TestPlatform.Utilities;
 
 namespace Testing {
     public class ExampleTests {
         string enwik9Path = "";
         string biblePath = "";
+        string teaPath = "";
 
         [SetUp]
         public void Setup()
         {
             enwik9Path = Utilities.GetEnwik9();
             biblePath = Utilities.GetGutenbergBible();
+            teaPath = Path.Combine(Utilities.GetBenchmarkPath(), "enwik9tea");
         }
 
         [Test]
@@ -106,6 +109,16 @@ namespace Testing {
                         gigantorReader.ReadLine());
                 }
             }
+
+            // Replace matches that contain "coffee" with "tea"
+            searcher.Replace(
+                File.Create(teaPath),
+                (match) => {
+                    if (match.Value.Contains("coffee")) {
+                        return "tea";
+                    }
+                    return match.Value;
+                });
         }
 
         [Test]
@@ -136,6 +149,50 @@ namespace Testing {
             Assert.AreEqual("", Background.AnyError(processes));
             Assert.AreEqual(true, Background.AnyCancelled(processes));
         }
+
+        // Don't run, just compile
+        public void IndexerExample()
+        {
+            AutoResetEvent progress = new(false);
+
+            // Create the indexer
+            LineIndexer indexer = new("myfile", progress);
+
+            // Do the indexing
+            Imagibee.Gigantor.Background.StartAndWait(indexer, progress, (_) => {});
+
+            // Use indexer to print the middle line
+            using System.IO.FileStream fs = new("myfile", FileMode.Open);
+            Imagibee.Gigantor.StreamReader reader = new(fs);
+            fs.Seek(indexer.PositionFromLine(indexer.LineCount / 2), SeekOrigin.Begin);
+            Console.WriteLine(reader.ReadLine());
+        }
+
+        // Don't run, just compile
+        public void SearchReplaceExample()
+        {
+            AutoResetEvent progress = new(false);
+
+            // Create a regular expression to match urls
+            System.Text.RegularExpressions.Regex regex = new(
+                @"/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#()?&//=]*)/",
+                RegexOptions.Compiled);
+
+            // Create the searcher
+            Imagibee.Gigantor.RegexSearcher searcher = new("myfile", regex, progress);
+
+            // Do the search
+            Imagibee.Gigantor.Background.StartAndWait(searcher, progress, (_) => { });
+
+            foreach (var match in searcher.GetMatchData()) {
+                // Do something with the matches
+            }
+
+            // Replace all the urls with stackoverflow.com in a new file
+            using System.IO.FileStream output = File.Create("myfile2");
+            searcher.Replace(output, (match) => { return "https://www.stackoverflow.com"; }); 
+        }
+
 
         //// https://stackoverflow.com/questions/60707118/fast-search-in-a-large-text-file
         //public List<string> Search(string path, string searchKey)

@@ -50,7 +50,7 @@ Imagibee.Gigantor.Background.StartAndWait(
 
 
 ## Example 3 - a more comprehensive example
-Here is a more comprehensive example that shows using search and line indexing simultaneously to search a uncompressed file and then read several lines around a match.
+Here is a more comprehensive example that shows using search and line indexing simultaneously to search a uncompressed file and then read several lines around a match and finally conditionally replace some of the matches.
 
 ```csharp
 // The regular expressions for the search
@@ -136,6 +136,16 @@ for (var j = 0; j < regexs.Count; j++) {
         }
     }
 }
+
+// Replace matches that contain "coffee" with "tea"
+searcher.Replace(
+    File.Create(teaPath),
+    (match) => {
+        if (match.Value.Contains("coffee")) {
+            return "tea";
+        }
+        return match.Value;
+    });
 ```
 
 ## Example 3 console output

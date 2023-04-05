@@ -1,12 +1,15 @@
+using System;
+using System.Text;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.IO;
+using System.Text.RegularExpressions;
 
 namespace Imagibee {
     namespace Gigantor {
         //
-        // Fast regex searching of gigantic files
+        // Fast regex search/replace of gigantic files
         //
         // The search process runs in the background, seperating the file into
         // chunks, and searching the chunks in parallel.  The search results
@@ -215,8 +218,7 @@ namespace Imagibee {
                 Interlocked.Add(ref byteCount, overlap);
             }
 
-            // Return the MatchData of the completed search
-            // regexIndex - refers to the index of the regex when multiple regex are searched
+            // Return the MatchData of the completed search sorted by fpos
             public IReadOnlyList<MatchData> GetMatchData()
             {
                 if (Running) {
@@ -224,6 +226,37 @@ namespace Imagibee {
                 }
                 else {
                     return matches.AsReadOnly();
+                }
+            }
+
+            // Replace matches after a completed search
+            //
+            // Data in Path that is between matches is copied as-is to the output stream.
+            // When a match is encountered matchEvaluator is called to determine how to
+            // replace the match.  To erase the match the matchEvaluator should return an
+            // empty string.  To overwrite the match with a new value the matchEvaluator
+            // should return the new value.  To keep the existing match value the
+            // matchEvaluator should return the existing match value.  Only works for
+            // file mode searches.
+            //
+            // output - the open output stream to receive the data
+            // matchEvaluator - callback to handle replacements
+            // encoding - the encoding of the replacement strings, defaults to UTF8
+            public void Replace(Stream output, Func<MatchData, string> matchEvaluator, Encoding? encoding = null)
+            {
+                encoding ??= Encoding.UTF8;
+                const int bufSize = 128 * 1024 * 1024;
+                if (!Running && Stream == null) {
+                    var buf = new byte[bufSize];
+                    using System.IO.FileStream input = Imagibee.Gigantor.FileStream.Create(Path, bufSize);
+                    long endPos = input.Seek(0, SeekOrigin.End);
+                    long readPos = input.Seek(0, SeekOrigin.Begin);
+                    foreach (var match in matches) {
+                        CopyBetweenMatches(buf, input, output, match.StartFpos);
+                        CopyAtMatch(output, matchEvaluator(match), encoding);
+                        input.Position += match.Value.Length;
+                    }
+                    CopyBetweenMatches(buf, input, output, endPos);
                 }
             }
 
@@ -284,6 +317,20 @@ namespace Imagibee {
                         }
                     }
                 }
+            }
+
+            void CopyBetweenMatches(byte[] buf, Stream input, Stream output, long endPos)
+            {
+                while (input.Position < endPos) {
+                    int copySize = (int)Math.Min(endPos - input.Position, buf.Length);
+                    input.Read(buf, 0, copySize);
+                    output.Write(buf, 0, copySize);
+                }
+            }
+
+            void CopyAtMatch(Stream output, string replacement, Encoding encoding)
+            {
+                output.Write(encoding.GetBytes(replacement));
             }
 
             // private data
