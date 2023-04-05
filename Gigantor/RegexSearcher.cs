@@ -1,12 +1,15 @@
+using System;
+using System.Text;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.IO;
+using System.Text.RegularExpressions;
 
 namespace Imagibee {
     namespace Gigantor {
         //
-        // Fast regex searching of gigantic files
+        // Fast regex search/replace of gigantic files
         //
         // The search process runs in the background, seperating the file into
         // chunks, and searching the chunks in parallel.  The search results
@@ -52,6 +55,7 @@ namespace Imagibee {
                 public string Name;
                 public string Value;
                 public IReadOnlyList<GroupData> Groups;
+                public int RegexIndex;
             }
 
             // Create a new instance to search a file with single regex
@@ -111,13 +115,9 @@ namespace Imagibee {
                     maxWorkers: maxWorkers,
                     overlap: overlap)
             {
-                matchess = new();
-                matchQueues = new();
+                matches = new();
+                matchQueue = new();
                 this.regexs = regexs;
-                for (var i = 0; i < regexs.Count; i++) {
-                    matchQueues.Add(new ConcurrentQueue<MatchData>());
-                    matchess.Add(new List<MatchData>());
-                }
                 this.maxMatchCount = maxMatchCount;
             }
 
@@ -178,13 +178,9 @@ namespace Imagibee {
                     maxWorkers: maxWorkers,
                     overlap: overlap)
             {
-                matchess = new();
-                matchQueues = new();
+                matches = new();
+                matchQueue = new();
                 this.regexs = regexs;
-                for (var i = 0; i < regexs.Count; i++) {
-                    matchQueues.Add(new ConcurrentQueue<MatchData>());
-                    matchess.Add(new List<MatchData>());
-                }
                 this.maxMatchCount = maxMatchCount;
                 base.Stream = stream;
             }
@@ -193,12 +189,8 @@ namespace Imagibee {
             public override void Start()
             {
                 if (!Running) {
-                    foreach (var matches in matchess) {
-                        matches.Clear();
-                    }
-                    foreach (var matchQueue in matchQueues) {
-                        matchQueue.Clear();
-                    }
+                    matches.Clear();
+                    matchQueue.Clear();
                     matchCount = 0;
                     base.Start();
                 }
@@ -208,36 +200,63 @@ namespace Imagibee {
             protected override void Finish()
             {
                 var dedupedMatchCount = 0;
-                for (var i = 0; i < regexs.Count; i++) {
-                    HashSet<long> matchPositions = new();
-                    var matches = matchess[i];
-                    var matchQueue = matchQueues[i];
-                    while (matchQueue.TryDequeue(out MatchData result)) {
-                        // Ignore duplicates
-                        if (!matchPositions.Contains(result.StartFpos)) {
-                            matches.Add(result);
-                            matchPositions.Add(result.StartFpos);
-                        }
+                HashSet<long> matchPositions = new();
+                var matchQueue = this.matchQueue;
+                while (matchQueue.TryDequeue(out MatchData result)) {
+                    // Ignore duplicates
+                    if (!matchPositions.Contains(result.StartFpos)) {
+                        matches.Add(result);
+                        matchPositions.Add(result.StartFpos);
                     }
-                    //matches = matches.OrderBy(x => x.StartFpos).ToList();
-                    matches.Sort((a, b) => a.StartFpos.CompareTo(b.StartFpos));
-                    dedupedMatchCount += matches.Count;
                 }
+                //matches = matches.OrderBy(x => x.StartFpos).ToList();
+                matches.Sort((a, b) => a.StartFpos.CompareTo(b.StartFpos));
+                dedupedMatchCount += matches.Count;
                 // Adjust matchCount after dedup
                 matchCount = dedupedMatchCount;
                 // Adjust byte count for overlap
                 Interlocked.Add(ref byteCount, overlap);
             }
 
-            // Return the MatchData of the completed search
-            // regexIndex - refers to the index of the regex when multiple regex are searched
-            public IReadOnlyList<MatchData> GetMatchData(int regexIndex = 0)
+            // Return the MatchData of the completed search sorted by fpos
+            public IReadOnlyList<MatchData> GetMatchData()
             {
                 if (Running) {
                     return new List<MatchData>().AsReadOnly();
                 }
                 else {
-                    return matchess[regexIndex].AsReadOnly();
+                    return matches.AsReadOnly();
+                }
+            }
+
+            // Replace matches after a completed search
+            //
+            // Data in Path that is between matches is copied as-is to the output stream.
+            // When a match is encountered matchEvaluator is called to determine how to
+            // replace the match.  To erase the match the matchEvaluator should return an
+            // empty string.  To overwrite the match with a new value the matchEvaluator
+            // should return the new value.  To keep the existing match value the
+            // matchEvaluator should return the existing match value.  Only works for
+            // file mode searches.
+            //
+            // output - the open output stream to receive the data
+            // matchEvaluator - callback to handle replacements
+            // encoding - the encoding of the replacement strings, defaults to UTF8
+            public void Replace(Stream output, Func<MatchData, string> matchEvaluator, Encoding? encoding = null)
+            {
+                encoding ??= Encoding.UTF8;
+                const int bufSize = 128 * 1024 * 1024;
+                if (!Running && Stream == null) {
+                    var buf = new byte[bufSize];
+                    using System.IO.FileStream input = Imagibee.Gigantor.FileStream.Create(Path, bufSize);
+                    long endPos = input.Seek(0, SeekOrigin.End);
+                    long readPos = input.Seek(0, SeekOrigin.Begin);
+                    foreach (var match in matches) {
+                        CopyBetweenMatches(buf, input, output, match.StartFpos);
+                        CopyAtMatch(output, matchEvaluator(match), encoding);
+                        input.Position += match.Value.Length;
+                    }
+                    CopyBetweenMatches(buf, input, output, endPos);
                 }
             }
 
@@ -263,7 +282,7 @@ namespace Imagibee {
                 if (partitionMatches.Count > 0) {
                     for (int i = 0; i < partitionMatches.Count; i++) {
                         System.Text.RegularExpressions.Match match = partitionMatches[i];
-                        if (match != null && matchQueues[regexIndex].Count < maxMatchCount) {
+                        if (match != null && matchQueue.Count < maxMatchCount) {
                             var groups = new List<GroupData>();
                             for (var j=0; j<match.Groups.Count; j++)  {
                                 var group = match.Groups[j];
@@ -286,22 +305,37 @@ namespace Imagibee {
                                         Captures = cd.AsReadOnly(),
                                     });
                             }
-                            matchQueues[regexIndex].Enqueue(
+                            matchQueue.Enqueue(
                                 new MatchData()
                                 {
                                     StartFpos = data.StartFpos + match.Index,
                                     Name = match.Name,
                                     Value = match.Value,
                                     Groups = groups.AsReadOnly(),
+                                    RegexIndex = regexIndex,
                                 });
                         }
                     }
                 }
             }
 
+            void CopyBetweenMatches(byte[] buf, Stream input, Stream output, long endPos)
+            {
+                while (input.Position < endPos) {
+                    int copySize = (int)Math.Min(endPos - input.Position, buf.Length);
+                    input.Read(buf, 0, copySize);
+                    output.Write(buf, 0, copySize);
+                }
+            }
+
+            void CopyAtMatch(Stream output, string replacement, Encoding encoding)
+            {
+                output.Write(encoding.GetBytes(replacement));
+            }
+
             // private data
-            readonly List<ConcurrentQueue<MatchData>> matchQueues;
-            readonly List<List<MatchData>> matchess;
+            readonly ConcurrentQueue<MatchData> matchQueue;
+            readonly List<MatchData> matches;
             readonly List<System.Text.RegularExpressions.Regex> regexs;
             readonly int maxMatchCount;
             long matchCount;

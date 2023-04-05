@@ -102,28 +102,6 @@ namespace NugetTesting {
             }
         }
 
-        // Don't run, just compile
-        public void IndexerExample()
-        {
-            AutoResetEvent progress = new(false);
-
-            // Create the indexer
-            LineIndexer indexer = new("myfile", progress);
-
-            // Do the indexing
-            Imagibee.Gigantor.Background.StartAndWait(
-            indexer,
-                progress,
-                (_) => { Console.Write("."); },
-                1000);
-
-            // Use indexer to print the middle line
-            using System.IO.FileStream fs = new("myfile", FileMode.Open);
-            Imagibee.Gigantor.StreamReader reader = new(fs);
-            fs.Seek(indexer.PositionFromLine(indexer.LineCount / 2), SeekOrigin.Begin);
-            Console.WriteLine(reader.ReadLine());
-        }
-
         [Test]
         public void MixedCancelTest()
         {
@@ -131,7 +109,7 @@ namespace NugetTesting {
             Regex regex = new(
                 pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
             AutoResetEvent progress = new(false);
-            LineIndexer indexer = new(biblePath, progress);
+            LineIndexer indexer = new(enwik9Path, progress);
             RegexSearcher searcher = new(
                 biblePath, regex, progress);
             Console.WriteLine($"Searching ...");

@@ -1,8 +1,8 @@
 # Gigantor
-Boosts regular expression performance, and adds support for using gigantic files and streams
+Boosts regular expression search/replace performance including support for gigantic files and streams
 
 It solves the following problems:
-* file exceeds the size of memory
+* search/replace of gigantic files that exceed RAM
 * CPUs are under-utilized
 * main thread is unresponsive
 * searching streams
@@ -11,7 +11,7 @@ It solves the following problems:
 The approach is to partition the data into chunks which are simultaneously processed on multiple threads.  Since processing takes place on worker threads, the main thread  remains responsive.  Since the chunks are reasonably sized it does not matter if the whole file can fit into memory.
 
 ## [RegexSearcher](https://github.com/imagibee/Gigantor/blob/main/Gigantor/RegexSearcher.cs)
-`RegexSearcher` is the class that boosts regular expression performance for gigantic files or streams.  Search was [benchmarked](https://github.com/imagibee/Gigantor/blob/main/Docs/Benchmarks.md#search-vs-buffer-size) at about 2.7 Gigabyte/s which was roughly 4x faster than the single threaded baseline.  It depends on a [System.Text.RegularExpressions.Regex](https://learn.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.regex?view=net-7.0) to do the searching of the partitions.  It uses an overlap to handle matches that fall on partition boundaries.  De-duping of the overlap regions is performed automatically at the end of the search so that the final results are free of duplicates.  Performance can be further enhanced by simultaneously searching multiple regular expressions or files for use cases that have these dimensions.
+`RegexSearcher` is the class that boosts regular expression search/replace performance for gigantic files or streams.  Search was [benchmarked](https://github.com/imagibee/Gigantor/blob/main/Docs/Benchmarks.md#search-vs-buffer-size) at about 2.7 Gigabyte/s which was roughly 4x faster than the single threaded baseline.  It depends on a [System.Text.RegularExpressions.Regex](https://learn.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.regex?view=net-7.0) to do the searching of the partitions.  It uses an overlap to handle matches that fall on partition boundaries.  De-duping of the overlap regions is performed automatically at the end of the search so that the final results are free of duplicates.  Performance can be further enhanced by simultaneously searching multiple regular expressions or files for use cases that have these dimensions.
 
 ```csharp
 // Create a regular expression to match urls
@@ -23,17 +23,15 @@ System.Text.RegularExpressions.Regex regex = new(
 Imagibee.Gigantor.RegexSearcher searcher = new("myfile", regex, progress);
 
 // Do the search
-Imagibee.Gigantor.Background.StartAndWait(
-    searcher,
-    progress,
-    (_) => { Console.Write("."); },
-    1000);
+Imagibee.Gigantor.Background.StartAndWait(searcher, progress, (_) => { });
 
-// Do something with the matches
 foreach (var match in searcher.GetMatchData()) {
-    ...
+    // Do something with the matches
 }
 
+// Replace all the urls with stackoverflow.com in a new file
+using System.IO.FileStream output = File.Create("myfile2");
+searcher.Replace(output, (match) => { return "https://www.stackoverflow.com"; }); 
 ```
 
 ## [LineIndexer](https://github.com/imagibee/Gigantor/blob/main/Gigantor/LineIndexer.cs)
@@ -44,18 +42,13 @@ foreach (var match in searcher.GetMatchData()) {
 LineIndexer indexer = new("myfile", progress);
 
 // Do the indexing
-Imagibee.Gigantor.Background.StartAndWait(
-    indexer,
-    progress,
-    (_) => { Console.Write("."); },
-    1000);
+Imagibee.Gigantor.Background.StartAndWait(indexer, progress, (_) => {});
 
 // Use indexer to print the middle line
-using System.IO.FileStream stream = new("myfile", FileMode.Open);
-Imagibee.Gigantor.StreamReader reader = new(stream);
-stream.Seek(indexer.PositionFromLine(indexer.LineCount / 2), SeekOrigin.Begin);
+using System.IO.FileStream fs = new("myfile", FileMode.Open);
+Imagibee.Gigantor.StreamReader reader = new(fs);
+fs.Seek(indexer.PositionFromLine(indexer.LineCount / 2), SeekOrigin.Begin);
 Console.WriteLine(reader.ReadLine());
-
 ```
 
 ## Input Data

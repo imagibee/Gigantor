@@ -96,8 +96,9 @@ namespace Testing {
         {
             AutoResetEvent progress = new(false);
             const string pattern = @"son\s*of\s*man";
+            const string pattern1 = @"eye\s*of\s*a\s*needle";
             Regex regex1 = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
-            Regex regex2 = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            Regex regex2 = new(pattern1, RegexOptions.IgnoreCase | RegexOptions.Compiled);
             RegexSearcher searcher = new(
                 biblePath, new List<Regex>() { regex1, regex2 }, progress, maxMatchCount, partitionSize, maxWorkers);
             Background.StartAndWait(
@@ -107,9 +108,19 @@ namespace Testing {
                 1000);
             Console.WriteLine(searcher.Error);
             Assert.AreEqual(true, searcher.Error == "");
-            Assert.AreEqual(420, searcher.MatchCount);
-            Assert.AreEqual(210, searcher.GetMatchData().Count);
-            Assert.AreEqual(210, searcher.GetMatchData(1).Count);
+            Assert.AreEqual(212, searcher.MatchCount);
+            var c1 = 0;
+            var c2 = 0;
+            foreach (var m in searcher.GetMatchData()) {
+                if (m.RegexIndex == 0) {
+                    c1++;
+                }
+                else if (m.RegexIndex == 1) {
+                    c2++;
+                }
+            }
+            Assert.AreEqual(210, c1);
+            Assert.AreEqual(2, c2);
             Assert.AreEqual(4457889, searcher.ByteCount);
         }
 
@@ -157,6 +168,42 @@ namespace Testing {
             Assert.AreEqual(true, searcher.Error == "");
             Assert.AreEqual(209, searcher.MatchCount);
             Assert.AreEqual(209, searcher.GetMatchData().Count);
+        }
+
+        [Test]
+        public void ReplaceTest()
+        {
+            AutoResetEvent progress = new(false);
+            const string pattern = @"unicorn";
+            Regex regex = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            RegexSearcher searcher = new(
+                enwik9, regex, progress);
+            Background.StartAndWait(
+                searcher,
+                progress,
+                (_) => { },
+                1000);
+            Assert.AreEqual(true, searcher.Error == "");
+            var outputPath = $"{enwik9}-unicorn";
+            using System.IO.FileStream output = File.Create(outputPath);
+            searcher.Replace(output, (_) => { return "imagicorn"; });
+            output.Close();
+            searcher = new(
+                outputPath,
+                new List<Regex>() { regex, new Regex("imagicorn", RegexOptions.Compiled) },
+                progress);
+            Background.StartAndWait(
+                searcher,
+                progress,
+                (_) => { },
+                1000);
+            Assert.AreEqual(true, searcher.Error == "");
+            Assert.AreEqual(531, searcher.MatchCount);
+            Assert.AreEqual(531, searcher.GetMatchData().Count);
+            foreach (var match in searcher.GetMatchData()) {
+                Assert.AreEqual(1, match.RegexIndex);
+            }
+            Assert.AreEqual(1e9 + 531 * 2, Utilities.FileByteCount(outputPath)); ;
         }
 
         [Test]
@@ -265,8 +312,9 @@ namespace Testing {
         {
             AutoResetEvent progress = new(false);
             const string pattern = @"comfort\s*food";
+            const string pattern1 = @"needle\s*in\s*a\s*haystack";
             Regex regex1 = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
-            Regex regex2 = new(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            Regex regex2 = new(pattern1, RegexOptions.IgnoreCase | RegexOptions.Compiled);
             using var fileStream = new System.IO.FileStream(
                 enwik9,
                 FileMode.Open,
@@ -283,9 +331,20 @@ namespace Testing {
                 1000);
             Console.WriteLine(searcher.Error);
             Assert.AreEqual(true, searcher.Error == "");
-            Assert.AreEqual(22, searcher.MatchCount);
-            Assert.AreEqual(11, searcher.GetMatchData().Count);
-            Assert.AreEqual(11, searcher.GetMatchData(1).Count);
+            Assert.AreEqual(15, searcher.MatchCount);
+            Assert.AreEqual(15, searcher.GetMatchData().Count);
+            var c1 = 0;
+            var c2 = 0;
+            foreach (var m in searcher.GetMatchData()) {
+                if (m.RegexIndex == 0) {
+                    c1++;
+                }
+                else if (m.RegexIndex == 1) {
+                    c2++;
+                }
+            }
+            Assert.AreEqual(11, c1);
+            Assert.AreEqual(4, c2);
             Assert.AreEqual(1000000000, searcher.ByteCount);
         }
 
