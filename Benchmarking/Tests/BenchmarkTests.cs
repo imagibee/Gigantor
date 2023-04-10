@@ -547,6 +547,46 @@ namespace BenchmarkTesting {
                 }
             }
         }
+
+        [Test, Order(11)]
+        public void FileURLSearchReplaceTest()
+        {
+            Stopwatch stopwatch = new();
+            AutoResetEvent progress = new(false);
+            List<Tuple<int, int>> cases = new()
+            {
+                new Tuple<int, int>(256 * 1024, 1000),
+            };
+            foreach (var c in cases) {
+                RegexSearcher searcher = new(
+                    testPath,
+                    new Regex("unicorn", RegexOptions.Compiled),
+                    progress,
+                    partitionSize: c.Item1,
+                    maxWorkers: c.Item2,
+                    maxMatchCount: 100000);
+                stopwatch.Start();
+                Background.StartAndWait(
+                    searcher,
+                    progress,
+                    (_) => { },
+                    1000);
+                searcher.Replace(
+                    File.Create(Path.Combine(Utilities.GetBenchmarkPath(), "replace")),
+                    (_) => { return "imagicorn"; });
+                stopwatch.Stop();
+                Console.WriteLine($"{TestContext.CurrentContext.Test.Name} " +
+                    $"{searcher.ByteCount / 1e6} MByte " +
+                    $"file with {c.Item1} byte buffer size");
+                Console.WriteLine(
+                    $"{c.Item2} threads: " +
+                    $"{searcher.ByteCount / stopwatch.Elapsed.TotalSeconds / 1e6} MBps " +
+                    $"with {searcher.MatchCount} matches");
+                stopwatch.Reset();
+                Assert.AreEqual("", searcher.Error);
+            }
+        }
+
     }
 }
 
