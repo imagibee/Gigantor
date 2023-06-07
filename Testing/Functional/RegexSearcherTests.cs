@@ -84,7 +84,7 @@ namespace Testing {
             Assert.AreEqual(true, searcher.Error == "");
             Assert.AreEqual(210, searcher.MatchCount);
             Assert.AreEqual(210, searcher.GetMatchData().Count);
-            Assert.AreEqual(4457889, searcher.ByteCount);
+            Assert.AreEqual(Utilities.FileByteCount(biblePath), searcher.ByteCount);
             foreach (var matchData in searcher.GetMatchData()) {
                 Logger.Log($"{matchData.Value} named '{matchData.Name}' " +
                     $"at {matchData.StartFpos}]");
@@ -121,7 +121,7 @@ namespace Testing {
             }
             Assert.AreEqual(210, c1);
             Assert.AreEqual(2, c2);
-            Assert.AreEqual(4457889, searcher.ByteCount);
+            Assert.AreEqual(Utilities.FileByteCount(biblePath), searcher.ByteCount);
         }
 
         [Test]
