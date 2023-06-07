@@ -169,17 +169,22 @@ namespace Testing {
         }
 
         // Don't run, just compile
+        //[Test]
         public void SearchReplaceExample()
         {
+            var srcPath = enwik9Path;
+            var destPath = $"{enwik9Path}-r";
+            Console.WriteLine($"{destPath}");
+
             AutoResetEvent progress = new(false);
 
             // Create a regular expression to match urls
             System.Text.RegularExpressions.Regex regex = new(
-                @"/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#()?&//=]*)/",
+                @"[\w]+://[^/\s?#]+[^\s?#]+(?:\?[^\s#]*)?(?:#[^\s]*)?",
                 RegexOptions.Compiled);
 
             // Create the searcher
-            Imagibee.Gigantor.RegexSearcher searcher = new("myfile", regex, progress);
+            Imagibee.Gigantor.RegexSearcher searcher = new(srcPath, regex, progress);
 
             // Do the search
             Imagibee.Gigantor.Background.StartAndWait(searcher, progress, (_) => { });
@@ -189,8 +194,8 @@ namespace Testing {
             }
 
             // Replace all the urls with stackoverflow.com in a new file
-            using System.IO.FileStream output = File.Create("myfile2");
-            searcher.Replace(output, (match) => { return "https://www.stackoverflow.com"; }); 
+            using System.IO.FileStream output = File.Create(destPath);
+            searcher.Replace(output, (match) => "https://www.stackoverflow.com"); 
         }
 
 
@@ -238,6 +243,32 @@ namespace Testing {
         //    var results = Search(path, "unicorn");
         //    stopwatch.Stop();
         //    Console.WriteLine($"found {results.Count} results in {stopwatch.Elapsed.TotalSeconds} seconds");
+        //}
+
+        //// https://stackoverflow.com/questions/69772195/how-can-i-find-and-replace-text-in-a-larger-file-150mb-250mb-with-regular-expr/75699637#75699637
+        //[Test]
+        //public void StackOverflowTest()
+        //{
+        //    var srcPath = "";
+        //    var destPath = "";
+
+        //    // Create the progress event required by Gigantor
+        //    System.Threading.AutoResetEvent progress = new(false);
+
+        //    // Create a regular expression
+        //    System.Text.RegularExpressions.Regex regex = new(
+        //        "ABC: DEF11-1111(.*?)MORE DATA(.*?)EVEN MORE DATA(.*?)\f",
+        //        RegexOptions.Compiled);
+
+        //    // Create the searcher
+        //    Imagibee.Gigantor.RegexSearcher searcher = new(srcPath, regex, progress);
+
+        //    // Do the search
+        //    Imagibee.Gigantor.Background.StartAndWait(searcher, progress, (_) => { });
+
+        //    // Add extra form feed to each match
+        //    using System.IO.FileStream output = File.Create(destPath);
+        //    searcher.Replace(output, (match) => { return $"{match.Value}\f"; } );
         //}
     }
 }
