@@ -99,7 +99,7 @@ namespace BenchmarkTesting {
     }
 
     public class BenchmarkTests {
-        const string pattern = @"/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#()?&//=]*)/";
+        const string pattern = @"[\w]+://[^/\s?#]+[^\s?#]+(?:\?[^\s#]*)?(?:#[^\s]*)?";
         string testPath = "";
         Regex regex = new(pattern, RegexOptions.Compiled);
 

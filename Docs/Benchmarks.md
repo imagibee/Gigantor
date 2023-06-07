@@ -43,7 +43,7 @@ This concludes the do-nothing read throughput comparisons.  The main purpose of 
 For all the search benchmarks the following pattern is used to find all URLs in the 32 GByte test file.
 
 ```csharp
-var pattern = @"/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#()?&//=]*)/"; 
+var pattern = @"[\w]+://[^/\s?#]+[^\s?#]+(?:\?[^\s#]*)?(?:#[^\s]*)?"; 
 ```
 The following graph compares `RegexSearcher` throughput in various modes.  The peak using multiple threads is 2708 MBytes/s with a 256 KiByte partition size which is about 4x faster than the 614 MBytes/s peak for single-threaded using a 128 MiByte partition size.
 

@@ -16,7 +16,7 @@ The approach is to partition the data into chunks which are simultaneously proce
 ```csharp
 // Create a regular expression to match urls
 System.Text.RegularExpressions.Regex regex = new(
-    @"/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#()?&//=]*)/",
+    @"[\w]+://[^/\s?#]+[^\s?#]+(?:\?[^\s#]*)?(?:#[^\s]*)?",
     RegexOptions.Compiled);
 
 // Create the searcher
