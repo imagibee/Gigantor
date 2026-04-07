@@ -1,17 +1,23 @@
 # Gigantor
-Boosts regular expression search/replace performance including support for gigantic files and streams
+Boosting performance of `System.Text.RegularExpressions.Regex`
 
-It solves the following problems:
-* search/replace of gigantic files that exceed RAM
-* CPUs are under-utilized
+It helps with the following problems:
+* searching gigantic files that exceed RAM
+* replacing matches with new text
+* poor performance due to CPU under utilization
 * main thread is unresponsive
 * searching streams
 * searching compressed data
 
-The approach is to partition the data into chunks which are simultaneously processed on multiple threads.  Since processing takes place on worker threads, the main thread  remains responsive.  Since the chunks are reasonably sized it does not matter if the whole file can fit into memory.
+The approach is to partition the data into chunks which are simultaneously processed on multiple threads.  Since processing takes place on worker threads, the main thread remains responsive.  Since the chunks are reasonably sized and the whole file does not need to fit into memory, files that exceed RAM can be processed.
 
-## [RegexSearcher](https://github.com/imagibee/Gigantor/blob/main/Gigantor/RegexSearcher.cs)
-`RegexSearcher` is the class that boosts regular expression search/replace performance for gigantic files or streams.  Search was [benchmarked](https://github.com/imagibee/Gigantor/blob/main/Docs/Benchmarks.md#search-vs-buffer-size) at about 2.7 Gigabyte/s which was roughly 4x faster than the single threaded baseline.  It depends on a [System.Text.RegularExpressions.Regex](https://learn.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.regex?view=net-7.0) to do the searching of the partitions.  It uses an overlap to handle matches that fall on partition boundaries.  De-duping of the overlap regions is performed automatically at the end of the search so that the final results are free of duplicates.  Performance can be further enhanced by simultaneously searching multiple regular expressions or files for use cases that have these dimensions.
+## API
+Here is a brief overview of the API.  For details refer to the [source code](https://github.com/imagibee/Gigantor/tree/main/Gigantor) or the [unit tests](https://github.com/imagibee/Gigantor/tree/main/Testing/Functional).
+
+### [RegexSearcher](https://github.com/imagibee/Gigantor/blob/main/Gigantor/RegexSearcher.cs)
+This class uses multi-threading to boost the performance of searches with [System.Text.RegularExpressions.Regex](https://learn.microsoft.com/en-us/dotnet/api/system.text.regularexpressions.regex?view=net-7.0) compared to to the single-threaded approach.  It also supports searching gigantic files that exceed RAM, and directly searching streams.  Roughly a 4x improvement was measured on the test system.
+
+It uses an overlap to handle matches that fall on partition boundaries.  De-duping of the overlap regions is performed automatically at the end of the search so that the final results are free of duplicates.
 
 ```csharp
 // Create a regular expression to match urls
@@ -23,7 +29,7 @@ System.Text.RegularExpressions.Regex regex = new(
 Imagibee.Gigantor.RegexSearcher searcher = new("myfile", regex, progress);
 
 // Do the search
-Imagibee.Gigantor.Background.StartAndWait(searcher, progress, (_) => { });
+Imagibee.Gigantor.Background.StartAndWait(searcher, progress, (_) => {});
 
 foreach (var match in searcher.GetMatchData()) {
     // Do something with the matches
@@ -34,8 +40,8 @@ using System.IO.FileStream output = File.Create("myfile2");
 searcher.Replace(output, (match) => { return "https://www.stackoverflow.com"; }); 
 ```
 
-## [LineIndexer](https://github.com/imagibee/Gigantor/blob/main/Gigantor/LineIndexer.cs)
-`LineIndexer` is the class that creates a mapping between line numbers and file positions for gigantic files.  Once the mapping has been created it can be used to quickly find the position at the start of a line or the line number that contains a position.  Index creation was [benchmarked](https://github.com/imagibee/Gigantor/blob/main/Docs/Benchmarks.md#indexing-vs-buffer-size) at about 2.5 Gigabyte/s which was roughly 4x faster than the single threaded baseline.
+### [LineIndexer](https://github.com/imagibee/Gigantor/blob/main/Gigantor/LineIndexer.cs)
+This class creates a mapping between line numbers and file positions for gigantic files.  Once the mapping has been created it can be used to quickly find positions at the start of a line or the line number that contains a position.
 
 ```csharp
 // Create the indexer
@@ -52,11 +58,13 @@ Console.WriteLine(reader.ReadLine());
 ```
 
 ## Input Data
-The input data can either be uncompressed files, or streams.  Files should be used when possible because they were [benchmarked](https://github.com/imagibee/Gigantor/blob/main/Docs/Benchmarks.md#search-vs-buffer-size) to be faster than streams.  However, one notable use case for streams is searching compressed data without decompressing it to disk first.
+The input data can either be uncompressed files, or streams.  Files offer better performance than streams, but streams allow searching compressed data without decompressing it to disk first.
 
-## [Examples](https://github.com/imagibee/Gigantor/blob/main/Docs/Examples.md)
+## Examples
+Here are some more detailed [examples](https://github.com/imagibee/Gigantor/blob/main/Docs/Examples.md).
 
-## [Benchmarks](https://github.com/imagibee/Gigantor/blob/main/Docs/Benchmarks.md)
+## Benchmarks
+Here is a document that discusses the [benchmarks](https://github.com/imagibee/Gigantor/blob/main/Docs/Benchmarks.md) in greater detail.
 
 ## Testing
 Prior to running the tests run `Scripts/setup` to prepare the test files.  This script creates some large files in the temporary folder which are deleted on reboot.  Once setup has been completed run `Scripts/test`.

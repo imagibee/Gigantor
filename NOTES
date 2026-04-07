@@ -8,6 +8,11 @@ Setup
 # 4) Disable Time Machine
 # 5) Disable Power Saving Mode
 
+Reminders
+---------
+Update README
+Change PackageVersion in Gigantor.csproj
+
 Testing
 -------
 Scripts/test

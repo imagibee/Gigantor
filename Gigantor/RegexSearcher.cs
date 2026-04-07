@@ -321,10 +321,23 @@ namespace Imagibee {
 
             void CopyBetweenMatches(byte[] buf, Stream input, Stream output, long endPos)
             {
-                while (input.Position < endPos) {
+                while (input.Position < endPos)
+                {
                     int copySize = (int)Math.Min(endPos - input.Position, buf.Length);
-                    input.Read(buf, 0, copySize);
+                    ReadAll(buf, input, copySize);
+                    // input.Read(buf, 0, copySize);
                     output.Write(buf, 0, copySize);
+                }
+            }
+
+            static void ReadAll(byte[] buf, Stream input, int size)
+            {
+                var count = input.Read(buf, 0, size);
+                var total = count;
+                while (count != 0 && total < size)
+                {
+                    count = input.Read(buf, count, size - count);
+                    total += count;
                 }
             }
 

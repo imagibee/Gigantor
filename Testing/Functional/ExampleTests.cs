@@ -11,8 +11,12 @@ using NUnit.Framework;
 using Imagibee.Gigantor;
 using Microsoft.VisualStudio.TestPlatform.Utilities;
 
-namespace Testing {
-    public class ExampleTests {
+#pragma warning disable NUnit2022
+
+namespace Testing
+{
+    public class ExampleTests
+    {
         string enwik9Path = "";
         string biblePath = "";
         string teaPath = "";
@@ -55,8 +59,10 @@ namespace Testing {
             Background.StartAndWait(
                 processes,
                 progress,
-                (_) => {
-                    if (stopwatch.Elapsed.TotalSeconds > 1) {
+                (_) =>
+                {
+                    if (stopwatch.Elapsed.TotalSeconds > 1)
+                    {
                         Console.Write('.');
                         stopwatch.Reset();
                     }
@@ -66,20 +72,24 @@ namespace Testing {
 
             // All done, check for errors
             var error = Background.AnyError(processes);
-            if (error.Length != 0) {
+            if (error.Length != 0)
+            {
                 throw new Exception(error);
             }
 
             // Check for cancellation
-            if (Background.AnyCancelled(processes)) {
+            if (Background.AnyCancelled(processes))
+            {
                 throw new Exception("search cancelled");
             }
 
             // Display results
             Console.WriteLine($"Found {searcher.GetMatchData().Count} matches for regex ...");
-            if (searcher.GetMatchData().Count != 0) {
+            if (searcher.GetMatchData().Count != 0)
+            {
                 var matchDatas = searcher.GetMatchData();
-                for (var i = 0; i < matchDatas.Count; i++) {
+                for (var i = 0; i < matchDatas.Count; i++)
+                {
                     var matchData = matchDatas[i];
                     Console.WriteLine(
                         $"[{i}]({matchData.Value}) ({matchData.Name}) " +
@@ -103,7 +113,8 @@ namespace Testing {
                 // Read and display a few lines around the match
                 for (var line = matchLine - contextLines;
                     line <= matchLine + contextLines;
-                    line++) {
+                    line++)
+                {
                     Console.WriteLine(
                         $"[{line}]({indexer.PositionFromLine(line)})  " +
                         gigantorReader.ReadLine());
@@ -113,8 +124,10 @@ namespace Testing {
             // Replace matches that contain "coffee" with "tea"
             searcher.Replace(
                 File.Create(teaPath),
-                (match) => {
-                    if (match.Value.Contains("coffee")) {
+                (match) =>
+                {
+                    if (match.Value.Contains("coffee"))
+                    {
                         return "tea";
                     }
                     return match.Value;
@@ -137,14 +150,15 @@ namespace Testing {
                 indexer,
                 searcher
             };
-            foreach (var process in processes) {
+            foreach (var process in processes)
+            {
                 process.Start();
             }
             Background.CancelAll(processes);
             Background.Wait(
                 processes,
                 progress,
-                (_) => {},
+                (_) => { },
                 1000);
             Assert.AreEqual("", Background.AnyError(processes));
             Assert.AreEqual(true, Background.AnyCancelled(processes));
@@ -159,7 +173,7 @@ namespace Testing {
             LineIndexer indexer = new("myfile", progress);
 
             // Do the indexing
-            Imagibee.Gigantor.Background.StartAndWait(indexer, progress, (_) => {});
+            Imagibee.Gigantor.Background.StartAndWait(indexer, progress, (_) => { });
 
             // Use indexer to print the middle line
             using System.IO.FileStream fs = new("myfile", FileMode.Open);
@@ -189,13 +203,14 @@ namespace Testing {
             // Do the search
             Imagibee.Gigantor.Background.StartAndWait(searcher, progress, (_) => { });
 
-            foreach (var match in searcher.GetMatchData()) {
+            foreach (var match in searcher.GetMatchData())
+            {
                 // Do something with the matches
             }
 
             // Replace all the urls with stackoverflow.com in a new file
             using System.IO.FileStream output = File.Create(destPath);
-            searcher.Replace(output, (match) => "https://www.stackoverflow.com"); 
+            searcher.Replace(output, (match) => "https://www.stackoverflow.com");
         }
 
 
