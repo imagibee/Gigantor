@@ -1,4 +1,15 @@
 export STARTDIR=$PWD
+export FRAMEWORK=net10.0
 cd Benchmarking/Tests/
-dotnet test -c Release --framework net7.0
+#dotnet test -c Release --framework $FRAMEWORK --filter "Name=BaselineReadThroughputTest"
+#dotnet test -c Release --framework $FRAMEWORK --filter "Name=FileReadThroughputTest"
+#dotnet test -c Release --framework $FRAMEWORK --filter "Name=StreamReadThroughputTest"
+#dotnet test -c Release --framework $FRAMEWORK --filter "Name=LineIndexingTest"
+#dotnet test -c Release --framework $FRAMEWORK --filter "Name=FileUnicornSearchTest"
+dotnet test -c Release --framework $FRAMEWORK --filter "Name=FileURLSearchTest"
+dotnet test -c Release --framework $FRAMEWORK --filter "Name=StreamURLSearchTest"
+dotnet test -c Release --framework $FRAMEWORK --filter "Name=CompressedStreamURLSearchTest"
+dotnet test -c Release --framework $FRAMEWORK --filter "Name=FileMultipleURLSearchTest"
+dotnet test -c Release --framework $FRAMEWORK --filter "Name=MultipleCompressedStreamURLSearchTest"
+dotnet test -c Release --framework $FRAMEWORK --filter "Name=FileURLSearchReplaceTest"
 cd $STARTDIR

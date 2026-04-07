@@ -5,8 +5,12 @@ using System.IO;
 using NUnit.Framework;
 using Imagibee.Gigantor;
 
-namespace Testing {
-    public class LineIndexerTests {
+#pragma warning disable NUnit2022
+
+namespace Testing
+{
+    public class LineIndexerTests
+    {
         readonly int partitionSize = 1024 * 1024;
         readonly int maxWorkers = 1;
         string enwik9Path = "";
@@ -84,7 +88,8 @@ namespace Testing {
                 new Tuple<int, string>(13147025, LINE_13147025),
                 new Tuple<int, string>(13147026, LINE_13147026),
             };
-            foreach (var t in tests) {
+            foreach (var t in tests)
+            {
                 fileStream.Seek(indexer.PositionFromLine(t.Item1), SeekOrigin.Begin);
                 Assert.AreEqual(t.Item2, streamReader.ReadLine());
             }
@@ -100,7 +105,8 @@ namespace Testing {
             Assert.AreEqual(false, indexer.Cancelled);
             using var fileStream = new System.IO.FileStream(enwik9Path, FileMode.Open, FileAccess.Read, FileShare.Read);
             var streamReader = new Imagibee.Gigantor.StreamReader(fileStream);
-            foreach (var line in new List<int>() { 1, 1515, 1516, 2989, 2990, 2991, 13147025, 13147026 }) {
+            foreach (var line in new List<int>() { 1, 1515, 1516, 2989, 2990, 2991, 13147025, 13147026 })
+            {
                 var pos = indexer.PositionFromLine(line);
                 fileStream.Seek(pos, SeekOrigin.Begin);
                 Assert.AreEqual(line, indexer.LineFromPosition(pos));

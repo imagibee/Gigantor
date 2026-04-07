@@ -3,7 +3,9 @@ export DOTNET_gcConcurrent=1
 export STARTDIR=$PWD
 export MINGB=150
 export GIGANTOR_DIR=${TMPDIR}gigantor
-mkdir $GIGANTOR_DIR
+if [ ! -d "$GIGANTOR_DIR" ]; then
+  mkdir "$GIGANTOR_DIR"
+fi
 cd $GIGANTOR_DIR
 if [ ! -f "enwik9.zip" ]; then
   wget https://archive.org/download/enwik9/enwik9.zip
@@ -37,11 +39,13 @@ if [[ ${GBAVAIL} -gt ${MINGB} ]]; then
     do
       cat enwik9.gz >> enwik9x32.gz
     done
-    for i in {1..15}
-    do
-      cp enwik9x32.gz enwik9x32-${i}.gz
-    done
   fi
+  for i in {1..15}
+  do
+    if [ ! -f "enwik9x32-${i}.gz" ]; then
+      cp enwik9x32.gz enwik9x32-${i}.gz
+    fi
+  done
 else
   echo "ERROR: ${GBAVAIL} GB available, but ${MINGB} required"
 fi

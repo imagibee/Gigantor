@@ -2,16 +2,16 @@
 
   <PropertyGroup>
     <PackageId>Imagibee.Gigantor</PackageId>
-    <PackageVersion>3.0.0</PackageVersion>
+    <PackageVersion>3.0.2</PackageVersion>
     <Authors>dynamicbutter</Authors>
-    <Description>Provides classes that support regular expression searches of gigantic files</Description>
+    <Description>Boosting performance of System.Text.RegularExpressions.Regex</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <Copyright>Copyright (c) Imagibee 2023</Copyright>
     <RepositoryUrl>https://github.com/imagibee/Gigantor</RepositoryUrl>
     <RespositoryType>git</RespositoryType>
     <PackageTags>parallel performance regex regular expression text file search decompress thread</PackageTags>
-    <TargetFrameworks>netstandard2.1;netcoreapp3.1;net5.0;net6.0;net7.0</TargetFrameworks>
+    <TargetFrameworks>netstandard2.1;netcoreapp3.1;net5.0;net6.0;net7.0;net8.0;net9.0;net10.0</TargetFrameworks>
     <CheckEolTargetFramework>false</CheckEolTargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -29,4 +29,4 @@
     <None Include="..\README.md" Pack="true" PackagePath="\" />
     <None Include="..\LICENSE" Pack="true" PackagePath="\" />
   </ItemGroup>
-</Project> 
+</Project>

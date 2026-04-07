@@ -4,8 +4,12 @@ using System.IO;
 using NUnit.Framework;
 using Imagibee.Gigantor;
 
-namespace Testing {
-    public class DuplicateCheckerTests {
+#pragma warning disable NUnit2022
+
+namespace Testing
+{
+    public class DuplicateCheckerTests
+    {
         string biblePath = "";
         string simplePath = "";
         string simplePath2 = "";

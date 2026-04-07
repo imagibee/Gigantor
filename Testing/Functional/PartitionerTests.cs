@@ -5,21 +5,28 @@ using System.IO;
 using NUnit.Framework;
 using Imagibee.Gigantor;
 
-namespace Testing {
-    public class PartitionerTests {
+#pragma warning disable NUnit2022
+
+namespace Testing
+{
+    public class PartitionerTests
+    {
         string biblePath = "";
 
         // Test class for throwing exceptions in the code path
-        public class PartitionerErrorThrower : Partitioner<PartitionData> {
+        public class PartitionerErrorThrower : Partitioner<PartitionData>
+        {
 
             private static readonly Random rand = new Random();
             [ThreadStatic] private static Random? tRand;
 
             public int Next(int a, int b)
             {
-                if (tRand == null) {
+                if (tRand == null)
+                {
                     int seed;
-                    lock (rand) {
+                    lock (rand)
+                    {
                         seed = rand.Next();
                     }
                     tRand = new Random(seed);
@@ -46,7 +53,8 @@ namespace Testing {
             {
                 //Logger.Log($"{data.Id}");
                 Thread.Sleep(Next(1, 5));
-                if (throwInMap && data.Id > startId) {
+                if (throwInMap && data.Id > startId)
+                {
                     throw new Exception($"map error {data.Id}");
                 }
                 return new PartitionData() { Id = data.Id };
@@ -54,8 +62,9 @@ namespace Testing {
 
             protected override PartitionData Join(PartitionData a, PartitionData b)
             {
-                Thread.Sleep(Next(1,5));
-                if (!throwInMap && a.Id > startId) {
+                Thread.Sleep(Next(1, 5));
+                if (!throwInMap && a.Id > startId)
+                {
                     throw new Exception($"join error {a.Id}");
                 }
                 var r = b;
@@ -77,7 +86,8 @@ namespace Testing {
         {
             const int iterations = 2;
             AutoResetEvent progress = new(false);
-            for (var i = 0; i < iterations; i++) {
+            for (var i = 0; i < iterations; i++)
+            {
                 PartitionerErrorThrower thrower = new(
                     true,
                     1,
@@ -101,7 +111,8 @@ namespace Testing {
         {
             const int iterations = 2;
             AutoResetEvent progress = new(false);
-            for (var i = 0; i < iterations; i++) {
+            for (var i = 0; i < iterations; i++)
+            {
                 PartitionerErrorThrower thrower = new(
                     false,
                     2,

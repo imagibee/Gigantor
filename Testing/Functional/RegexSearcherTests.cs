@@ -7,6 +7,8 @@ using NUnit.Framework;
 using Imagibee.Gigantor;
 using System.IO.Compression;
 
+#pragma warning disable NUnit2022
+#pragma warning disable CA2022
 
 namespace Testing {
     public class RegexSearchTests {
